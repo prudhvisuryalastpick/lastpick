@@ -92,7 +92,7 @@ export const api = {
     return live(await cached(key, 60000, () => get(`/api/offers?lat=${lat.toFixed(4)}&lng=${lng.toFixed(4)}&radius=${radiusKm}`)));
   },
   async listByPincode(pincode) { return live(await cached("pin:" + pincode, 60000, () => get(`/api/offers?pincode=${enc(pincode)}`))); },
-  async getConfig() { return cached("config", 60000, () => get("/api/config").catch(() => ({ freeMode: true }))); },
+  async getConfig() { return cached("config", 60000, () => get("/api/config").catch(() => ({ freeMode: false }))); },
   async listCities() { return cached("cities", 300000, () => get("/api/cities")); },
   async getOfferPhoto(id) { try { return (await get(`/api/offers/${enc(id)}/photo`)).photo; } catch { return null; } },
   async myArchive() { return get("/api/owner/archive"); },

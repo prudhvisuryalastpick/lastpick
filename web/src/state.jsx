@@ -68,7 +68,7 @@ export function AppProvider({ children }) {
   const [area, setAreaState] = useState(() => readArea() || { mode: "near", radius: DEFAULT_RADIUS_KM });
   const setArea = (a) => { setAreaState(a); try { localStorage.setItem("lastpick-area", JSON.stringify(a)); } catch { /* ignore */ } };
   const [locationStatus, setLocationStatus] = useState("asking"); // asking | granted | denied | unavailable
-  const [config, setConfig] = useState({ freeMode: true });
+  const [config, setConfig] = useState({ freeMode: false });
   useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
 
   const refresh = useCallback(async () => {
@@ -112,11 +112,11 @@ export function AppProvider({ children }) {
 
   const value = {
     ...state, refresh, mode, setMode, location, locationStatus, city, setCity, area, setArea, toast: setToastMsg,
-    config, setConfig, freeMode: config.freeMode,
-    // free month: customers from sign-up, businesses from verification. During free launch everyone logged in has access.
+    // There is no free version: access needs an active plan (an admin can still add extra days by hand via trialEndsAt).
+    config, setConfig, freeMode: false,
     trial: { customer: state.profile?.trialEndsAt || null, owner: state.business?.trialEndsAt || null },
-    isCustomer: !!state.session && (config.freeMode || !!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
-    isOwner: !!state.session && (config.freeMode || !!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
+    isCustomer: !!state.session && (!!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
+    isOwner: !!state.session && (!!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
     isAdmin: state.profile?.role === "admin", // super admin: all of India
     isStaff: ["admin", "moderator"].includes(state.profile?.role), // admin or city/state moderator
   };

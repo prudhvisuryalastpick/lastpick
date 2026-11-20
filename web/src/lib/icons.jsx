@@ -82,38 +82,31 @@ export const CAT_STYLE = {
   grocery: { icon: "grocery", tint: "#E8F6EC", ink: "#0F7A43", short: "Grocery" },
   stay: { icon: "stay", tint: "#E9EEFF", ink: "#1E4BB8", short: "Hotels" },
   travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Bus & travel" },
-  rental: { icon: "car", tint: "#FDEAF0", ink: "#9C1F5A", short: "Cabs" },
   sports: { icon: "ball", tint: "#EEF8E3", ink: "#3E7A0F", short: "Gym & sports" },
   beauty: { icon: "salon", tint: "#F2ECFF", ink: "#6B2FB3", short: "Salon" },
-  health: { icon: "doctor", tint: "#E4F5F2", ink: "#0F6E5C", short: "Clinics" },
   admissions: { icon: "cap", tint: "#EAF3FF", ink: "#1E4BB8", short: "Schools" },
   laundry: { icon: "laundry", tint: "#E6F3FA", ink: "#0B5C80", short: "Laundry" },
-  trips: { icon: "car", tint: "#FDEAF0", ink: "#9C1F5A", short: "Trips" },
-  sell: { icon: "tag", tint: "#F2ECFF", ink: "#3A1D8F", short: "Sell & buy" },
   retail: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Shopping" },
   electronics: { icon: "phoneDevice", tint: "#EEF0F6", ink: "#3A3550", short: "Electronics" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
   photo: { icon: "camera", tint: "#EAF3FF", ink: "#1E4BB8", short: "Photographers" },
   decor: { icon: "balloon", tint: "#FCE9F2", ink: "#9C1F5A", short: "Decorators" },
   makeup: { icon: "brush", tint: "#FDEAF3", ink: "#A3245E", short: "Makeup" },
-  catering: { icon: "pot", tint: "#FFF1E0", ink: "#B35A00", short: "Caterers" },
-  cleaning: { icon: "spray", tint: "#E6F3FA", ink: "#0B5C80", short: "Cleaning" },
   tailor: { icon: "needle", tint: "#F2ECFF", ink: "#5B2393", short: "Tailors" },
   pets: { icon: "paw", tint: "#FFF6D6", ink: "#8A6100", short: "Pet care" },
-  pharmacy: { icon: "pill", tint: "#E8F6EC", ink: "#0F7A43", short: "Medicals" },
   vehicle: { icon: "wrench", tint: "#EEF0F6", ink: "#3A3550", short: "Bike & car" },
   services: { icon: "tools", tint: "#F1EFE8", ink: "#5C4A1E", short: "Repairs" },
   education: { icon: "book", tint: "#E9EDFF", ink: "#3A1D8F", short: "Classes" },
   other: { icon: "more", tint: "#F2ECFF", ink: "#3A1D8F", short: "Others" },
 };
-// older categories (trips, laundry, schools…) show as Travel or Others
+// any unknown category shows as Others
 export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 
 // Category tiles on the customer home (Food, Hotels, Travel first), with small tags.
 export const HOME_TILES = [
-  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "rental", tag: "24×7", tagBg: "#24105E" },
-  { id: "grocery" }, { id: "beauty", tag: "LOW ₹", tagBg: "#6B2FB3" }, { id: "photo", tag: "NEW", tagBg: "#B35A00" }, { id: "decor", tag: "NEW", tagBg: "#B35A00" },
-  { id: "health" }, { id: "laundry" }, { id: "makeup" },
+  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "grocery" },
+  { id: "beauty", tag: "LOW ₹", tagBg: "#6B2FB3" }, { id: "photo", tag: "NEW", tagBg: "#B35A00" }, { id: "decor", tag: "NEW", tagBg: "#B35A00" }, { id: "makeup" },
+  { id: "laundry" }, { id: "tailor" }, { id: "jobs", tag: "AD", tagBg: "#8A5A00" },
 ];
 
 // Category icon tile (used instead of emoji when an offer has no photo)

@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
 import { BackButton, Empty, NeedLogin, PlanCard, Spinner } from "../components.jsx";
-import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, TRIAL_DAYS, planLabel, savePct } from "../lib/config.js";
+import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, savePct } from "../lib/config.js";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { AdminSupport } from "./impact.jsx";
 
 // ------------------------------------------------------------------ Plans & pricing
-// Free month first (customers from sign-up, businesses from verification). Then monthly, 3, 6 or 12-month plans.
+// No free version: monthly, 3, 6 or 12-month plans. Until the payment gateway is added, an admin turns plans on in Admin → Plans.
 export function Subscribe({ plan }) { return <Plans plan={plan} />; }
 export function Plans({ plan: initial }) {
-  const { session, subs, profile, business, trial, refresh, freeMode } = useApp();
+  const { session, subs, profile, business, trial, refresh } = useApp();
   const [plan, setPlan] = useState(PLANS[initial] ? initial : IS_OWNER_APP ? "owner" : "customer");
   const [months, setMonths] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export function Plans({ plan: initial }) {
   const p = PLANS[plan], s = subs?.[plan], opt = p.options.find((o) => o.months === months) || p.options[0];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
-  const canPay = !freeMode && !IS_NATIVE && months === 1 && !!session && left === 0;
+  const canPay = !IS_NATIVE && months === 1 && !!session && left === 0;
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
@@ -29,24 +29,23 @@ export function Plans({ plan: initial }) {
   let status = null;
   if (session) {
     if (s?.active) status = ["ok", "✅", `${p.name} is active`, `Till ${day(s.currentPeriodEnd)}`];
-    else if (left > 0) status = ["ok", "🎁", `Free month: ${left} day${left > 1 ? "s" : ""} left`, `Free until ${day(trialEnd)}. After that ${rupee(p.price)}/month, or less on a longer plan.`];
-    else if (plan === "owner" && !business) status = ["no", "🏪", "Your free month starts when your business is verified", `Register your business; once we verify it, ${TRIAL_DAYS} days are free.`];
-    else if (plan === "owner" && business.status !== "verified") status = ["no", "⏳", "Waiting for verification", `Your ${TRIAL_DAYS} free days start the day we verify your business.`];
-    else if (freeMode) status = ["ok", "🎉", "Free during launch", `Your free month is over, but ${APP_NAME} is free for everyone during launch. We'll tell you before paid plans start.`];
-    else status = ["no", "⚠️", "Your free month has ended", `Pick a plan to keep ${plan === "owner" ? "posting offers" : "seeing businesses' numbers"}.`];
+    else if (left > 0) status = ["ok", "🎁", `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trialEnd)}. After that ${rupee(p.price)}/month, or less on a longer plan.`];
+    else if (plan === "owner" && !business) status = ["no", "🏪", "Register your business first", "Business Pro is for business partners we have verified."];
+    else if (plan === "owner" && business.status !== "verified") status = ["no", "⏳", "Waiting for verification", "You can buy Business Pro once we verify your business."];
+    else status = ["no", "⚠️", `${p.name} is not active`, `Pick a plan to ${plan === "owner" ? "post offers" : "see businesses' numbers"}. There is no free version.`];
   }
   return (
     <>
       <div style={{ position: "relative", height: 62 }}><BackButton /></div>
       <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Plans</h1>
-        <div className="muted">Every account starts with {TRIAL_DAYS} days free.</div></div>
+        <div className="muted">No free version. Longer plans cost less per month.</div></div>
       {!IS_OWNER_APP && !IS_CUSTOMER_APP && <div className="tabs">
         <button className={plan === "customer" ? "on" : ""} onClick={() => setPlan("customer")}>For customers</button>
         <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
       </div>}
       {status && <div className={"status " + status[0]}><span style={{ fontSize: 24 }}>{status[1]}</span><div><b>{status[2]}</b><div className="muted small">{status[3]}</div></div></div>}
       <PlanCard plan={plan} />
-      <div className="label-up" style={{ paddingBottom: 12 }}>After the free month{plan === "owner" ? " (verified businesses)" : ""}</div>
+      <div className="label-up" style={{ paddingBottom: 12 }}>Choose a plan{plan === "owner" ? " (verified businesses)" : ""}</div>
       <div className="planopts">
         {p.options.map((o) => {
           const save = savePct(plan, o);
@@ -65,12 +64,12 @@ export function Plans({ plan: initial }) {
         {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}</div>}
         {canPay
           ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `Subscribe for ${rupee(opt.price)}`}</button>
-          : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {freeMode || left > 0
-            ? "Payments aren't switched on yet. Nothing is charged now, and we'll tell you before any payment is needed. Plans never renew without your OK."
-            : IS_NATIVE ? "Plans can't be bought inside the app yet." : "Monthly plans can be bought online now; longer plans are coming soon."}</div>}
+          : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {left > 0
+            ? "You already have access. You can buy a plan when your extra days end."
+            : IS_NATIVE ? "Plans can't be bought inside the app yet." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
         <div className="note">{plan === "owner"
-          ? `Business Pro is for business partners we have verified. Your ${TRIAL_DAYS} free days start the day you're verified.`
-          : `Customer Pass. Your ${TRIAL_DAYS} free days start when you sign up.`} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
+          ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category, plus job openings at your shop."
+          : "Customer Pass: see businesses' numbers and call or WhatsApp them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
       </div>
     </>
   );
@@ -111,7 +110,7 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>Every account gets {TRIAL_DAYS} days free: customers from sign-up, businesses from the day we verify them. After that, the Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month, with lower monthly prices on 3, 6 and 12-month plans ({PLANS.customer.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for customers; {PLANS.owner.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for businesses). You are never charged without choosing a plan and confirming the payment.</p>
+        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month, with lower monthly prices on 3, 6 and 12-month plans ({PLANS.customer.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for customers; {PLANS.owner.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for businesses). You are never charged without choosing a plan and confirming the payment.</p>
         <h2>Cancelling</h2>
         <p>You can cancel anytime in Account. Cancelling stops the next renewal and cancels the mandate; your plan stays active until the end of the period you already paid for.</p>
         <h2>Refunds</h2>
@@ -157,24 +156,12 @@ function AdminInner() {
   );
 }
 
-function PaymentsSwitch({ data, setData, toast }) {
-  const { setConfig } = useApp();
-  const [busy, setBusy] = useState(false);
-  const flip = async () => {
-    setBusy(true);
-    try {
-      const r = await api.adminSetConfig({ freeMode: !data.freeMode });
-      setData({ ...data, freeMode: r.freeMode }); setConfig({ freeMode: r.freeMode });
-      toast(r.freeMode ? "Free mode on: no subscriptions needed" : "Payments on: subscriptions required");
-    } catch (e) { toast(errText(e)); }
-    setBusy(false);
-  };
+function PaymentsNote() {
   return (
-    <div className={"status " + (data.freeMode ? "ok" : "no")}>
-      <span style={{ fontSize: 24 }}>{data.freeMode ? "🎉" : "💳"}</span>
-      <div className="grow"><b>{data.freeMode ? "Free launch mode is ON" : "Payments are ON"}</b>
-        <div className="muted small">{data.freeMode ? "Everyone who logs in can see numbers and post offers. No subscriptions." : "Customers need the Customer Pass and owners need Business Pro."}</div></div>
-      <button className="btn ghost sm" disabled={busy} onClick={flip}>{busy ? "…" : data.freeMode ? "Turn payments on" : "Make it free"}</button>
+    <div className="status no">
+      <span style={{ fontSize: 24 }}>💳</span>
+      <div className="grow"><b>No free version</b>
+        <div className="muted small">Customers need the Customer Pass and partners need Business Pro. Until the payment gateway is added, turn plans on in Plans after you receive the payment.</div></div>
     </div>
   );
 }
@@ -192,8 +179,8 @@ function AdminOverview({ toast, go }) {
   const Kpi = ({ n, l, onClick }) => <div className="kpi" onClick={onClick} style={onClick ? { cursor: "pointer" } : null}><div className="n">{n ?? "…"}</div><div className="l">{l}</div></div>;
   return (
     <>
-      {isAdmin && <PaymentsSwitch data={data} setData={setData} toast={toast} />}
-      {!data.freeMode && <div className="plan" style={{ padding: 16, marginTop: 4 }}>
+      {isAdmin && <PaymentsNote />}
+      {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>
         <div className="amt" style={{ fontSize: 32 }}>{rupee(mrr)}</div>
         <div style={{ opacity: .75, fontSize: 12.5 }}>{t.customers} Customer Pass × {rupee(PLANS.customer.price)} + {t.owners} Business Pro × {rupee(PLANS.owner.price)}</div>
@@ -231,7 +218,7 @@ function AdminOverview({ toast, go }) {
   );
 }
 
-// Super-admin plan controls on a business: unlock Business Pro, extend the free month, or end both.
+// Super-admin plan controls on a business: unlock Business Pro (after payment), give extra days, or end both.
 function BizPlanControls({ b, toast, onDone }) {
   const [months, setMonths] = useState(1);
   const [days, setDays] = useState(15);
@@ -244,8 +231,8 @@ function BizPlanControls({ b, toast, onDone }) {
   return (
     <div className="box" style={{ marginTop: 10 }}>
       <div className="small" style={{ fontWeight: 700 }}>Plan</div>
-      <div className="muted small">{[b.planUntil && `${PLANS.owner.name} till ${day(b.planUntil)}`, b.trialEndsAt && b.trialEndsAt > Date.now() && `Free month till ${day(b.trialEndsAt)}`].filter(Boolean).join(" · ")
-        || (b.status === "verified" ? "No active plan" : "Free month starts at verification")}</div>
+      <div className="muted small">{[b.planUntil && `${PLANS.owner.name} till ${day(b.planUntil)}`, b.trialEndsAt && b.trialEndsAt > Date.now() && `Extra days till ${day(b.trialEndsAt)}`].filter(Boolean).join(" · ")
+        || (b.status === "verified" ? "No active plan: cannot post" : "Not verified yet")}</div>
       <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select aria-label="Plan length" value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
           {PLANS.owner.options.map((o) => <option key={o.months} value={o.months}>{planLabel(o.months)} ({rupee(o.price)})</option>)}</select>
@@ -254,8 +241,8 @@ function BizPlanControls({ b, toast, onDone }) {
       <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select aria-label="Extend by" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
           {[7, 15, 30, 60].map((d) => <option key={d} value={d}>+{d} days</option>)}</select>
-        <button className="btn ghost sm" disabled={busy} onClick={() => run("extendTrial", { days }, `Free time extended by ${days} days`)}>Extend free time</button>
-        {(b.planUntil || (b.trialEndsAt && b.trialEndsAt > Date.now())) && <button className="btn danger sm" disabled={busy} onClick={() => run("end", {}, "Plan and free time ended")}>End plan</button>}
+        <button className="btn ghost sm" disabled={busy} onClick={() => run("extendTrial", { days }, `Added ${days} extra days`)}>Give extra days</button>
+        {(b.planUntil || (b.trialEndsAt && b.trialEndsAt > Date.now())) && <button className="btn danger sm" disabled={busy} onClick={() => run("end", {}, "Plan ended")}>End plan</button>}
       </div>
     </div>
   );

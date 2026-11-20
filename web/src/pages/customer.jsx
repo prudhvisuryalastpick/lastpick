@@ -3,7 +3,7 @@ import { api } from "../api/index.js";
 import { SavingsCard } from "./impact.jsx";
 import { SponsoredBanner } from "./revenue.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel } from "../components.jsx";
-import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
+import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
 import { ago, day, daysLeft, discount, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
@@ -119,7 +119,7 @@ const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w
 const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
 export function Home() {
-  const { location, isCustomer, session, profile, city, area, setArea, freeMode, config } = useApp();
+  const { location, isCustomer, session, profile, city, area, setArea, config } = useApp();
   const { offers, error, needGps, locationStatus } = useAreaOffers();
   const [picking, setPicking] = useState(false);
   const [allCats, setAllCats] = useState(false);
@@ -129,16 +129,19 @@ export function Home() {
   const [sort, setSort] = useState("ending");
   const listRef = useRef(null);
 
-  const live = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
+  const all = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
+  // job openings are local ads, kept apart from the offers list unless "Hiring" is picked
+  const live = useMemo(() => all.filter((o) => !isJob(o)), [all]);
+  const jobs = useMemo(() => all.filter(isJob).sort((a, b) => a.endsAt - b.endsAt), [all]);
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return live
+    return (cat === "jobs" ? jobs : live)
       .filter((o) => cat === "all" || o.category === cat)
       .filter((o) => !needle || `${o.title} ${o.description} ${o.business?.name} ${o.business?.area} ${categoryOf(o.category).label}`.toLowerCase().includes(needle))
       .map((o) => ({ o, km: distanceKm(location, o.business) }))
       .sort((a, b) => (b.o.featured ? 1 : 0) - (a.o.featured ? 1 : 0) || (sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt))
       .map((x) => x.o);
-  }, [live, cat, q, sort, location]);
+  }, [live, jobs, cat, q, sort, location]);
   const byCat = (...ids) => live.filter((o) => ids.includes(o.category)).sort((a, b) => a.endsAt - b.endsAt);
 
   const browsing = !q.trim() && cat === "all";
@@ -209,8 +212,8 @@ export function Home() {
         </div>
 
         {!isCustomer && (session
-          ? !freeMode && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Your free month has ended. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
-          : <a className="cbanner" href="#/login"><span className="bi"><Icon d="gift" size={20} /></span><span><b>First month free.</b> Log in to see business numbers and call them directly</span></a>)}
+          ? <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see businesses' numbers. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
+          : <a className="cbanner" href="#/login"><span className="bi"><Icon d="gift" size={20} /></span><span><b>Log in</b> to see business numbers and call them directly · {PLANS.customer.name} from {rupee(PLANS.customer.price)}/month</span></a>)}
         {needGps && <div className="cbanner"><span className="bi"><Icon d="near" size={20} /></span>Finding offers within {area.radius} km of you…</div>}
         {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Hotels and travel are open 24×7. Food, shops and other offers open again at {hourText(hours.open)}.</span></div>}
 
@@ -220,12 +223,12 @@ export function Home() {
           <MiniRail title="Ending soon" icon="clock" color="#B35A00" items={ending} action="See all" onAction={() => { setSort("ending"); toList(); }} />
           <MiniRail title="Food deals" icon="food" color="#B35A00" items={byCat("food")} action="See all" onAction={() => pick("food")} />
           <MiniRail title="Hotel rooms tonight" icon="stay" color="#1E4BB8" items={byCat("stay")} action="See all" onAction={() => pick("stay")} />
-          <TripList items={byCat("travel", "trips", "rental")} />
-          <MiniRail title="Grocery & medical stores" icon="grocery" color="#0F7A43" items={byCat("grocery", "pharmacy")} />
+          <TripList items={byCat("travel")} />
+          <HiringAds items={jobs} onAll={() => pick("jobs")} />
+          <MiniRail title="Grocery deals" icon="grocery" color="#0F7A43" items={byCat("grocery")} />
           <MiniRail title="Salon & makeup, less price today" icon="salon" color="#6B2FB3" items={byCat("beauty", "makeup")} action="See all" onAction={() => pick("beauty")} />
-          <MiniRail title="Photographers, decorators & caterers" icon="camera" color="#1E4BB8" items={byCat("photo", "decor", "catering")} />
-          <MiniRail title="Laundry, cleaning, tailors & bike service" icon="laundry" color="#0B5C80" items={byCat("laundry", "cleaning", "tailor", "vehicle", "services", "pets")} />
-          <HealthList items={byCat("health")} onAll={() => pick("health")} />
+          <MiniRail title="Photographers & decorators" icon="camera" color="#1E4BB8" items={byCat("photo", "decor")} />
+          <MiniRail title="Laundry, tailors, pet care & bike service" icon="laundry" color="#0B5C80" items={byCat("laundry", "tailor", "vehicle", "services", "pets")} />
           <MiniRail title="Gym, classes & schools" icon="ball" color="#3E7A0F" items={byCat("sports", "education", "admissions")} />
           <MiniRail title="Shops & more" icon="bag" color="#8A6100" items={byCat("retail", "electronics", "other")} />
           <Shops offers={live} />
@@ -256,7 +259,7 @@ export function Home() {
 }
 
 // Big rotating banner: boosted (paid) offers first, then the biggest discounts.
-const FEATURE_BG = { food: "#8A3B00", stay: "#1E3A8F", travel: "#0F5E52", trips: "#6B1640", rental: "#6B1640", health: "#0F5E52", beauty: "#5B2393" };
+const FEATURE_BG = { food: "#8A3B00", stay: "#1E3A8F", travel: "#0F5E52", beauty: "#5B2393" };
 function Featured({ offers }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -322,19 +325,20 @@ function MiniRail({ title, icon, color, items, action, onAction }) {
   );
 }
 
-function HealthList({ items, onAll }) {
+// Job openings posted by local shops, shown like small local ads (only within 10 km / the same pincode).
+function HiringAds({ items, onAll }) {
   const { location } = useApp();
   if (!items.length) return null;
   return (
     <>
-      <SectionHead title="Clinics & check-ups" icon="M12 6v12M6 12h12M4 4h16v16H4z" color="#0F6E5C" action="See all" onAction={onAll} />
-      <div className="listbox">{items.slice(0, 4).map((o) => {
+      <SectionHead title="Now hiring near you" icon="megaphone" color="#8A5A00" action="See all" onAction={onAll} />
+      <div className="listbox adbox">{items.slice(0, 3).map((o) => {
         const km = distanceKm(location, o.business);
         return (
           <a key={o.id} className="lrow" href={"#/offer/" + o.id}>
-            <span className="li" style={{ background: "#E4F5F2", color: "#0F6E5C" }}><Icon d="doctor" size={22} stroke={2} /></span>
-            <span className="lt"><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""}{o.quantity ? " · " + o.quantity : ""}</span></span>
-            <span className="lcta" style={{ color: "#0F6E5C" }}>{o.price === 0 ? "Register" : "View"}</span>
+            <span className="li" style={{ background: "#FFF3D6", color: "#8A5A00" }}><Icon d="megaphone" size={22} stroke={2} /></span>
+            <span className="lt"><span className="adtag">AD · Job opening</span><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""} · Pay {rupee(o.price)}{o.quantity ? " " + o.quantity.replace(/^Pay /i, "").toLowerCase() : ""}</span></span>
+            <span className="lcta" style={{ color: "#8A5A00" }}>Apply</span>
           </a>
         );
       })}</div>
@@ -346,7 +350,7 @@ function TripList({ items }) {
   if (!items.length) return null;
   return (
     <>
-      <SectionHead title="Travel, trips & cabs" icon="bus" color="#0F6E5C" badge="Open 24×7" />
+      <SectionHead title="Bus & travel seats" icon="bus" color="#0F6E5C" badge="Open 24×7" />
       <div className="trips">{items.slice(0, 4).map((o) => (
         <a key={o.id} className="trip" href={"#/offer/" + o.id}>
           <span className="r1"><span className="tt">{o.title}</span><span className="p">{rupee(o.price)}<small> /seat</small></span></span>
@@ -393,7 +397,7 @@ function AllCategories({ value, onPick, onClose }) {
         <button className={"tile" + (value === "all" ? " on" : "")} onClick={() => onPick("all")}>
           <span className="ti" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon d="more" size={24} /></span><span className="tl">Everything</span>
         </button>
-        {CATEGORIES.map((c) => {
+        {[...CATEGORIES, JOB_CATEGORY].map((c) => {
           const st = catStyle(c.id);
           return (
             <button key={c.id} className={"tile" + (value === c.id ? " on" : "")} onClick={() => onPick(c.id)}>
@@ -445,7 +449,7 @@ export function MapPage() {
 
 // ------------------------------------------------------------------ Offer detail
 export function OfferPage({ id }) {
-  const { session, profile, isCustomer, location, toast, business, freeMode } = useApp();
+  const { session, profile, isCustomer, location, toast, business } = useApp();
   const [offer, setOffer] = useState(undefined);
   const [contact, setContact] = useState(null);
   const [contactErr, setContactErr] = useState("");
@@ -479,7 +483,7 @@ export function OfferPage({ id }) {
   const rem = offer.endsAt - now;
   const ended = rem <= 0 || offer.status !== "live";
   const km = distanceKm(location, offer.business);
-  const contactText = `Hi, I saw your offer on ${APP_NAME}: "${offer.title}". Is it still available?`;
+  const contactText = isJob(offer) ? `Hi, I saw your job opening on ${APP_NAME}: "${offer.title}". I would like to apply.` : `Hi, I saw your offer on ${APP_NAME}: "${offer.title}". Is it still available?`;
 
   const share = async () => {
     if (!validPhone(profile?.phone)) { toast("Add your phone number in Account first"); navigate("/account"); return; }
@@ -505,7 +509,7 @@ export function OfferPage({ id }) {
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
 
         <div className="box row" style={{ marginTop: 14 }}>
-          <div className="price"><b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>
+          <div className="price">{isJob(offer) && <span className="muted small" style={{ marginRight: 6 }}>Pay</span>}<b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{!isJob(offer) && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>
           <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : timeLeft(rem)}</b></div>
         </div>
         {offer.quantity && <div className="row" style={{ marginTop: 10 }}><span className="muted">Available</span><b>{offer.quantity}</b></div>}
@@ -521,16 +525,13 @@ export function OfferPage({ id }) {
           ) : !session || !isCustomer ? (
             <>
               <div className="num blur" style={{ marginTop: 12 }} aria-hidden="true">+91 98••• •••••</div>
-              {freeMode ? <>
-                <div className="muted" style={{ marginTop: 6 }}>Log in to see the owner's number, call or WhatsApp them, and share your number. Your first month is free.</div>
-                <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}><Icon d="lock" size={18} stroke={2.2} />Log in to see the number</a>
-              </> : IS_NATIVE ? <>
+              {IS_NATIVE ? <>
                 <div className="muted" style={{ marginTop: 6 }}>{session ? `Your account doesn't have an active ${PLANS.customer.name}.` : "Log in to see the owner's number."}</div>
                 {!session && <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>Log in</a>}
               </> : <>
                 <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number, call or WhatsApp them, and share your number with them.</div>
                 <a className="btn main" style={{ marginTop: 12 }} href={session ? "#/plans" : `#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>
-                  {session ? `🔓 See plans · from ${rupee(Math.round(PLANS.customer.options[3].price / 12))}/month` : "🔓 Log in · first month free"}
+                  {session ? `🔓 See plans · from ${rupee(Math.round(PLANS.customer.options[3].price / 12))}/month` : "🔓 Log in to see the number"}
                 </a>
               </>}
             </>
@@ -614,7 +615,7 @@ function ContactsInner() {
       <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted. Tap call or WhatsApp to reach them again.</div></div></div>
       <div style={{ height: 12 }} />
       {!isCustomer ? (
-        <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title="Your free month has ended" action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
+        <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={`Needs the ${PLANS.customer.name}`} action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
       ) : !list ? <Spinner /> : list.length === 0 ? (
         <Empty icon={<span className="emptyic"><Icon d="phone" size={30} /></span>} title="No businesses contacted yet" action={<a className="btn ghost" href="#/">Browse deals</a>}>Open a deal to see the owner's number. Everyone you contact shows up here.</Empty>
       ) : list.map((c) => {
@@ -666,7 +667,7 @@ export function Account() {
   return <NeedLogin why="Log in to your account"><AccountInner /></NeedLogin>;
 }
 function AccountInner() {
-  const { profile, subs, business, isStaff, refresh, toast, setMode, freeMode, trial } = useApp();
+  const { profile, subs, business, isStaff, refresh, toast, setMode, trial } = useApp();
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [saving, setSaving] = useState(false);
@@ -697,10 +698,9 @@ function AccountInner() {
         const left = daysLeft(trial?.[plan]);
         const [cls, icon, title, sub] = s?.active
           ? ["ok", "✅", `${PLANS[plan].name} · ${s.status === "cancelled" ? "cancelled" : "active"}`, `${s.status === "cancelled" ? "Ends" : "Renews"} ${day(s.currentPeriodEnd)}`]
-          : left > 0 ? ["ok", "🎁", `Free month · ${left} day${left > 1 ? "s" : ""} left`, `Free until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)}/month.`]
-            : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Free month starts at verification", `Then ${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month.`]
-              : freeMode ? ["ok", "🎉", "Free during launch", "Your free month is over, but everything stays free during launch."]
-                : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];
+          : left > 0 ? ["ok", "🎁", `Extra days from ${APP_NAME} · ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)}/month.`]
+            : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Waiting for verification", `After that, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month.`]
+              : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];
         return (
           <div key={plan} className={"status " + cls} style={{ margin: "0 14px 12px", background: "#fff", boxShadow: "var(--shadow)" }}>
             <span className="mic" style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", flex: "none", background: cls === "ok" ? "var(--ok-soft)" : "var(--warn-soft)", color: cls === "ok" ? "var(--ok)" : "var(--warn)" }}><Icon d={cls === "ok" ? (s?.active ? "check" : "gift") : "clock"} size={20} stroke={2.2} /></span>

@@ -249,15 +249,12 @@ export function adminRoutes(r) {
   });
 
   // Free launch mode on/off. Offer visibility is worked out live from plans, so nothing needs re-syncing.
+  // The free launch mode was removed: there is no free version.
   r.post("/api/admin/config", async (ctx) => {
-    const me = superAdmin(ctx);
-    const free = ctx.body.freeMode !== false;
-    await setFreeMode(free);
-    clearCache();
-    const n = await one("SELECT count(*)::int AS n FROM businesses");
-    audit("admin_config", me.id, { freeMode: free });
-    return { freeMode: free, businesses: n.n };
+    superAdmin(ctx);
+    throw precondition("There is no free version. Activate plans in Admin → Plans after the customer pays.");
   });
+
 
   r.get("/api/admin/grievances", async (ctx) => {
     superAdmin(ctx);

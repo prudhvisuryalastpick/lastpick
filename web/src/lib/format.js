@@ -23,7 +23,7 @@ export function ago(ts) {
 
 export const discount = (o) => (o.origPrice > o.price ? Math.round((1 - o.price / o.origPrice) * 100) : 0);
 // Job posts were removed (LastPick is only offers and discounts).
-export const isJob = () => false;
+export const isJob = (o) => o?.category === "jobs";
 
 export function distanceKm(a, b) {
   if (!a || !b || a.lat == null || b.lat == null) return null;

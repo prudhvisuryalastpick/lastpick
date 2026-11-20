@@ -95,7 +95,7 @@ test("partner: business, verification, offers, daily limit", async () => {
   assert.equal((await p.post("/api/owner/offers", { title: "x" })).status, 409); // no business yet
   const b = await p.put("/api/business", { name: "Chai Point", category: "food", categories: ["stay", "nonsense"], phone: "9988776655", city: "Bengaluru", state: "Karnataka", pincode: "560001", area: "MG Road", lat: 12.975, lng: 77.605, whatsapp: true });
   assert.equal(b.status, 200, JSON.stringify(b.data));
-  assert.deepEqual(b.data.categories, ["food", "stay", "other"]); // unknown categories go under Others
+  assert.deepEqual(b.data.categories, ["food", "stay"]); // unknown categories are dropped
   assert.equal(b.data.status, "pending");
   bizId = b.data.id;
 
@@ -111,6 +111,14 @@ test("partner: business, verification, offers, daily limit", async () => {
   const list = await a.get("/api/admin/businesses?status=pending");
   assert.ok(list.data.some((x) => x.id === bizId));
   assert.equal((await a.post(`/api/admin/businesses/${bizId}/status`, { status: "verified", note: "ok" })).status, 200);
+  // no free version: verified, but no Business Pro yet, so no posting
+  const unpaid = await p.post("/api/owner/offers", { title: "Evening samosas", category: "food", origPrice: 100, price: 40, endsAt: ends });
+  assert.equal(unpaid.status, 403);
+  assert.match(unpaid.data.error, /Business Pro/);
+  // the partner pays (e.g. UPI) and a super admin activates Business Pro for 1 month
+  const sa = client("admin");
+  await sa.login("admin@test.lastpick.in");
+  assert.equal((await sa.post(`/api/admin/businesses/${bizId}/plan`, { action: "unlock", months: 1 })).status, 200);
 
   const o = await p.post("/api/owner/offers", { title: "Evening samosas", category: "food", emoji: "🥟", origPrice: 100, price: 40, endsAt: ends, quantity: "20 pcs" });
   assert.equal(o.status, 200, JSON.stringify(o.data));
@@ -120,10 +128,9 @@ test("partner: business, verification, offers, daily limit", async () => {
   const c = client("customer");
   assert.equal((await c.get(`/api/offers/${offerId}`)).status, 200);
 
-  // trusted partners can post in any category, within 3 posts a day; unknown categories go under Others
-  const other = await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "gadgets", origPrice: 100, price: 50, endsAt: ends });
-  assert.equal(other.status, 200);
-  assert.equal((await c.get(`/api/offers/${other.data.id}`)).data.category, "other");
+  // a business posts only in its registered categories (food, stay here), 3 posts a day
+  assert.equal((await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "electronics", origPrice: 100, price: 50, endsAt: ends })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Second", category: "food", origPrice: 100, price: 50, endsAt: ends })).status, 200);
   assert.equal((await p.post("/api/owner/offers", { title: "Third", category: "stay", origPrice: 100, price: 50, endsAt: ends })).status, 200);
   const fourth = await p.post("/api/owner/offers", { title: "Fourth", category: "food", origPrice: 100, price: 50, endsAt: ends });
   assert.equal(fourth.status, 409);
@@ -176,20 +183,20 @@ test("partner: leads, reply, end offer", async () => {
   assert.equal((await p.get(`/api/offers/${offerId}`)).data.status, "ended"); // owner still sees it
 });
 
-test("admin: stats, reports, plans, free mode, team, complaints", async () => {
+test("admin: stats, reports, plans, no free version, team, complaints", async () => {
   const a = client("admin");
   await a.login("admin@test.lastpick.in");
   const s = await a.get("/api/admin/stats");
   assert.equal(s.data.role, "admin");
-  assert.equal(s.data.freeMode, true);
+  assert.equal(s.data.freeMode, false); // there is no free version
   assert.ok(s.data.totals.users >= 5);
   const reports = await a.get("/api/admin/reports");
   assert.equal(reports.data.length, 1);
   assert.equal(reports.data[0].offer.business.name, "Chai Point");
   assert.equal((await a.post(`/api/admin/reports/${reports.data[0].id}/resolve`, { status: "dismissed" })).status, 200);
 
-  // payments on: the customer's free month still lets them in; ending it does not
-  assert.equal((await a.post("/api/admin/config", { freeMode: false })).data.freeMode, false);
+  // the free launch switch is gone
+  assert.equal((await a.post("/api/admin/config", { freeMode: true })).status, 409);
   const users = await a.get("/api/admin/users?q=customer@test.lastpick.in");
   assert.equal(users.data.length, 1);
   assert.equal((await a.post("/api/admin/plans", { email: "customer@test.lastpick.in", plan: "customer", months: 1 })).status, 200);
@@ -197,7 +204,6 @@ test("admin: stats, reports, plans, free mode, team, complaints", async () => {
   assert.equal(subs.data.customer.active, true);
   assert.equal((await a.post(`/api/admin/businesses/${bizId}/plan`, { action: "unlock", months: 3 })).status, 200);
   assert.equal((await a.post(`/api/admin/businesses/${bizId}/plan`, { action: "extendTrial", days: 7 })).status, 200);
-  assert.equal((await a.post("/api/admin/config", { freeMode: true })).status, 200);
 
   assert.equal((await a.post("/api/admin/role", { email: "new@test.lastpick.in", role: "moderator", regions: ["Kerala"] })).status, 200);
   assert.equal((await a.post("/api/admin/role", { email: "admin@test.lastpick.in", role: "user" })).status, 409);
@@ -205,7 +211,7 @@ test("admin: stats, reports, plans, free mode, team, complaints", async () => {
   const m = client("admin");
   await m.login("moderator@test.lastpick.in");
   assert.equal((await m.get("/api/admin/users")).status, 403);
-  assert.equal((await m.post("/api/admin/config", { freeMode: false })).status, 403);
+  assert.equal((await m.post("/api/admin/config", { freeMode: true })).status, 403);
 
   const c = client("customer");
   await c.login("customer@test.lastpick.in");
@@ -289,7 +295,7 @@ test("support conversations", async () => {
   assert.equal((await c.get(`/api/support/${t.data.id}`)).data.status, "open");
 });
 
-test("offers only: discounts within 24 hours, no jobs, halls, movies or buy-and-sell", async () => {
+test("own category only, offers within 24 hours, local job openings", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");
   // the daily limit was used earlier: lift it for this test by ageing today's posts
@@ -297,21 +303,24 @@ test("offers only: discounts within 24 hours, no jobs, halls, movies or buy-and-
   const pool = new Pool({ connectionString: DB });
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'");
   await pool.end();
-  // no job posts or buy-and-sell: every post must be a discount (offer price below the normal price)
-  const job = await p.post("/api/owner/offers", { title: "Loaders needed tomorrow, ₹700/day", category: "jobs", origPrice: 0, price: 700, endsAt: Date.now() + 6 * 3600000 });
-  assert.equal(job.status, 400);
+  // every business can post a job opening at its shop: pay instead of a discount, up to 7 days, only in the local area
+  const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: Date.now() + 3 * 86400000 });
+  assert.equal(job.status, 200, JSON.stringify(job.data));
+  const cj = client("customer");
+  assert.ok((await cj.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.some((o) => o.id === job.data.id), "near: shown");
+  assert.ok((await cj.get("/api/offers?pincode=560001")).data.some((o) => o.id === job.data.id), "same pincode: shown");
+  assert.ok(!(await cj.get("/api/offers?lat=13.10&lng=77.62&radius=30")).data.some((o) => o.id === job.data.id), "15 km away: hidden");
+  assert.equal((await p.post("/api/owner/offers", { title: "Helper", category: "jobs", price: 500, endsAt: Date.now() + 9 * 86400000 })).status, 400);
   // longer than 24 hours is refused (no 120-day admission campaigns any more)
-  const long = await p.post("/api/owner/offers", { title: "Admissions open, 20% off", category: "admissions", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
+  const long = await p.post("/api/owner/offers", { title: "Cake pre-orders, 20% off", category: "food", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
   assert.equal(long.status, 400);
   assert.match(long.data.error, /24 hours/);
-  // movie tickets / events and halls go under Others
-  const movie = await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 4 * 3600000 });
-  assert.equal(movie.status, 200);
-  const c = client("customer");
-  assert.equal((await c.get(`/api/offers/${movie.data.id}`)).data.category, "other");
-  // travel stays open 24×7
-  const bus = await p.post("/api/owner/offers", { title: "Seats on tonight's bus to Chennai", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 3600000 });
-  assert.equal(bus.status, 200, JSON.stringify(bus.data));
+  // not its category (movie tickets, travel): refused for this food & stay business
+  assert.equal((await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 4 * 3600000 })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Bus seats", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 3600000 })).status, 403);
+  // a room for tonight (hotels stay open 24×7)
+  const room = await p.post("/api/owner/offers", { title: "Room for tonight", category: "stay", origPrice: 3000, price: 1800, endsAt: Date.now() + 20 * 3600000 });
+  assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 
 test("working hours: after 11 PM only hotels and travel", async () => {
@@ -326,12 +335,12 @@ test("working hours: after 11 PM only hotels and travel", async () => {
     assert.equal(isNight(at(6)), false);
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel", "trips", "rental"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
   // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel", "trips", "rental"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
   const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.find((o) => o.category === "food");
@@ -350,18 +359,12 @@ test("revenue: boosted offers, sponsored banners, revenue page", async () => {
   assert.ok(mine, "the partner has a live offer");
   // only 6, 12 or 24 hours
   assert.equal((await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 5 })).status, 400);
-  // during free launch a boost switches on at once and is recorded as waived
-  const free = await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 6 });
-  assert.equal(free.status, 200, JSON.stringify(free.data));
-  assert.equal(free.data.status, "active");
-  assert.equal(free.data.paidBy, "launch_free");
+  // no free version: a boost waits until an admin confirms the payment
+  const req = await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 12 });
+  assert.equal(req.status, 200, JSON.stringify(req.data));
+  assert.equal(req.data.status, "pending");
+  assert.equal(req.data.price, 79);
   assert.equal((await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 6 })).status, 409, "one boost at a time");
-  // once payments are on, a boost waits until an admin confirms the payment (made here directly in the database)
-  const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
-  const pool = new Pool({ connectionString: DB });
-  await pool.query("UPDATE offer_boosts SET status = 'rejected' WHERE id = $1", [free.data.id]);
-  const req = { data: (await pool.query("INSERT INTO offer_boosts (offer_id, owner_id, hours, price) SELECT id, owner_id, 12, 79 FROM offers WHERE id = $1 RETURNING id", [mine.id])).rows[0] };
-  await pool.end();
   // moderators can't touch money
   const m = client("admin");
   await m.login("moderator@test.lastpick.in");

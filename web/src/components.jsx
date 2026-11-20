@@ -25,7 +25,7 @@ export function OfferImage({ offer, className = "top", children, size }) {
 }
 
 export function OfferCard({ offer, preview = false }) {
-  const { location, isCustomer, freeMode } = useApp();
+  const { location, isCustomer } = useApp();
   const km = distanceKm(location, offer.business);
   const r = offer.business?.rating;
   const body = (
@@ -38,7 +38,7 @@ export function OfferCard({ offer, preview = false }) {
           <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{rupee(offer.price)}</b>{offer.origPrice > offer.price && <s>{rupee(offer.origPrice)}</s>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
-        {!(isCustomer || preview) && <div className="lock">{freeMode ? "🔑 Log in for number" : "🔒 Number locked"}</div>}
+        {!(isCustomer || preview) && <div className="lock">🔒 Number locked</div>}
       </div>
     </>
   );

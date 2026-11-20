@@ -4,15 +4,15 @@ import { compressPhoto } from "../lib/image.js";
 import { CONSENT_VERSION, cityKey } from "../lib/config.js";
 import { distanceKm, indianPhone } from "../lib/format.js";
 
-const KEY = "lastpick-demo-v10";
+const KEY = "lastpick-demo-v11";
 const H = 3600000, D = 86400000;
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const wait = (ms = 150) => new Promise((r) => setTimeout(r, ms));
 const listeners = new Set();
 
 export const DEMO_ACCOUNTS = [
-  { email: "customer@demo.in", password: "demo1234", label: "Customer (no plan yet)" },
-  { email: "owner@demo.in", password: "demo1234", label: "Owner: Sunrise Bakery" },
+  { email: "customer@demo.in", password: "demo1234", label: "Customer (Customer Pass)" },
+  { email: "owner@demo.in", password: "demo1234", label: "Partner: Sunrise Bakery (Business Pro)" },
   { email: "admin@demo.in", password: "demo1234", label: "Admin (all India)" },
   { email: "moderator@demo.in", password: "demo1234", label: "Moderator (Telangana)" },
 ];
@@ -30,18 +30,18 @@ function seed() {
   const biz = [
     ["u-own", "Sunrise Bakery", "food", "Indiranagar", 12.9784, 77.6408, "9845011223"],
     ["o2", "Hotel Grand Residency", "stay", "MG Road", 12.9756, 77.6066, "8041255667"],
-    ["o3", "City Diagnostics", "health", "Jayanagar", 12.925, 77.5938, "9900123456"],
+    ["o3", "Stitch Perfect Tailors", "tailor", "Jayanagar", 12.925, 77.5938, "9900123456"],
     ["o4", "Royal Travels", "travel", "Majestic", 12.9767, 77.5713, "9740088990"],
     ["o5", "KickOff Turf", "sports", "HSR Layout", 12.9116, 77.6474, "9008044556"],
-    ["o6", "ZoomCars Point", "rental", "Koramangala", 12.9352, 77.6245, "9632077889"],
+    ["o6", "Paws & Claws Pet Spa", "pets", "Koramangala", 12.9352, 77.6245, "9632077889"],
     ["o7", "Trendz Fashion", "retail", "Commercial Street", 12.9822, 77.6083, "9886133445"],
     ["o8", "Glow Salon", "beauty", "Whitefield", 12.9698, 77.75, "9812345670"],
     ["o10", "Paradise Fitness", "sports", "Banjara Hills", 17.4156, 78.4347, "9849012345", "Hyderabad", "Telangana"],
     ["o11", "Hotel Sea Breeze", "stay", "Andheri East", 19.1136, 72.8697, "9820012345", "Mumbai", "Maharashtra"],
     ["o12", "Chennai Sweets", "food", "T. Nagar", 13.0418, 80.2341, "9840012345", "Chennai", "Tamil Nadu"],
-    ["o14", "Dr. Rao Eye Clinic", "health", "Indiranagar", 12.9731, 77.6385, "9845022334"],
+    ["o14", "Indiranagar Mobile Hub", "electronics", "Indiranagar", 12.9731, 77.6385, "9845022334"],
     ["o15", "Greenwood Public School", "admissions", "Indiranagar", 12.9705, 77.6455, "8041234567"],
-    ["o16", "Ravi K (driving to Mysuru)", "trips", "Indiranagar", 12.9762, 77.6399, "9900011122"],
+    ["o16", "Hotel Indira Comforts", "stay", "Indiranagar", 12.9762, 77.6399, "9900011122"],
     ["o17", "Speedy Bike Care", "vehicle", "Indiranagar", 12.9748, 77.6421, "9900033344"],
     ["o18", "Indiranagar Kirana Stores", "grocery", "Indiranagar", 12.9779, 77.6436, "9845055667"],
     ["o19", "Clean & Fresh Laundry", "laundry", "Indiranagar", 12.9718, 77.6412, "8041122334"],
@@ -58,24 +58,24 @@ function seed() {
   const subs = ["u-own", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o10", "o11", "o12", "o14", "o15", "o16", "o17", "o18", "o19", "o20", "o21", "o22"].map((u) => ({ userId: u, plan: "owner", status: "active", currentPeriodEnd: n + 20 * D, provider: "demo" }));
   const o = (b, category, emoji, title, description, origPrice, price, quantity, endsIn, views) => ({
     id: rid(), businessId: b, title, description, category, emoji, photoUrl: null, origPrice, price, quantity,
-    endsAt: n + endsIn, status: "live", views, createdAt: n - 2 * H,
+    endsAt: n + endsIn, status: "live", views, createdAt: n - 26 * H,
   });
   const offers = [
     o("b1", "food", "🎂", "Fresh cakes & pastries before closing", "Today's cakes, pastries and breads at half price. Come before 10:30 PM.", 600, 299, "7 left", 95 * 60000, 142),
     o("b1", "food", "🥐", "Croissant box of 6 for tomorrow morning", "Order tonight, collect fresh at 8 AM.", 420, 260, "10 boxes", 9 * H, 63),
     o("b2", "stay", "🛏️", "Deluxe AC room for tonight", "Double bed, breakfast included. Check-in till midnight.", 3800, 1999, "3 rooms", 5 * H, 211),
-    o("b3", "health", "🩺", "Full body check-up at 40% off today", "70+ tests, reports by evening. Walk in before 11 AM, fasting.", 2500, 1499, "20 slots", 10 * H, 388),
+    o("b3", "tailor", "🧵", "Blouse stitching ₹350 (normally ₹500), today's orders", "Ready in 3 days. Bring your fabric before 8 PM.", 500, 350, "15 orders", 10 * H, 188),
     o("b4", "travel", "🚌", "AC sleeper to Chennai, leaves 10:45 PM", "6 seats unsold. Board at Majestic bus stand.", 1400, 799, "6 seats", 150 * 60000, 96),
     o("b5", "sports", "⚽", "5-a-side turf, 10 to 11 PM tonight", "Floodlights, bibs and ball included.", 1800, 900, "1 slot", 55 * 60000, 54),
-    o("b6", "rental", "🚗", "Swift self-drive, free for the weekend", "Unlimited km within Karnataka. Licence and ID needed.", 5200, 2999, "1 car", 20 * H, 120),
+    o("b6", "pets", "🐾", "Dog bath & grooming 40% off today", "Bath, nail trim and ear cleaning. Slots till 7 PM.", 1000, 600, "6 slots", 9 * H, 120),
     o("b7", "retail", "👕", "Last-season shirts, 3 for the price of 1, today only", "Sizes M to XL.", 2400, 799, "18 left", 20 * H, 77),
     o("b8", "beauty", "💇", "Haircut + head massage, 50% off this evening", "Senior stylists, 4 to 8 PM slots.", 900, 449, "8 slots", 7 * H, 40),
     o("b9", "sports", "⚽", "Gym day pass ₹99 today", "All equipment, steam bath included. Valid till 10 PM.", 300, 99, "30 passes", 14 * H, 210),
     o("b10", "stay", "🛏️", "Business rooms near the airport tonight", "Free airport pickup after 10 PM.", 4500, 2499, "5 rooms", 6 * H, 133),
     o("b11", "food", "🍬", "Sweets and savouries at closing time", "Mixed boxes, 40% off after 8 PM.", 800, 480, "20 boxes", 3 * H, 88),
-    o("b12", "health", "🩺", "Free eye check-up today, 4 to 8 PM", "Register by sharing your number; 60 slots.", 500, 0, "42 of 60 slots", 9 * H, 230),
+    o("b12", "electronics", "📱", "Phone screen guard + cover combo at ₹199 today", "All popular models. Fitted free in 5 minutes.", 499, 199, "40 combos", 9 * H, 230),
     o("b13", "admissions", "🎓", "Admission form fee waived today", "Nursery to Class 9, 2027-28. Visit the school office before 5 PM.", 1000, 0, "Today only", 8 * H, 512),
-    o("b14", "trips", "🧳", "Driving to Mysuru tomorrow 6 AM, 2 seats free", "Swift, AC. Share fuel cost. Pickup at Indiranagar metro.", 800, 350, "2 seats", 14 * H, 64),
+    o("b14", "stay", "🛏️", "Standard AC room tonight at ₹1,299", "Walk-in or call. Check-in till 1 AM.", 2200, 1299, "4 rooms", 14 * H, 64),
     o("b15", "vehicle", "🔧", "Bike general service at 25% off today", "Oil change, wash and check-up. Drop by 1 PM, ready by 6 PM.", 800, 600, "6 slots", 9 * H, 41),
     o("b18", "photo", "📷", "Birthday / family photo shoot, 40% off if booked today", "1 hour, 50 edited photos, at your home or a park.", 5000, 2999, "2 slots", 11 * H, 96),
     o("b19", "decor", "🎈", "Balloon & flower decoration, 35% off for bookings today", "Birthday or anniversary setup at home, done in 2 hours.", 4000, 2600, "3 bookings", 12 * H, 72),
@@ -84,6 +84,9 @@ function seed() {
     o("b17", "laundry", "🧺", "Laundry and ironing 30% off today", "Drop before 6 PM, ready tomorrow morning. Free pickup within 2 km.", 300, 210, "Today only", 8 * H, 87),
     o("b16", "grocery", "🥬", "Fresh vegetables 30% off till closing", "Today's stock of vegetables and fruits.", 300, 210, "Today's stock", 8 * H, 73),
     o("b16", "grocery", "🍚", "Rice + dal + oil combo, 20% off today", "5 kg rice, 1 kg toor dal, 1 L oil.", 900, 720, "25 combos", 12 * H, 58),
+    // job openings at the partner's own shop (local ads, shown within 10 km)
+    o("b1", "jobs", "📣", "Bakery helper needed, 7 AM – 3 PM", "Packing and counter work at Sunrise Bakery. Food and weekly off.", 12000, 12000, "Pay per month", 3 * D, 91),
+    o("b16", "jobs", "🛵", "Delivery person with own bike", "Home delivery within 3 km of Indiranagar Kirana Stores. Fuel paid.", 15000, 15000, "Pay per month", 5 * D, 66),
   ];
   const leads = [
     { id: rid(), offerId: offers[0].id, businessId: "b1", customerId: "x1", name: "Ravi Kumar", phone: "9876543210", status: "new", createdAt: n - 12 * 60000 },
@@ -114,18 +117,19 @@ function seed() {
   // sample paid plans (activated by the admin after UPI) so the Revenue page has real numbers
   subs.find((x) => x.userId === "o2").provider = "manual"; subs.find((x) => x.userId === "o2").months = 3;
   subs.find((x) => x.userId === "o5").provider = "manual"; subs.find((x) => x.userId === "o5").months = 1;
-  subs.push({ userId: "x1", plan: "customer", status: "active", months: 12, currentPeriodEnd: n + 300 * D, provider: "manual" },
+  subs.push({ userId: "u-cust", plan: "customer", status: "active", months: 1, currentPeriodEnd: n + 20 * D, provider: "manual" },
+    { userId: "x1", plan: "customer", status: "active", months: 12, currentPeriodEnd: n + 300 * D, provider: "manual" },
     { userId: "x2", plan: "customer", status: "active", months: 1, currentPeriodEnd: n + 25 * D, provider: "manual" });
   const sales = [["o2", "owner", 3, 1349], ["o5", "owner", 1, 499], ["x1", "customer", 12, 1399], ["x2", "customer", 1, 149]]
     .map(([userId, plan, months, amount], i) => ({ userId, plan, months, amount, createdAt: n - (i + 1) * H }));
-  return { v: 10, sales, config: { freeMode: true }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
+  return { v: 11, sales, config: { freeMode: false }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
 }
 
 function load() {
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { db = null; }
   // reseed when empty or when every demo offer has expired
-  if (!db || db.v !== 10 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
+  if (!db || db.v !== 11 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
     const fresh = seed();
     if (db?.session) fresh.session = db.session;
     db = fresh;
@@ -147,11 +151,12 @@ function me(db) {
   return u;
 }
 function inTrial(db, userId, plan) {
-  if (plan === "customer") { const u = db.users.find((x) => x.id === userId); return !!u && (u.trialEndsAt || (u.createdAt || 0) + 30 * D) > Date.now(); }
+  // no free version: only extra days an admin gave by hand count
+  if (plan === "customer") { const u = db.users.find((x) => x.id === userId); return !!u && (u.trialEndsAt || 0) > Date.now(); }
   const b = db.businesses.find((x) => x.ownerId === userId);
-  return !!b && b.status === "verified" && (b.trialEndsAt || b.createdAt + 30 * D) > Date.now();
+  return !!b && b.status === "verified" && (b.trialEndsAt || 0) > Date.now();
 }
-const hasPlan = (db, userId, plan) => db.config?.freeMode !== false || inTrial(db, userId, plan) || db.subs.some((s) => s.userId === userId && s.plan === plan && ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > Date.now());
+const hasPlan = (db, userId, plan) => inTrial(db, userId, plan) || db.subs.some((s) => s.userId === userId && s.plan === plan && ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > Date.now());
 const isAdmin = (db) => { const u = db.users.find((x) => x.id === db.session); return u?.role === "admin"; };
 function staff(db, superOnly = false) {
   const u = db.users.find((x) => x.id === db.session);
@@ -171,8 +176,8 @@ const boostLive = (db, id) => (db.boosts || []).some((x) => x.offerId === id && 
 const withBiz = (db, o) => ({ ...o, featured: boostLive(db, o.id), business: pub(db.businesses.find((b) => b.id === o.businessId)) });
 const emit = () => listeners.forEach((cb) => cb());
 // working hours 6 AM - 11 PM India time; hotels and travel stay open 24x7; hiring ads and local sales only within 10 km
-const ALWAYS_OPEN = ["stay", "travel", "trips", "rental"];
-const LOCAL_ONLY = ["jobs", "sell"];
+const ALWAYS_OPEN = ["stay", "travel"];
+const LOCAL_ONLY = ["jobs"];
 const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 6 || h >= 23; };
 const openNow = (o) => !night() || ALWAYS_OPEN.includes(o.category);
 const snapOf = (db, c) => c.snap || (() => { const o = db.offers.find((x) => x.id === c.offerId); return o ? { title: o.title, category: o.category, price: o.price, origPrice: o.origPrice, businessId: o.businessId } : null; })();
@@ -212,7 +217,7 @@ export const api = {
     await wait();
     const db = load();
     if (db.users.some((x) => x.email.toLowerCase() === email.trim().toLowerCase())) throw new Error("An account with this email already exists");
-    const u = { id: "u-" + rid(), email: email.trim(), password, name, phone: indianPhone(phone) || phone, role: "user", createdAt: Date.now(), trialEndsAt: Date.now() + 30 * D, consent: consent ? CONSENT_VERSION : null };
+    const u = { id: "u-" + rid(), email: email.trim(), password, name, phone: indianPhone(phone) || phone, role: "user", createdAt: Date.now(), trialEndsAt: null, consent: consent ? CONSENT_VERSION : null };
     if (consent) db.consentLog.push({ userId: u.id, kind: "user", version: CONSENT_VERSION, items: consent.items || [], at: Date.now() });
     db.users.push(u); db.session = u.id; save(db); emit();
     return { needsConfirmation: false };
@@ -237,7 +242,7 @@ export const api = {
   async completeProfile({ name, phone, email, consent }) {
     await wait();
     const db = load(); const u = me(db);
-    Object.assign(u, { name, phone: u.phone || indianPhone(phone) || phone, email: u.email || (email || "").trim(), needsProfile: false, trialEndsAt: Date.now() + 30 * D, consent: CONSENT_VERSION });
+    Object.assign(u, { name, phone: u.phone || indianPhone(phone) || phone, email: u.email || (email || "").trim(), needsProfile: false, consent: CONSENT_VERSION });
     db.consentLog.push({ userId: u.id, kind: "user", version: CONSENT_VERSION, items: consent?.items || [], at: Date.now() });
     save(db); emit();
   },
@@ -245,7 +250,7 @@ export const api = {
   async getProfile() {
     const u = me(load());
     if (u.needsProfile) return { id: u.id, needsProfile: true, name: "", phone: u.phone || "", email: u.email || "", role: "user", regions: [] };
-    return { trialEndsAt: u.trialEndsAt || (u.createdAt || Date.now()) + 30 * D, id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [], consentVersion: u.consent || null, partnerConsentVersion: u.partnerConsent || null };
+    return { trialEndsAt: u.trialEndsAt || null, id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [], consentVersion: u.consent || null, partnerConsentVersion: u.partnerConsent || null };
   },
   async updateProfile({ name, phone }) { const db = load(); const u = me(db); u.name = name; u.phone = indianPhone(phone) || phone; save(db); },
 
@@ -272,7 +277,7 @@ export const api = {
   async myBusiness() {
     const db = load(); const u = me(db);
     const b = db.businesses.find((x) => x.ownerId === u.id);
-    return b ? { ...b, trialEndsAt: b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : null) } : null;
+    return b ? { ...b, trialEndsAt: b.trialEndsAt || null } : null;
   },
   async saveBusiness(b) {
     await wait();
@@ -309,8 +314,8 @@ export const api = {
       .filter((o) => o.business?.pincode === String(pin) && bizVisible(db, db.businesses.find((b) => b.id === o.businessId)))
       .sort((a, b) => a.endsAt - b.endsAt);
   },
-  async getConfig() { return { freeMode: load().config?.freeMode !== false, night: night(), hours: { open: 6, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
-  async adminSetConfig(cfg) { const db = load(); staff(db, true); db.config = { ...(db.config || {}), freeMode: cfg.freeMode !== false }; save(db); return db.config; },
+  async getConfig() { return { freeMode: false, night: night(), hours: { open: 6, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
+  async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
     const db = load(), now = Date.now(), map = {};
     db.businesses.forEach((b) => { if (b.cityKey && !map[b.cityKey]) map[b.cityKey] = { key: b.cityKey, name: b.city, state: b.state, lat: b.lat, lng: b.lng, liveOffers: 0 }; });
@@ -340,7 +345,9 @@ export const api = {
     const b = db.businesses.find((x) => x.ownerId === u.id);
     if (!b) throw new Error("Set up your business first");
     if (b.status !== "verified") throw new Error("Only verified partners can post. Our team checks every business, usually within 1 working day.");
-    if (!hasPlan(db, u.id, "owner")) throw new Error("Your free month has ended. Pick a Business Pro plan to post offers.");
+    if (!hasPlan(db, u.id, "owner")) throw new Error("Business Pro is not active. Pick a plan to post offers (there is no free version).");
+    const allowed = b.categories?.length ? b.categories : [b.category || "other"];
+    if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
     if (o.category === "jobs") {
       if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
       if (o.endsAt > Date.now() + 7 * D + 60000) throw new Error("Hiring ads can run for up to 7 days");
@@ -370,9 +377,9 @@ export const api = {
     if (o.status !== "live" || o.endsAt <= Date.now()) throw new Error("This offer has ended");
     db.boosts = db.boosts || [];
     if (db.boosts.some((x) => x.offerId === id && (x.status === "pending" || (x.status === "active" && x.endsAt > Date.now())))) throw new Error("This offer is already boosted (or waiting for payment confirmation)");
-    const free = db.config?.freeMode !== false;
-    const row = { id: rid(), offerId: id, ownerId: u.id, hours, price, status: free ? "active" : "pending", paidBy: free ? "launch_free" : null,
-      startsAt: free ? Date.now() : null, endsAt: free ? Math.min(Date.now() + hours * H, o.endsAt) : null, createdAt: Date.now(), offerTitle: o.title, businessName: b.name, city: b.city, note: "" };
+    // always paid: the boost waits until the admin confirms the payment
+    const row = { id: rid(), offerId: id, ownerId: u.id, hours, price, status: "pending", paidBy: null,
+      startsAt: null, endsAt: null, createdAt: Date.now(), offerTitle: o.title, businessName: b.name, city: b.city, note: "" };
     row.live = row.status === "active";
     db.boosts.push(row); save(db); emit();
     return row;
@@ -417,7 +424,7 @@ export const api = {
     };
     const cp = plan("customer"), bp = plan("owner");
     return {
-      freeMode: db.config?.freeMode !== false,
+      freeMode: false,
       subscriptions: { customerPass: cp, businessPro: bp, prices: PLAN_PRICES, mrr: cp.mrr + bp.mrr },
       boosts: { paid: sum(paid, "price"), paidCount: paid.length, waived: sum(waived, "price"), waivedCount: waived.length, pending: bs.filter((x) => x.status === "pending").length, live: bs.filter((x) => x.status === "active" && x.endsAt > now).length, prices: { 6: 49, 12: 79, 24: 99 } },
       banners: { sold: sum(sold, "price"), soldCount: sold.length, live: bn.filter((x) => x.active && x.endsAt > now).length },
@@ -500,7 +507,7 @@ export const api = {
       .map((c) => ({ ...c, verifiedBusinesses: db.businesses.filter((b) => b.cityKey === c.key && b.status === "verified").length }));
     const active = (p) => db.subs.filter((x) => x.plan === p && ["active", "cancelled"].includes(x.status) && x.currentPeriodEnd > now).length;
     return {
-      role: s.role, regions: s.regions, freeMode: db.config?.freeMode !== false,
+      role: s.role, regions: s.regions, freeMode: false,
       totals: {
         users: db.users.length, verified: db.businesses.filter((b) => b.status === "verified").length,
         pending: db.businesses.filter((b) => b.status === "pending").length, suspended: db.businesses.filter((b) => b.status === "suspended").length,
@@ -557,7 +564,7 @@ export const api = {
       if (db.businesses.filter((x) => x.phone === b.phone).length > 1) flags.push("Same phone as another business");
       if (Date.now() - b.createdAt < 2 * D) flags.push("New in last 48 h");
       const sub = db.subs.find((x) => x.userId === b.ownerId && x.plan === "owner" && x.status === "active" && x.currentPeriodEnd > Date.now());
-      return { ...b, phone: maskPhone(b.phone), masked: true, flags, trialEndsAt: b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : null), planUntil: sub ? sub.currentPeriodEnd : null };
+      return { ...b, phone: maskPhone(b.phone), masked: true, flags, trialEndsAt: b.trialEndsAt || null, planUntil: sub ? sub.currentPeriodEnd : null };
     });
   },
   async setBusinessStatus(id, status, note) {
@@ -566,7 +573,6 @@ export const api = {
     if (!b) throw new Error("Business not found");
     if (!s.canSee(b)) throw new Error("This business is outside your area");
     b.status = status; b.statusNote = note || "";
-    if (status === "verified" && !b.trialEndsAt) b.trialEndsAt = Date.now() + 30 * D;
     save(db);
   },
   async adminReports() {
@@ -695,7 +701,7 @@ export const api = {
       s.status = "active"; s.months = months; s.provider = "manual"; s.currentPeriodEnd = base + months * 30 * D;
       recordSale(db, b.ownerId, "owner", months);
     } else if (action === "extendTrial") {
-      const cur = b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : 0);
+      const cur = b.trialEndsAt || 0;
       b.trialEndsAt = Math.max(now, cur) + days * D;
     } else if (action === "end") { if (s) { s.status = "expired"; s.currentPeriodEnd = now; } b.trialEndsAt = now; }
     save(db);

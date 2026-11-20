@@ -12,7 +12,7 @@ import { useApp } from "../state.jsx";
 
 // ------------------------------------------------------------------ partner: boost an offer
 export function BoostSheet({ offer, onClose, onDone }) {
-  const { toast, freeMode } = useApp();
+  const { toast } = useApp();
   const [hours, setHours] = useState(12);
   const [busy, setBusy] = useState(false);
   const price = BOOST_PRICES[hours];
@@ -32,14 +32,14 @@ export function BoostSheet({ offer, onClose, onDone }) {
         {Object.entries(BOOST_PRICES).map(([h, p]) => (
           <button key={h} className={"planopt" + (hours === Number(h) ? " on" : "")} onClick={() => setHours(Number(h))}>
             <div className="m">{h} hours</div>
-            <div className="p">{freeMode ? "Free" : rupee(p)}</div>
-            <div className="pm">{freeMode ? `${rupee(p)} after launch` : `about ${rupee(Math.round(p / Number(h)))}/hour`}</div>
+            <div className="p">{rupee(p)}</div>
+            <div className="pm">about {rupee(Math.round(p / Number(h)))}/hour</div>
           </button>
         ))}
       </div>
-      {!freeMode && <div className="box small" style={{ marginTop: 12 }}>Pay <b>{rupee(price)}</b> {PAY_UPI ? <>by UPI to <b>{PAY_UPI}</b></> : `to ${APP_NAME}`} with your business name in the note. We switch the boost on as soon as we confirm the payment.</div>}
+      {<div className="box small" style={{ marginTop: 12 }}>Pay <b>{rupee(price)}</b> {PAY_UPI ? <>by UPI to <b>{PAY_UPI}</b></> : `to ${APP_NAME}`} with your business name in the note. We switch the boost on as soon as we confirm the payment.</div>}
       <button className="btn main" style={{ marginTop: 14 }} disabled={busy} onClick={go}>
-        <Icon d="rocket" size={18} stroke={2.2} />{busy ? "Boosting…" : freeMode ? "Boost free (launch offer)" : `Request boost · ${rupee(price)}`}
+        <Icon d="rocket" size={18} stroke={2.2} />{busy ? "Sending…" : `Request boost · ${rupee(price)}`}
       </button>
       <div className="note">A boost only makes your offer more visible. It must still be a genuine offer you will honour.</div>
     </Sheet>
@@ -98,7 +98,6 @@ export function AdminRevenue({ toast }) {
         <div style={{ opacity: .85, fontSize: 12.5 }}>Plan sales {rupee(s.customerPass.soldThisMonth + s.businessPro.soldThisMonth)} · boosts {rupee(rev.boosts.paid)} · banners {rupee(rev.banners.sold)}</div>
         <div style={{ opacity: .85, fontSize: 12.5, marginTop: 4 }}>Monthly recurring from active plans: <b>{rupee(s.mrr)}</b>/month</div>
       </div>
-      {rev.freeMode && <div className="banner warn">Free launch mode is on: plans and boosts are free, so most revenue is still zero. Boosts given free this month would have earned {rupee(rev.boosts.waived)} ({rev.boosts.waivedCount}).</div>}
       <div className="kpis" style={{ marginTop: 12 }}>
         <div className="kpi"><div className="n">{rupee(s.customerPass.soldThisMonth)}</div><div className="l">Customer Pass: {s.customerPass.soldCount} sold this month · {s.customerPass.active} active · {rupee(s.customerPass.mrr)}/month</div></div>
         <div className="kpi"><div className="n">{rupee(s.businessPro.soldThisMonth)}</div><div className="l">Business Pro: {s.businessPro.soldCount} sold this month · {s.businessPro.active} active · {rupee(s.businessPro.mrr)}/month</div></div>

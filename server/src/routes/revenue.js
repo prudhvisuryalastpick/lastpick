@@ -2,8 +2,7 @@
 //   Boosted offers    a partner pays to feature one offer at the top of customers' home screens (6/12/24 hours).
 //   Sponsored banners the LastPick team sells the home-screen banner in a city to a business or brand.
 //   Revenue page      the admin sees subscriptions, boosts and banners in one place.
-// Payments are not live yet. In free-launch mode boosts switch on at once and are recorded as waived;
-// otherwise a boost waits until an admin confirms the payment (e.g. a UPI transfer) and switches it on.
+// Payments are not live yet: a boost waits until an admin confirms the payment (e.g. a UPI transfer) and switches it on.
 import { needUser } from "../auth.js";
 import { clearCache } from "../cache.js";
 import { many, one, q } from "../db.js";
@@ -64,14 +63,11 @@ export function boostPartnerRoutes(r) {
     const open = await one("SELECT 1 FROM offer_boosts WHERE offer_id = $1 AND (status = 'pending' OR (status = 'active' AND ends_at > now()))", [o.id]);
     if (open) throw precondition("This offer is already boosted (or waiting for payment confirmation)");
     await limit(u.id, "boost", 10, 86400);
-    const free = await freeMode();
+    // no free version: every boost waits until an admin confirms the payment (Admin → Revenue)
     const row = await one(
-      `INSERT INTO offer_boosts (offer_id, owner_id, hours, price, status, paid_by, starts_at, ends_at)
-       VALUES ($1, $2, $3, $4, $5, $6, ${free ? "now()" : "NULL"}, ${free ? "LEAST(now() + make_interval(hours => $3::int), $7::timestamptz)" : "NULL"})
-       RETURNING *`,
-      [o.id, u.id, hours, price, free ? "active" : "pending", free ? "launch_free" : null, o.ends_at]);
-    if (free) clearCache();
-    audit("boost_requested", u.id, { boostId: row.id, offerId: o.id, hours, price, free });
+      `INSERT INTO offer_boosts (offer_id, owner_id, hours, price, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+      [o.id, u.id, hours, price]);
+    audit("boost_requested", u.id, { boostId: row.id, offerId: o.id, hours, price });
     return mapBoost(row);
   });
 }

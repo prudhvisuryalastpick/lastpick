@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/index.js";
 import { BackButton, NeedLogin, Sheet, Spinner } from "../components.jsx";
-import { APP_NAME, CONSENT_VERSION, GRIEVANCE_TYPES, LEGAL, PLANS, RETENTION, SUPPORT_EMAIL, TRIAL_DAYS, WEBSITE_URL } from "../lib/config.js";
+import { APP_NAME, CONSENT_VERSION, GRIEVANCE_TYPES, LEGAL, PLANS, RETENTION, SUPPORT_EMAIL, WEBSITE_URL } from "../lib/config.js";
 import { day, errText, rupee } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 
@@ -157,9 +157,10 @@ export function Terms() {
         <h2>4. Rules for providers (business partners)</h2>
         <ul>
           <li>Post only genuine offers you can honour. The "normal price" must be the real price you usually charge; the offer price is the final price, with no hidden charges.</li>
-          <li>Only verified businesses can post. Offers must be real discounts and must end within 24 hours. Not allowed: movie tickets, hall bookings, job posts and selling personal items.</li>
+          <li>Only verified businesses with an active Business Pro plan can post, up to 3 posts a day. You may post only in the category you registered (a bakery posts only bakery offers). Offers must be real discounts and must end within 24 hours. Not allowed: movie tickets, hall bookings and selling personal items.</li>
+          <li>Any business may post a job opening for workers at its own shop, with the real pay. It is shown only to customers nearby (about 10 km, or the same pincode) and runs up to 7 days. No agencies, fees from job seekers or jobs at other places.</li>
           <li>Paid features (boosted offers, sponsored banners) only make a post more visible. They don't mean {APP_NAME} checked, recommends or guarantees it.</li>
-          <li>Hold the licences your work needs and follow the law: e.g. FSSAI for food; a registered medical practitioner for doctors' consultations and health camps; recognition or affiliation for schools and colleges, with fees and discounts stated truthfully; valid driving licence, insurance and permits for trips (cost-sharing only, unless you hold a commercial permit).</li>
+          <li>Hold the licences your work needs and follow the law: e.g. FSSAI for food; recognition or affiliation for schools and colleges, with fees and discounts stated truthfully; valid permits for bus and travel operators; labour laws (including minimum wages) for job openings.</li>
           <li>Not allowed: alcohol, tobacco, drugs, prescription medicines, weapons, explosives, gambling or lottery, adult content, wildlife, counterfeit or stolen goods, financial schemes, or anything illegal or unsafe.</li>
           <li>Use a customer's number only to reply about the request they shared it for. No spam, marketing lists or resale.</li>
           <li>Don't post, buy or arrange fake reviews, and don't offer rewards for reviews.</li>
@@ -169,7 +170,7 @@ export function Terms() {
         <h2>6. Reviews, reports and action on providers</h2>
         <p>Only customers who contacted a provider through {APP_NAME} can review it, and reviews are marked "Contacted via {APP_NAME}". Providers can reply but can't remove reviews. When a provider fails to honour a post, misleads customers, behaves badly or breaks these rules, customers can report it. We review reports, reviews and ratings and may warn the provider, hide or remove its posts, suspend or permanently remove it. We remove reviews that are fake, abusive, off-topic or contain personal information.</p>
         <h2>7. Plans and payments</h2>
-        <p>Every account gets {TRIAL_DAYS} days free: customers from sign-up, businesses from the day we verify them. After that, the Customer Pass is {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) is {rupee(PLANS.owner.price)}/month, with lower prices per month on 3, 6 and 12-month plans. See <a className="link" href="#/plans">Plans</a>. You're never charged without choosing a plan and confirming the payment, and you can cancel anytime. See the <a className="link" href="#/refund">refund policy</a>.</p>
+        <p>There is no free version. The Customer Pass is {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) is {rupee(PLANS.owner.price)}/month, with lower prices per month on 3, 6 and 12-month plans. See <a className="link" href="#/plans">Plans</a>. You're never charged without choosing a plan and confirming the payment, and you can cancel anytime. See the <a className="link" href="#/refund">refund policy</a>.</p>
         <h2>8. Verification, reports and removal</h2>
         <p>Verification is not a guarantee. Anyone can report an offer or review. We may remove content or suspend accounts that break these terms or the law, and we act on valid orders from courts and government agencies.</p>
         <h2>9. Complaints and law</h2>

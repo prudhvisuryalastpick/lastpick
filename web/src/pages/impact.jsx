@@ -144,8 +144,9 @@ const FAQ = {
   ],
   partner: [
     ["How do I get verified?", "Fill in your business profile with your shop location and contact number. Our team checks it, usually within 1 working day."],
-    ["How many offers can I post?", "3 posts a day. Every offer must end within 24 hours."],
-    ["What can I post?", "Same-day offers and discounts from everyday local businesses: food, hotels, travel, grocery, salon, laundry, clinics, medical stores, bike service, gyms, shops and more. No halls, movie tickets, job posts or selling personal items. Only verified (trusted) partners can post; we check every business first."],
+    ["How many offers can I post?", "3 posts a day per business (job openings included). Every offer must end within 24 hours; a job opening can run up to 7 days."],
+    ["What can I post?", "Only offers in the category you registered: a bakery posts bakery offers, a salon posts salon offers. Every business can also post a job opening for workers at its own shop; customers within 10 km see it like a local ad. No halls, movie tickets or selling personal items. Only verified (trusted) partners can post; we check every business first."],
+    ["Is there a free version?", "No. Posting needs an active Business Pro plan, and seeing business numbers needs the Customer Pass. Longer plans cost less per month."],
     ["A customer misbehaved", "Open Leads, or contact us below. Customers who break the rules can be blocked."],
   ],
 };
@@ -264,7 +265,7 @@ export function Rules() {
       <R icon="🤝" title={`${APP_NAME} is only a platform`}>We connect customers with local businesses and service providers. We don't sell, deliver, book, collect payment for, or guarantee any offer. Boosted and sponsored posts are paid placements, not recommendations. The deal is between you and them.</R>
       <R icon="⚖️" title="We are not responsible for the deal">Quality, safety, price, availability, refunds and anything that goes wrong in the deal are the responsibility of the business or person offering it. This doesn't take away your rights under Indian consumer law.</R>
       <R icon="⭐" title="Reviews and action on providers">Only customers who contacted a provider through {APP_NAME} can review it. If a provider fails, misleads or behaves badly, report it. We review reports and reviews and act on the provider: warning, hiding offers, suspension or removal.</R>
-      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, medical registration for doctors' camps, permits for passenger trips, recognition for schools and colleges). Offers end within 24 hours; no movie tickets. Use customers' numbers only to reply about their request.</R>
+      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, recognition for schools and colleges). Post only in your own registered category, up to 3 posts a day; offers end within 24 hours. Job openings for workers at your own shop are allowed. No movie tickets, halls or selling personal items. Use customers' numbers only to reply about their request.</R>
       <R icon="🙋" title="Rules for customers">Check the offer and the provider before paying. Never pay an advance to someone you haven't verified. Write honest reviews about your own experience.</R>
       <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. One account is logged in on one device at a time, to keep it safe. Download or delete your data anytime.</R>
       <R icon="🚫" title="Not allowed">Alcohol, tobacco, drugs, prescription medicines, weapons, gambling, adult content, counterfeit or stolen goods, fake reviews, spam, or anything illegal or unsafe.</R>

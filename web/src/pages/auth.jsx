@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
 import { Spinner } from "../components.jsx";
-import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS, TRIAL_DAYS } from "../lib/config.js";
+import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
@@ -27,7 +27,7 @@ const CFLOAT = [
   { cat: "beauty", t: "Salon slots today", s: "4 – 8 PM · 0.8 km", o: "-50%", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
   { cat: "travel", t: "Bus seats tonight", s: "Leaves 10:45 PM", o: "-43%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
 ];
-const TRAIL = ["food", "stay", "travel", "beauty", "laundry", "grocery", "health", "other"];
+const TRAIL = ["food", "stay", "travel", "beauty", "laundry", "grocery", "photo", "other"];
 
 export function Welcome() {
   const go = (to) => { markWelcomed(); navigate(to, { replace: true }); };
@@ -43,11 +43,11 @@ export function Welcome() {
         })}
       </div>
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
-        <span className="giftpill"><Icon d="gift" size={14} stroke={2.2} />Your first month is free</span>
+        <span className="giftpill"><Icon d="clock" size={14} stroke={2.2} />Every deal ends within 24 hours</span>
         <h1>Deals from local businesses, near you.</h1>
         <p className="lead2">Same-day discounts from local food places, hotels, travel, salons, laundries, shops and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
         <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
-        <p className="fine">After {TRIAL_DAYS} days: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
+        <p className="fine">{PLANS.customer.name}: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20, animation: "fadeUp .6s ease .35s both" }}>
         <button className="btn main" onClick={() => go("/login")}>Get started</button>
@@ -67,9 +67,9 @@ function OwnerWelcome({ go }) {
         {FLOAT.map((f) => <div key={f.t} className="floatcard" style={f.style}><span className="e">{f.e}</span><i>{f.o}</i><b>{f.t}</b><span>{f.s}</span></div>)}
       </div>
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
-        <span className="giftpill">🎁 Your first month is free</span>
+        <span className="giftpill">🛡️ Verified local partners only</span>
         <h1>Last-minute deals,<br />within 30 km.</h1>
-        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: "#C9C7C0" }}>Empty rooms, halls, seats, food and slots that businesses near you must fill today. Call the owner directly.</p>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: "#C9C7C0" }}>Empty rooms, seats, food and slots that businesses near you must fill today. Call the owner directly.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22, animation: "fadeUp .6s ease .35s both" }}>
         <button className="btn main" onClick={() => go("/login")}>Get started →</button>
@@ -139,7 +139,7 @@ export function Login({ next = "/" }) {
       <div id="otp-captcha" />
       <div className="row">
         <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !OTP_LOGIN ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
-        {!IS_ADMIN_APP && <span className="trialpill">🎁 First month free</span>}
+        {!IS_ADMIN_APP && <span className="trialpill">🛡️ Verified partners only</span>}
       </div>
 
       {step === "enter" && <>
@@ -166,7 +166,7 @@ export function Login({ next = "/" }) {
         </form>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           <div className="trust"><span className="ti" style={{ background: "var(--ok-soft)" }}>🛡️</span><div><b style={{ fontSize: 14 }}>Your number stays private</b><div className="muted small">A business sees it only when you tap "Share my number".</div></div></div>
-          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>🎁</span><div><b style={{ fontSize: 14 }}>First {TRIAL_DAYS} days free</b><div className="muted small">{IS_OWNER_APP ? `From the day we verify your business. Then ${rupee(PLANS.owner.price)}/month, or less on longer plans.` : `Then ${rupee(PLANS.customer.price)}/month, or less on longer plans. Nothing is charged without asking you.`}</div></div></div>
+          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month` : `${PLANS.customer.name} from ${rupee(PLANS.customer.price)}/month`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Less on longer plans. Nothing is charged without asking you."}</div></div></div>
         </div>
         <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>
         {!isLive && <div style={{ marginTop: 18 }}>
@@ -242,15 +242,15 @@ export function CompleteProfile() {
     try {
       await api.completeProfile({ name: name.trim(), phone: viaPhone ? profile.phone : other.trim(), email: viaPhone ? other.trim() : profile.email, consent: consentPayload(consent) });
       await refresh();
-      toast(`Your free month has started 🎉`);
+      toast(`Welcome to ${APP_NAME} 🎉`);
     } catch (x) { setErr(errText(x)); setBusy(false); }
   };
   return (
     <form className="auth" onSubmit={save}>
       <div className="plan" style={{ margin: "8px 0 0" }}>
-        <div className="row"><span className="small" style={{ fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", color: "var(--hi)" }}>Welcome gift</span><span className="small" style={{ opacity: .75 }}>No card needed</span></div>
-        <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{TRIAL_DAYS} days free</div>
-        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? `Starts when we verify your business. Then ${rupee(PLANS.owner.price)}/month.` : `Then ${rupee(PLANS.customer.price)}/month, or less on 3, 6 and 12-month plans.`}</div>
+        <div className="row"><span className="small" style={{ fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", color: "var(--hi)" }}>Your plan</span><span className="small" style={{ opacity: .75 }}>{IS_OWNER_APP ? PLANS.owner.name : PLANS.customer.name}</span></div>
+        <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{rupee(IS_OWNER_APP ? PLANS.owner.price : PLANS.customer.price)}/month</div>
+        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? "After we verify your business. Less on 3, 6 and 12-month plans." : "Less on 3, 6 and 12-month plans. You pick a plan after this step."}</div>
         <div style={{ height: 8, background: "rgba(255,255,255,.18)", borderRadius: 99, marginTop: 14, overflow: "hidden" }}><div style={{ height: "100%", background: "var(--hi)", borderRadius: 99, animation: "grow 1.4s ease .3s both", transformOrigin: "left" }} /></div>
       </div>
       <h1 style={{ fontSize: 26 }}>A few details</h1>
@@ -265,7 +265,7 @@ export function CompleteProfile() {
           {NOTICE_ITEMS.map((n) => <div key={n.data} style={{ paddingTop: 6 }}><b>{n.data}</b><div className="muted">{n.why}</div></div>)}</details>
         <ConsentBoxes value={consent} onChange={setConsent} />
         {err && <div className="error">{err}</div>}
-        <button className="btn main" disabled={busy}>{busy ? "Saving…" : "Agree and start free month"}</button>
+        <button className="btn main" disabled={busy}>{busy ? "Saving…" : "Agree and continue"}</button>
         <button type="button" className="link small" style={{ color: "var(--muted)" }} onClick={async () => { await api.signOut(); navigate("/"); }}>Log out</button>
       </div>
     </form>
