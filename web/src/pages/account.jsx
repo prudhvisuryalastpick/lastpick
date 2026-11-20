@@ -1,0 +1,436 @@
+import { useEffect, useState } from "react";
+import { api, isLive } from "../api/index.js";
+import { BackButton, Empty, NeedLogin, PlanCard, Spinner } from "../components.jsx";
+import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, TRIAL_DAYS, planLabel, savePct } from "../lib/config.js";
+import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
+import { navigate, useApp } from "../state.jsx";
+import { AdminSupport } from "./impact.jsx";
+
+// ------------------------------------------------------------------ Plans & pricing
+// Free month first (customers from sign-up, businesses from verification). Then monthly, 3, 6 or 12-month plans.
+export function Subscribe({ plan }) { return <Plans plan={plan} />; }
+export function Plans({ plan: initial }) {
+  const { session, subs, profile, business, trial, refresh, freeMode } = useApp();
+  const [plan, setPlan] = useState(PLANS[initial] ? initial : IS_OWNER_APP ? "owner" : "customer");
+  const [months, setMonths] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const p = PLANS[plan], s = subs?.[plan], opt = p.options.find((o) => o.months === months) || p.options[0];
+  const trialEnd = trial?.[plan];
+  const left = daysLeft(trialEnd);
+  const canPay = !freeMode && !IS_NATIVE && months === 1 && !!session && left === 0;
+  const pay = async () => {
+    if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
+    setBusy(true); setErr("");
+    try { await api.subscribe(plan, profile); await refresh(); } catch (e) { setErr(errText(e)); }
+    setBusy(false);
+  };
+  let status = null;
+  if (session) {
+    if (s?.active) status = ["ok", "✅", `${p.name} is active`, `Till ${day(s.currentPeriodEnd)}`];
+    else if (left > 0) status = ["ok", "🎁", `Free month: ${left} day${left > 1 ? "s" : ""} left`, `Free until ${day(trialEnd)}. After that ${rupee(p.price)}/month, or less on a longer plan.`];
+    else if (plan === "owner" && !business) status = ["no", "🏪", "Your free month starts when your business is verified", `Register your business; once we verify it, ${TRIAL_DAYS} days are free.`];
+    else if (plan === "owner" && business.status !== "verified") status = ["no", "⏳", "Waiting for verification", `Your ${TRIAL_DAYS} free days start the day we verify your business.`];
+    else if (freeMode) status = ["ok", "🎉", "Free during launch", `Your free month is over, but ${APP_NAME} is free for everyone during launch. We'll tell you before paid plans start.`];
+    else status = ["no", "⚠️", "Your free month has ended", `Pick a plan to keep ${plan === "owner" ? "posting offers" : "seeing businesses' numbers"}.`];
+  }
+  return (
+    <>
+      <div style={{ position: "relative", height: 62 }}><BackButton /></div>
+      <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Plans</h1>
+        <div className="muted">Every account starts with {TRIAL_DAYS} days free.</div></div>
+      {!IS_OWNER_APP && !IS_CUSTOMER_APP && <div className="tabs">
+        <button className={plan === "customer" ? "on" : ""} onClick={() => setPlan("customer")}>For customers</button>
+        <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
+      </div>}
+      {status && <div className={"status " + status[0]}><span style={{ fontSize: 24 }}>{status[1]}</span><div><b>{status[2]}</b><div className="muted small">{status[3]}</div></div></div>}
+      <PlanCard plan={plan} />
+      <div className="label-up" style={{ paddingBottom: 12 }}>After the free month{plan === "owner" ? " (verified businesses)" : ""}</div>
+      <div className="planopts">
+        {p.options.map((o) => {
+          const save = savePct(plan, o);
+          return (
+            <button key={o.months} className={"planopt " + (o.months === months ? "on" : "")} aria-pressed={o.months === months} onClick={() => setMonths(o.months)}>
+              {save > 0 && <span className="save">Save {save}%</span>}
+              <div className="m">{planLabel(o.months)}</div>
+              <div className="p">{rupee(o.price)}</div>
+              <div className="pm">{o.months > 1 ? `${rupee(Math.round(o.price / o.months))}/month` : "per month"}</div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="pad">
+        {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
+        {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}</div>}
+        {canPay
+          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `Subscribe for ${rupee(opt.price)}`}</button>
+          : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {freeMode || left > 0
+            ? "Payments aren't switched on yet. Nothing is charged now, and we'll tell you before any payment is needed. Plans never renew without your OK."
+            : IS_NATIVE ? "Plans can't be bought inside the app yet." : "Monthly plans can be bought online now; longer plans are coming soon."}</div>}
+        <div className="note">{plan === "owner"
+          ? `Business Pro is for business partners we have verified. Your ${TRIAL_DAYS} free days start the day you're verified.`
+          : `Customer Pass. Your ${TRIAL_DAYS} free days start when you sign up.`} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
+      </div>
+    </>
+  );
+}
+
+export { Login } from "./auth.jsx";
+
+// ------------------------------------------------------------------ Legal & help
+export function Help() {
+  return (
+    <>
+      <div style={{ position: "relative", height: 62 }}><BackButton /></div>
+      <div className="legal">
+        <h1 className="title">Help & support</h1>
+        <h2>How does {APP_NAME} work?</h2>
+        <p>Owners post offers on things they need to move fast. Customers browse for free; with the Customer Pass they can see the owner's number, call or WhatsApp them, or share their own number so the owner calls back.</p>
+        <h2>The owner didn't honour the offer</h2>
+        <p>Open the offer and tap "Report this offer". Our team reviews every report and can remove offers or suspend businesses.</p>
+        <h2>Cancel a subscription</h2>
+        <p>Account → your plan → Cancel. You keep access until the end of the paid month.</p>
+        <h2>Rate a business</h2>
+        <p>After you contact a business through {APP_NAME}, open its offer (or My contacts) and tap "Rate". Only real contacts can review, so ratings stay honest.</p>
+        <h2>Your data</h2>
+        <p>Account → Privacy & your data: download everything we hold about you, or delete your account.</p>
+        <h2>Contact us</h2>
+        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. We reply within 2 working days. For complaints, raise a <a className="link" href="#/grievance">ticket</a>.</p>
+      </div>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ Refund & contact (needed for payment-gateway KYC)
+export function Refund() {
+  return (
+    <>
+      <div style={{ position: "relative", height: 62 }}><BackButton /></div>
+      <div className="legal">
+        <h1 className="title">Refund & cancellation policy</h1>
+        <p className="muted">Template text: have a lawyer review it before launch.</p>
+        <h2>Subscriptions</h2>
+        <p>Every account gets {TRIAL_DAYS} days free: customers from sign-up, businesses from the day we verify them. After that, the Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month, with lower monthly prices on 3, 6 and 12-month plans ({PLANS.customer.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for customers; {PLANS.owner.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for businesses). You are never charged without choosing a plan and confirming the payment.</p>
+        <h2>Cancelling</h2>
+        <p>You can cancel anytime in Account. Cancelling stops the next renewal and cancels the mandate; your plan stays active until the end of the period you already paid for.</p>
+        <h2>Refunds</h2>
+        <p>Fees already paid are not refunded for unused time. If you were charged by mistake (for example a duplicate charge, or a renewal after you cancelled), contact us within 7 days and we will refund the full amount to the original payment method within 7 working days.</p>
+        <h2>Offers and deals</h2>
+        <p>{APP_NAME} does not sell, collect payment for, or deliver any offer listed in the app. Payments for offers are made directly to the business, so refunds for offers must be requested from that business.</p>
+        <h2>Contact</h2>
+        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> with your registered email and payment details.</p>
+      </div>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ Admin & moderators
+export function Admin() {
+  return <NeedLogin why="Log in as admin"><AdminInner /></NeedLogin>;
+}
+function AdminInner() {
+  const { isStaff, isAdmin, profile, toast } = useApp();
+  const [tab, setTab] = useState("overview");
+  if (!isStaff) return <Empty icon="⛔" title="Admins only">Your account doesn't have admin access.</Empty>;
+  const tabs = isAdmin
+    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["plans", "Plans"], ["team", "Team"]]
+    : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"]];
+  return (
+    <>
+      <div className="page-h">
+        <h1 className="title">{isAdmin ? "Admin" : "Moderator"}</h1>
+        <div className="muted">{isAdmin ? "All of India" : `Your regions: ${(profile?.regions || []).join(", ") || "none assigned yet"}`}</div>
+        {IS_ADMIN_APP && <div className="muted small" style={{ marginTop: 6 }}>{profile?.email} · <button className="link" onClick={async () => { await api.signOut(); navigate("/login"); }}>Log out</button></div>}
+      </div>
+      <div className="chips" style={{ paddingTop: 4 }}>{tabs.map(([id, l]) => <button key={id} className={"chip " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{l}</button>)}</div>
+      {tab === "overview" && <AdminOverview toast={toast} go={setTab} />}
+      {tab === "businesses" && <AdminBusinesses toast={toast} />}
+      {tab === "reports" && <AdminReports toast={toast} />}
+      {tab === "support" && <AdminSupport toast={toast} />}
+      {tab === "complaints" && isAdmin && <AdminComplaints toast={toast} />}
+      {tab === "users" && isAdmin && <AdminUsers toast={toast} />}
+      {tab === "plans" && isAdmin && <AdminPlans toast={toast} />}
+      {tab === "team" && isAdmin && <AdminTeam toast={toast} />}
+    </>
+  );
+}
+
+function PaymentsSwitch({ data, setData, toast }) {
+  const { setConfig } = useApp();
+  const [busy, setBusy] = useState(false);
+  const flip = async () => {
+    setBusy(true);
+    try {
+      const r = await api.adminSetConfig({ freeMode: !data.freeMode });
+      setData({ ...data, freeMode: r.freeMode }); setConfig({ freeMode: r.freeMode });
+      toast(r.freeMode ? "Free mode on: no subscriptions needed" : "Payments on: subscriptions required");
+    } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className={"status " + (data.freeMode ? "ok" : "no")}>
+      <span style={{ fontSize: 24 }}>{data.freeMode ? "🎉" : "💳"}</span>
+      <div className="grow"><b>{data.freeMode ? "Free launch mode is ON" : "Payments are ON"}</b>
+        <div className="muted small">{data.freeMode ? "Everyone who logs in can see numbers and post offers. No subscriptions." : "Customers need the Customer Pass and owners need Business Pro."}</div></div>
+      <button className="btn ghost sm" disabled={busy} onClick={flip}>{busy ? "…" : data.freeMode ? "Turn payments on" : "Make it free"}</button>
+    </div>
+  );
+}
+
+function AdminOverview({ toast, go }) {
+  const { isAdmin } = useApp();
+  const [data, setData] = useState(null);
+  const [stateFilter, setStateFilter] = useState("");
+  useEffect(() => { api.adminStats().then(setData).catch((e) => { toast(errText(e)); setData({ totals: {}, cities: [] }); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!data) return <Spinner />;
+  const t = data.totals;
+  const mrr = (t.customers || 0) * PLANS.customer.price + (t.owners || 0) * PLANS.owner.price;
+  const cities = data.cities.filter((c) => !stateFilter || c.state === stateFilter);
+  const states = [...new Set(data.cities.map((c) => c.state).filter(Boolean))].sort();
+  const Kpi = ({ n, l, onClick }) => <div className="kpi" onClick={onClick} style={onClick ? { cursor: "pointer" } : null}><div className="n">{n ?? "…"}</div><div className="l">{l}</div></div>;
+  return (
+    <>
+      {isAdmin && <PaymentsSwitch data={data} setData={setData} toast={toast} />}
+      {!data.freeMode && <div className="plan" style={{ padding: 16, marginTop: 4 }}>
+        <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>
+        <div className="amt" style={{ fontSize: 32 }}>{rupee(mrr)}</div>
+        <div style={{ opacity: .75, fontSize: 12.5 }}>{t.customers} Customer Pass × {rupee(PLANS.customer.price)} + {t.owners} Business Pro × {rupee(PLANS.owner.price)}</div>
+      </div>}
+      {data.impact && <div className="plan" style={{ padding: 16, margin: "4px 16px 12px" }}>
+        <div style={{ opacity: .8, fontSize: 13 }}>Business generated for local partners (last 12 months, estimated)</div>
+        <div className="amt" style={{ fontSize: 32 }}>{rupee(data.impact.value)}</div>
+        <div style={{ opacity: .85, fontSize: 12.5 }}>Customers saved {rupee(data.impact.saved)} · {data.impact.customers} customers · {data.impact.businesses} businesses · {rupee(data.impact.value30)} in the last 30 days</div>
+      </div>}
+      <div className="kpis">
+        <Kpi n={t.users} l="Registered users" onClick={() => go("users")} />
+        {data.openSupport != null && <Kpi n={data.openSupport} l="Support chats waiting" onClick={() => go("support")} />}
+        <Kpi n={t.liveOffers} l="Live offers" />
+        <Kpi n={t.verified} l="Verified businesses" onClick={() => go("businesses")} />
+        <Kpi n={t.pending} l="Waiting for verification" onClick={() => go("businesses")} />
+        <Kpi n={t.openReports} l="Open reports" onClick={() => go("reports")} />
+        <Kpi n={t.leads30} l="Numbers shared (30 days)" />
+        <Kpi n={t.suspended} l="Suspended businesses" />
+        <Kpi n={t.archived} l="Archived offers" />
+        <Kpi n={t.reviews} l="Published reviews" />
+        {isAdmin && <Kpi n={t.openGrievances} l="Open complaints" onClick={() => go("complaints")} />}
+      </div>
+      <div className="sect"><h3>By city</h3>
+        <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} aria-label="Filter by state"><option value="">All states</option>{states.map((s) => <option key={s}>{s}</option>)}</select>
+      </div>
+      {cities.length === 0 ? <div className="muted pad" style={{ paddingTop: 0 }}>No cities yet. Cities appear when businesses there post offers.</div> : (
+        <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
+          <table className="admin">
+            <thead><tr style={{ background: "#f6f7fb", textAlign: "left" }}><th style={{ padding: 10 }}>City</th><th>State</th><th style={{ textAlign: "right" }}>Live offers</th><th style={{ textAlign: "right", paddingRight: 10 }}>Verified businesses</th></tr></thead>
+            <tbody>{cities.map((c) => <tr key={c.key} style={{ borderTop: "1px solid var(--line)" }}><td style={{ padding: 10, fontWeight: 600 }}>{c.name}</td><td className="muted">{c.state}</td><td style={{ textAlign: "right" }}>{c.liveOffers}</td><td style={{ textAlign: "right", paddingRight: 10 }}>{c.verifiedBusinesses ?? "-"}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Super-admin plan controls on a business: unlock Business Pro, extend the free month, or end both.
+function BizPlanControls({ b, toast, onDone }) {
+  const [months, setMonths] = useState(1);
+  const [days, setDays] = useState(15);
+  const [busy, setBusy] = useState(false);
+  const run = async (action, extra, msg) => {
+    setBusy(true);
+    try { await api.adminBusinessPlan(b.id, action, extra); toast(msg); onDone(); } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="box" style={{ marginTop: 10 }}>
+      <div className="small" style={{ fontWeight: 700 }}>Plan</div>
+      <div className="muted small">{[b.planUntil && `${PLANS.owner.name} till ${day(b.planUntil)}`, b.trialEndsAt && b.trialEndsAt > Date.now() && `Free month till ${day(b.trialEndsAt)}`].filter(Boolean).join(" · ")
+        || (b.status === "verified" ? "No active plan" : "Free month starts at verification")}</div>
+      <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select aria-label="Plan length" value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
+          {PLANS.owner.options.map((o) => <option key={o.months} value={o.months}>{planLabel(o.months)} ({rupee(o.price)})</option>)}</select>
+        <button className="btn main sm" disabled={busy} onClick={() => run("unlock", { months }, `${PLANS.owner.name} unlocked for ${planLabel(months)}`)}>Unlock plan</button>
+      </div>
+      <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select aria-label="Extend by" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
+          {[7, 15, 30, 60].map((d) => <option key={d} value={d}>+{d} days</option>)}</select>
+        <button className="btn ghost sm" disabled={busy} onClick={() => run("extendTrial", { days }, `Free time extended by ${days} days`)}>Extend free time</button>
+        {(b.planUntil || (b.trialEndsAt && b.trialEndsAt > Date.now())) && <button className="btn danger sm" disabled={busy} onClick={() => run("end", {}, "Plan and free time ended")}>End plan</button>}
+      </div>
+    </div>
+  );
+}
+
+function AdminBusinesses({ toast }) {
+  const { isAdmin } = useApp();
+  const [list, setList] = useState(null);
+  const [status, setStatus] = useState("pending");
+  const [state, setState] = useState("");
+  const [note, setNote] = useState("");
+  const load = () => { setList(null); api.adminBusinesses({ status: status === "all" ? null : status, state: state || null }).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
+  useEffect(() => { load(); }, [status, state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const act = async (b, st) => {
+    try { await api.setBusinessStatus(b.id, st, st === "verified" ? "" : note.trim()); toast(`${b.name}: ${st}`); setNote(""); load(); } catch (e) { toast(errText(e)); }
+  };
+  return (
+    <>
+      <div className="chips" style={{ paddingTop: 0 }}>{["pending", "verified", "rejected", "suspended", "all"].map((s) => <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>{s}</button>)}</div>
+      <div className="form" style={{ paddingBottom: 8 }}>
+        <div className="fld"><select value={state} onChange={(e) => setState(e.target.value)} aria-label="State"><option value="">All states</option>{INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
+        <div className="fld"><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note to owner when rejecting or suspending" /></div>
+      </div>
+      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here" /> : list.map((b) => (
+        <div className="panel" key={b.id}>
+          <div className="row"><b>{b.name}</b><span className={"pill " + (b.status === "verified" ? "p-ok" : b.status === "pending" ? "p-warn" : "p-bad")}>{b.status}</span></div>
+          <div className="muted small">{(b.categories || [b.category]).join(", ")}{b.rating?.count ? ` · ★ ${b.rating.avg} (${b.rating.count})` : ""} · {b.address || "-"}, {b.area}, {b.city}, {b.state || "state missing"}</div>
+          <div className="muted small">📞 {b.phone ? prettyPhone(b.phone) : "no number"} · {b.lat != null ? "📍 location set" : "no map location"}{b.createdAt ? " · joined " + ago(b.createdAt) : ""}</div>
+          {b.flags?.length > 0 && <div className="gap" style={{ flexWrap: "wrap", marginTop: 6 }}>{b.flags.map((f) => <span key={f} className="pill p-bad">⚠️ {f}</span>)}</div>}
+          {b.statusNote && <div className="muted small">Note: {b.statusNote}</div>}
+          <div className="gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
+            {b.phone && <a className="btn ghost sm" href={"tel:" + b.phone}>📞 Call to verify</a>}
+            {b.status !== "verified" && <button className="btn main sm" onClick={() => act(b, "verified")}>Verify</button>}
+            {["pending", "verified", "suspended"].includes(b.status) && <button className="btn ghost sm" onClick={() => act(b, "rejected")}>Reject</button>}
+            {b.status === "verified" && <button className="btn danger sm" onClick={() => act(b, "suspended")}>Suspend</button>}
+          </div>
+          {isAdmin && <BizPlanControls b={b} toast={toast} onDone={load} />}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AdminReports({ toast }) {
+  const [list, setList] = useState(null);
+  const load = () => api.adminReports().then(setList).catch((e) => { toast(errText(e)); setList([]); });
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const resolve = async (r, status, removeOffer) => {
+    try { await api.resolveReport(r.id, status, removeOffer); toast(removeOffer ? "Offer removed" : "Report " + status); load(); } catch (e) { toast(errText(e)); }
+  };
+  return !list ? <Spinner /> : list.length === 0 ? <Empty icon="🎉" title="No open reports" /> : list.map((r) => (
+    <div className="panel" key={r.id}>
+      <div className="row"><b>{r.type === "review" ? "Review: " : ""}{r.reason}</b><span className="muted small">{r.createdAt ? ago(r.createdAt) : ""}</span></div>
+      <div className="muted small">{[r.city, r.state].filter(Boolean).join(", ")}</div>
+      {r.details && <div className="muted small" style={{ marginTop: 4 }}>{r.details}</div>}
+      {r.type === "review" ? (
+        <div className="box small" style={{ marginTop: 8 }}>{r.review ? <>⭐ {r.review.rating} by {r.review.name} on <b>{r.review.businessName}</b>: "{r.review.text || "(no text)"}" · {r.review.status}</> : "Review already deleted"}</div>
+      ) : (
+        <div className="box small" style={{ marginTop: 8 }}>{r.offer ? <><a className="link" href={"#/offer/" + r.offer.id}>{r.offer.title}</a> · {r.offer.business?.name} · {r.offer.status}</> : "Offer already archived"}</div>
+      )}
+      <div className="gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
+        {r.offer && r.offer.status !== "removed" && <button className="btn danger sm" onClick={() => resolve(r, "actioned", true)}>Remove offer</button>}
+        {r.review && r.review.status !== "hidden" && <button className="btn danger sm" onClick={() => resolve(r, "actioned", true)}>Hide review</button>}
+        <button className="btn ghost sm" onClick={() => resolve(r, "dismissed", false)}>Dismiss</button>
+      </div>
+    </div>
+  ));
+}
+
+// Complaint tickets: acknowledge within 24 hours, resolve within 15 days (IT Rules 2021).
+function AdminComplaints({ toast }) {
+  const [status, setStatus] = useState("open");
+  const [list, setList] = useState(null);
+  const [reply, setReply] = useState({});
+  const load = () => { setList(null); api.adminGrievances(status).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
+  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const update = async (g, st) => {
+    try { await api.adminUpdateGrievance(g.ticket, st, reply[g.ticket] || g.reply || ""); toast(`Ticket ${g.ticket}: ${st}`); load(); } catch (e) { toast(errText(e)); }
+  };
+  const due = (g) => { const created = typeof g.createdAt === "string" ? Date.parse(g.createdAt) : g.createdAt; return created ? created + 15 * 86400000 : null; };
+  return (
+    <>
+      <div className="chips" style={{ paddingTop: 0 }}>{["open", "acknowledged", "resolved", "rejected"].map((s) => <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>{s}</button>)}</div>
+      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="📭" title="No complaints here" /> : list.map((g) => (
+        <div className="panel" key={g.ticket}>
+          <div className="row"><b>{g.subject}</b><span className="muted small">{g.ticket}</span></div>
+          <div className="muted small">{g.type} · {g.email}{due(g) ? " · resolve by " + day(due(g)) : ""}</div>
+          <div className="small" style={{ marginTop: 6, whiteSpace: "pre-line" }}>{g.details}</div>
+          {["open", "acknowledged"].includes(g.status) ? <>
+            <div className="fld" style={{ marginTop: 8 }}><textarea rows="2" placeholder="Reply to the user (they see this in Complaints)" value={reply[g.ticket] ?? g.reply ?? ""} onChange={(e) => setReply({ ...reply, [g.ticket]: e.target.value })} /></div>
+            <div className="gap" style={{ marginTop: 8, flexWrap: "wrap" }}>
+              {g.status === "open" && <button className="btn ghost sm" onClick={() => update(g, "acknowledged")}>Acknowledge</button>}
+              <button className="btn main sm" onClick={() => update(g, "resolved")}>Resolve</button>
+              <button className="btn ghost sm" onClick={() => update(g, "rejected")}>Close without action</button>
+            </div>
+          </> : g.reply && <div className="box small" style={{ marginTop: 8 }}>Reply: {g.reply}</div>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AdminUsers({ toast }) {
+  const [q, setQ] = useState("");
+  const [list, setList] = useState(null);
+  const search = (term) => { setList(null); api.adminFindUsers(term).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
+  useEffect(() => { search(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const plan = (s) => !s ? <span className="pill p-mute">none</span> : s.active ? <span className="pill p-ok">till {day(s.until)}</span> : <span className="pill p-bad">{s.status}</span>;
+  return (
+    <>
+      <form className="form" style={{ paddingBottom: 8 }} onSubmit={(e) => { e.preventDefault(); search(q.trim()); }}>
+        <div className="gap"><input style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 12, padding: "11px 12px" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Email, phone number or name" aria-label="Search users" />
+          <button className="btn dark sm">Search</button></div>
+        <div className="muted small">Leave empty to see the newest 50 sign-ups.</div>
+      </form>
+      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🔍" title="No users found" /> : list.map((u) => (
+        <div className="panel" key={u.id}>
+          <div className="row"><b>{u.name || "(no name)"}</b>{u.role !== "user" && <span className="pill p-new">{u.role}</span>}</div>
+          <div className="muted small">{u.email} · {u.phone ? prettyPhone(u.phone) : "no phone"}{u.createdAt ? " · joined " + day(u.createdAt) : ""}</div>
+          <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="small">Customer Pass:</span> {plan(u.customer)}
+            <span className="small">Business Pro:</span> {plan(u.owner)}
+          </div>
+          {u.business && <div className="muted small" style={{ marginTop: 6 }}>🏪 {u.business.name} · {u.business.city}, {u.business.state} · {u.business.status}</div>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AdminPlans({ toast }) {
+  const [f, setF] = useState({ email: "", plan: "customer", months: 1 });
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try { await api.adminSetPlan(f.email.trim(), f.plan, Number(f.months)); toast(Number(f.months) > 0 ? "Plan activated" : "Plan ended"); setF({ ...f, email: "" }); }
+    catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="form">
+      <div className="muted">Activate or extend a plan by hand, e.g. for testers or when someone paid outside the app.</div>
+      <div className="fld"><label>User's email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
+      <div className="two">
+        <div className="fld"><label>Plan</label><select value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value })}><option value="customer">{PLANS.customer.name}</option><option value="owner">{PLANS.owner.name}</option></select></div>
+        <div className="fld"><label>Length</label><select value={f.months} onChange={(e) => setF({ ...f, months: e.target.value })}>
+          {[1, 3, 6, 12].map((m) => <option key={m} value={m}>{planLabel(m)} ({rupee(PLANS[f.plan].options.find((o) => o.months === m).price)})</option>)}<option value={0}>End the plan now</option></select></div>
+      </div>
+      <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Apply"}</button>
+    </div>
+  );
+}
+
+function AdminTeam({ toast }) {
+  const [f, setF] = useState({ email: "", role: "moderator", regions: [] });
+  const [busy, setBusy] = useState(false);
+  const toggle = (st) => setF((p) => ({ ...p, regions: p.regions.includes(st) ? p.regions.filter((x) => x !== st) : [...p.regions, st] }));
+  const submit = async () => {
+    if (f.role === "moderator" && f.regions.length === 0) return toast("Pick at least one state for the moderator");
+    setBusy(true);
+    try { await api.adminSetRole(f.email.trim(), f.role, f.regions); toast(`Saved: ${f.email} is now ${f.role}`); setF({ email: "", role: "moderator", regions: [] }); }
+    catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="form">
+      <div className="muted">Moderators can verify businesses and handle reports only in the states you give them. Admins see all of India. The person must have signed up first.</div>
+      <div className="fld"><label>Email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
+      <div className="fld"><label>Role</label>
+        <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+          <option value="moderator">Moderator (selected states)</option><option value="admin">Admin (all of India)</option><option value="user">Normal user (remove access)</option>
+        </select></div>
+      {f.role === "moderator" && (
+        <div className="fld"><label>States ({f.regions.length} selected)</label>
+          <div className="emoji-pick" style={{ gap: 6 }}>{INDIAN_STATES.map((st) => <button type="button" key={st} className={"chip " + (f.regions.includes(st) ? "on" : "")} onClick={() => toggle(st)}>{st}</button>)}</div></div>
+      )}
+      <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Save role"}</button>
+    </div>
+  );
+}

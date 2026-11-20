@@ -1,0 +1,38 @@
+# Run all of LastPick on your computer: PostgreSQL + the three servers.
+#   docker compose up
+# Customer API :8081, partner API :8082, admin API :8083. For the web apps run `npm run dev` in web/ (see README).
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: lastpick }
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres"], interval: 3s, retries: 20 }
+
+  seed:
+    image: node:22-alpine
+    working_dir: /app
+    volumes: [./server:/app]
+    environment: { DATABASE_URL: "postgres://postgres:postgres@db:5432/lastpick", SEED_PASSWORD: "LocalTest1234" }
+    command: sh -c "npm install --no-audit --no-fund && node scripts/seed.js --demo"
+    depends_on: { db: { condition: service_healthy } }
+
+  customer: &server
+    image: node:22-alpine
+    working_dir: /app
+    volumes: [./server:/app]
+    environment: &env { SERVICE: customer, PORT: "8080", DATABASE_URL: "postgres://postgres:postgres@db:5432/lastpick", SIGNUP: open }
+    command: node src/index.js
+    ports: ["8081:8080"]
+    depends_on: { seed: { condition: service_completed_successfully } }
+  partner:
+    <<: *server
+    environment: { <<: *env, SERVICE: partner }
+    ports: ["8082:8080"]
+  admin:
+    <<: *server
+    environment: { <<: *env, SERVICE: admin }
+    ports: ["8083:8080"]
+
+volumes:
+  pgdata:

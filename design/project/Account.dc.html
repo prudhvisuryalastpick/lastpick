@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LastPick account</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A1D8F}a:hover{color:#24105E}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F3F1F9; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1A1530">
+  <div style="background: {{brand}}; color: #FFFFFF; padding: 22px 16px 70px; display: flex; align-items: center; gap: 14px">
+    <span style="width: 60px; height: 60px; border-radius: 30px; background: #FFFFFF; color: {{brand}}; display: grid; place-items: center; font-weight: 800; font-size: 20px; flex: none">AK</span>
+    <div style="display: flex; flex-direction: column; gap: 3px; flex: 1">
+      <span style="font-size: 18px; font-weight: 800">Anil Kumar</span>
+      <span style="font-size: 13px; opacity: .9">+91 98765 43210</span>
+    </div>
+    <a href="#" aria-label="Edit profile" style="width: 40px; height: 40px; border-radius: 20px; background: rgba(255,255,255,.14); color: #FFFFFF; display: grid; place-items: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"></path></svg>
+    </a>
+  </div>
+
+  <div style="margin: -50px 14px 0; background: #FFFFFF; border-radius: 18px; padding: 16px; box-shadow: 0 6px 20px rgba(36,16,94,.10); display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 40px; height: 40px; border-radius: 12px; background: #FFF1E0; color: #8A4300; display: grid; place-items: center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>
+        </span>
+        <div style="display: flex; flex-direction: column">
+          <span style="font-size: 14px; font-weight: 700">Customer Pass</span>
+          <span style="font-size: 12px; color: #5F5A73">Free month · 22 days left</span>
+        </div>
+      </div>
+      <span style="font-size: 11px; font-weight: 700; color: #0F6E3C; background: #E3F4EA; padding: 4px 8px; border-radius: 8px">ACTIVE</span>
+    </div>
+    <div style="height: 8px; border-radius: 4px; background: #EEEAF6; overflow: hidden"><div style="width: 27%; height: 8px; background: {{brand}}"></div></div>
+  </div>
+
+  <div style="margin: 14px 14px 0; background: #FFFFFF; border-radius: 18px; padding: 16px 10px">
+    <span style="font-size: 14px; font-weight: 700; padding: 0 6px">Quick links</span>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 4px; margin-top: 14px">
+      <sc-for list="{{tiles}}" as="t" hint-placeholder-count="8">
+        <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: #1A1530">
+          <span style="width: 48px; height: 48px; border-radius: 14px; background: {{t.tint}}; color: {{brand}}; display: grid; place-items: center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+          </span>
+          <span style="font-size: 11.5px; font-weight: 600; text-align: center">{{t.label}}</span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="margin: 14px 14px 0; background: #FFFFFF; border-radius: 18px; overflow: hidden">
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #F0EDF6; text-decoration: none; color: {{r.color}}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+        <span style="flex: 1; font-size: 14px; font-weight: 600">{{r.label}}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8599" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </a>
+    </sc-for>
+  </div>
+
+  <nav aria-label="Main" style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #FFFFFF; border-top: 1px solid #E6E2F0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+      <sc-if value="{{n.center}}" hint-placeholder-val="{{ false }}">
+        <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #1A1530; font-size: 11px; font-weight: 700; margin-top: -26px">
+          <span style="width: 56px; height: 56px; border-radius: 28px; background: {{brand}}; color: #FFFFFF; display: grid; place-items: center; border: 4px solid #FFFFFF; box-shadow: 0 6px 16px rgba(58,29,143,.35)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          </span>
+          {{n.label}}
+        </a>
+      </sc-if>
+      <sc-if value="{{n.side}}" hint-placeholder-val="{{ true }}">
+        <a href="{{n.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: {{n.color}}; font-size: 11px; font-weight: 600">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          {{n.label}}
+        </a>
+      </sc-if>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#3A1D8F","options":["#3A1D8F","#0B5CAD","#0F6E5C","#7A1E4B"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const brand = this.props.brand ?? '#3A1D8F';
+    const side = (label, icon, href, on) => ({ label, icon, href, side: true, center: false, color: on ? brand : '#5F5A73' });
+    return {
+      brand,
+      tiles: [
+        { label: 'My plan', tint: '#FFF1E0', icon: 'M3 8l4 4 5-7 5 7 4-4-2 11H5z' },
+        { label: 'Saved', tint: '#FCE9F2', icon: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z' },
+        { label: 'My reviews', tint: '#FFF6D6', icon: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z' },
+        { label: 'Alerts', tint: '#E9EEFF', icon: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20h4' },
+        { label: 'Complaints', tint: '#F0EFF4', icon: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6' },
+        { label: 'Privacy', tint: '#E4F5F2', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z' },
+        { label: 'Help', tint: '#EAF3FF', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01' },
+        { label: 'Business', tint: '#F2ECFF', icon: 'M4 9l1-5h14l1 5M4 9v11h16V9M4 9h16M9 20v-6h6v6' },
+      ],
+      rows: [
+        { label: 'Language: English', color: '#1A1530', icon: 'M4 5h10M9 3v2M6 5c1 4 4 7 8 8M12 5c-1 4-4 7-8 8M14 21l4-9 4 9M15.5 18h5' },
+        { label: 'Download my data', color: '#1A1530', icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
+        { label: 'Terms & privacy notice', color: '#1A1530', icon: 'M7 3h7l5 5v13H7zM14 3v5h5' },
+        { label: 'Log out', color: '#B42318', icon: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10' },
+      ],
+      nav: [side('Home', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z', 'Main.dc.html', false),
+        side('Map', 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14', '#', false),
+        { label: 'Near me', icon: 'M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 3v3M12 18v3M3 12h3M18 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10', center: true, side: false },
+        side('History', 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2', 'Contacts.dc.html', false),
+        side('Account', 'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'Account.dc.html', true)],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LastPick Business post an offer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B5CAD}a:hover{color:#073E78}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F1F4F9; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #121A2B">
+  <div style="background: {{brand}}; color: #FFFFFF; padding: 16px; display: flex; align-items: center; gap: 12px">
+    <a href="PartnerHome.dc.html" aria-label="Back" style="width: 40px; height: 40px; border-radius: 20px; background: rgba(255,255,255,.14); color: #FFFFFF; display: grid; place-items: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </a>
+    <div style="display: flex; flex-direction: column; flex: 1"><span style="font-size: 17px; font-weight: 800">Post an offer</span><span style="font-size: 12px; opacity: .85">Step 2 of 3 · Price and time</span></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 16px 14px; background: {{brand}}">
+    <span style="height: 5px; border-radius: 3px; background: #FFFFFF"></span>
+    <span style="height: 5px; border-radius: 3px; background: #FFFFFF"></span>
+    <span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,.3)"></span>
+  </div>
+
+  <form style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+    <div style="background: #FFFFFF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 13px; font-weight: 700">Category</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="3">
+          <button type="button" style="height: 70px; border-radius: 14px; border: 1.5px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{c.icon}}"></path></svg>
+            {{c.label}}
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700">What are you offering?
+        <input value="Closing-time cakes" style="height: 46px; border-radius: 12px; border: 1px solid #D5DCE7; padding: 0 12px; font: inherit; font-size: 14px; font-weight: 500">
+      </label>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700">Normal price
+          <input value="₹600" style="height: 46px; border-radius: 12px; border: 1px solid #D5DCE7; padding: 0 12px; font: inherit; font-size: 14px; font-weight: 500">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700">Offer price
+          <input value="₹300" style="height: 46px; border-radius: 12px; border: 1.5px solid {{brand}}; padding: 0 12px; font: inherit; font-size: 14px; font-weight: 700">
+        </label>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #E3F4EA; color: #0F6E3C; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; font-weight: 700">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path></svg>
+        Customers see "50% OFF"
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 13px; font-weight: 700">Offer ends in</span>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap">
+        <sc-for list="{{durations}}" as="d" hint-placeholder-count="5">
+          <button type="button" style="height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid {{d.border}}; background: {{d.bg}}; color: {{d.fg}}; font: inherit; font-size: 12.5px; font-weight: 700">{{d.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <button type="button" style="height: 76px; border-radius: 16px; border: 1.5px dashed #9AA6BC; background: #FFFFFF; color: #55607A; font: inherit; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13.5px; font-weight: 700">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h4l2-3h4l2 3h4v13H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path></svg>
+      Add a photo (optional)
+    </button>
+  </form>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1px solid #E3E8F0; padding: 12px 14px 18px">
+    <button type="button" style="width: 100%; height: 54px; border-radius: 14px; border: 0; background: {{brand}}; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px">
+      Continue to preview
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#0B5CAD","options":["#0B5CAD","#3A1D8F","#0F6E5C","#7A1E4B"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const brand = this.props.brand ?? '#0B5CAD';
+    const pick = (on) => ({ bg: on ? '#E8F0FB' : '#FFFFFF', fg: on ? brand : '#121A2B', border: on ? brand : '#D5DCE7' });
+    return {
+      brand,
+      cats: [
+        { label: 'Food & bakery', icon: 'M4 11h16v9H4zM4 15h16M8 11V8M12 11V6M16 11V8', ...pick(true) },
+        { label: 'Hotels & stays', icon: 'M3 18V8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3', ...pick(false) },
+        { label: 'Grocery', icon: 'M3 10h18l-2 10H5L3 10zM8 10l4-6 4 6', ...pick(false) },
+      ],
+      durations: [
+        { label: '2 hours', ...pick(false) }, { label: '4 hours', ...pick(true) }, { label: 'Tonight', ...pick(false) },
+        { label: '1 day', ...pick(false) }, { label: 'Pick date', ...pick(false) },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

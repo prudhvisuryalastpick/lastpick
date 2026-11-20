@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LastPick Business: business from LastPick</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B5CAD}a:hover{color:#073E78}
+@keyframes lpGrow{0%{transform:scaleY(0)}100%{transform:scaleY(1)}}
+@keyframes lpWide{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F1F4F9; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #121A2B">
+  <div style="background: {{brand}}; color: #FFFFFF; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <a href="PartnerHome.dc.html" aria-label="Back" style="width: 40px; height: 40px; border-radius: 20px; background: rgba(255,255,255,.14); color: #FFFFFF; display: grid; place-items: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      </a>
+      <span style="font-size: 17px; font-weight: 800">Business from LastPick</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 12.5px; opacity: .85">Business generated in the last 12 months (estimated)</span>
+      <span style="font-size: 38px; font-weight: 800">₹1,86,400</span>
+      <span style="font-size: 12.5px; opacity: .9">₹24,600 this month · 412 customers contacted you</span>
+    </div>
+  </div>
+
+  <div style="margin: -98px 14px 0; background: #FFFFFF; border-radius: 18px; padding: 16px; box-shadow: 0 6px 20px rgba(11,40,90,.12)">
+    <span style="font-size: 14px; font-weight: 800">Business by month</span>
+    <div style="display: flex; align-items: flex-end; gap: 10px; height: 116px; margin-top: 10px">
+      <sc-for list="{{months}}" as="m" hint-placeholder-count="6">
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px">
+          <span style="font-size: 10px; font-weight: 700; color: #55607A">{{m.amt}}</span>
+          <div style="width: 26px; height: {{m.h}}; border-radius: 7px; background: {{m.c}}; transform-origin: bottom; animation: lpGrow .8s cubic-bezier(.2,.9,.3,1.1) both; animation-delay: {{m.d}}"></div>
+          <span style="font-size: 11px; color: #55607A">{{m.label}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="margin: 12px 14px 0; background: #FFFFFF; border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+    <span style="font-size: 14px; font-weight: 800">How customers reached you</span>
+    <sc-for list="{{funnel}}" as="f" hint-placeholder-count="5">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 30px; height: 30px; border-radius: 9px; background: #E8F0FB; color: {{brand}}; display: grid; place-items: center; flex: none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{f.icon}}"></path></svg>
+        </span>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; justify-content: space-between; font-size: 12.5px"><span style="font-weight: 600">{{f.label}}</span><b>{{f.n}}</b></div>
+          <div style="height: 6px; border-radius: 3px; background: #EDF0F5"><div style="height: 6px; border-radius: 3px; width: {{f.pct}}; background: {{brand}}; transform-origin: left; animation: lpWide .8s ease both"></div></div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 12px 14px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+    <sc-for list="{{kpis}}" as="k" hint-placeholder-count="3">
+      <div style="background: #FFFFFF; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+        <b style="font-size: 17px">{{k.value}}</b><span style="font-size: 10.5px; color: #55607A; line-height: 1.3">{{k.label}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 12px 14px 0; border-radius: 16px; background: #121A2B; color: #FFFFFF; padding: 12px 14px; display: flex; gap: 10px; align-items: center">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFC21A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg>
+    <span style="font-size: 12.5px; line-height: 1.4">Best offer: <b>Closing-time cakes</b>, ₹38,400 from 128 customers</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#0B5CAD","options":["#0B5CAD","#3A1D8F","#0F6E5C","#7A1E4B"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const brand = this.props.brand ?? '#0B5CAD';
+    const vals = [['Jun', 18], ['Jul', 26], ['Aug', 22], ['Sep', 31], ['Oct', 29], ['Nov', 24.6]];
+    const max = 31;
+    const f = [['Saw your offers', 4120, 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+      ['Viewed your number', 412, 'M6 11h12v10H6zM8 11V8a4 4 0 0 1 8 0'],
+      ['Called you', 236, 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2'],
+      ['WhatsApped you', 118, 'M4 20l1.5-4A8 8 0 1 1 9 19.5z'],
+      ['Shared their number', 58, 'M4 12l16-8-6 16-3-7z']];
+    return {
+      brand,
+      months: vals.map(([label, v], i) => ({ label, amt: '₹' + v + 'k', h: Math.round((v / max) * 76) + 'px', c: i === 5 ? brand : '#C9D8EE', d: (i * 0.08) + 's' })),
+      funnel: f.map(([label, n, icon]) => ({ label, n: n.toLocaleString('en-IN'), icon, pct: Math.max(3, Math.round((Math.sqrt(n) / Math.sqrt(4120)) * 100)) + '%' })),
+      kpis: [{ value: '10%', label: 'of viewers contacted you' }, { value: '4.5★', label: '86 reviews' }, { value: '₹22k', label: 'discount you gave' }],
+    };
+  }
+}
+</script>
+</body>
+</html>

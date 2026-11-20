@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LastPick contact history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A1D8F}a:hover{color:#24105E}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F3F1F9; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1A1530">
+  <div style="background: {{brand}}; color: #FFFFFF; padding: 18px 16px 20px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <span style="font-size: 20px; font-weight: 800">History</span>
+      <button aria-label="Filter" style="width: 40px; height: 40px; border-radius: 20px; border: 0; background: rgba(255,255,255,.14); color: #FFFFFF; display: grid; place-items: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>
+      </button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+        <div style="background: rgba(255,255,255,.12); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 20px; font-weight: 800">{{s.value}}</span>
+          <span style="font-size: 11.5px; opacity: .9">{{s.label}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 8px; padding: 14px 14px 6px">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+      <button style="height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font: inherit; font-size: 12.5px; font-weight: 700">{{t.label}}</button>
+    </sc-for>
+  </div>
+
+  <div style="padding: 8px 14px 0; display: flex; flex-direction: column; gap: 6px">
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+      <span style="font-size: 12px; font-weight: 700; color: #5F5A73; padding: 8px 4px 2px">{{g.day}}</span>
+      <div style="background: #FFFFFF; border-radius: 16px; overflow: hidden">
+        <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="2">
+          <a href="Offer.dc.html" style="display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #F0EDF6; text-decoration: none; color: #1A1530">
+            <span style="width: 44px; height: 44px; border-radius: 22px; background: {{r.tint}}; color: {{r.ink}}; display: grid; place-items: center; flex: none">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+            </span>
+            <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+              <span style="font-size: 14px; font-weight: 700">{{r.biz}}</span>
+              <span style="font-size: 12px; color: #5F5A73">{{r.how}} · {{r.offer}}</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+              <b style="font-size: 14px">{{r.price}}</b>
+              <span style="font-size: 11px; color: #5F5A73">{{r.time}}</span>
+            </span>
+          </a>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+
+  <nav aria-label="Main" style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #FFFFFF; border-top: 1px solid #E6E2F0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+      <sc-if value="{{n.center}}" hint-placeholder-val="{{ false }}">
+        <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #1A1530; font-size: 11px; font-weight: 700; margin-top: -26px">
+          <span style="width: 56px; height: 56px; border-radius: 28px; background: {{brand}}; color: #FFFFFF; display: grid; place-items: center; border: 4px solid #FFFFFF; box-shadow: 0 6px 16px rgba(58,29,143,.35)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          </span>
+          {{n.label}}
+        </a>
+      </sc-if>
+      <sc-if value="{{n.side}}" hint-placeholder-val="{{ true }}">
+        <a href="{{n.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: {{n.color}}; font-size: 11px; font-weight: 600">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          {{n.label}}
+        </a>
+      </sc-if>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#3A1D8F","options":["#3A1D8F","#0B5CAD","#0F6E5C","#7A1E4B"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const brand = this.props.brand ?? '#3A1D8F';
+    const phone = 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2';
+    const chat = 'M4 20l1.5-4A8 8 0 1 1 9 19.5z';
+    const send = 'M4 12l16-8-6 16-3-7z';
+    const eye = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z';
+    const home = 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z';
+    const map = 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14';
+    const near = 'M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 3v3M12 18v3M3 12h3M18 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10';
+    const user = 'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z';
+    const tab = (label, on) => ({ label, bg: on ? brand : '#FFFFFF', fg: on ? '#FFFFFF' : '#1A1530', border: on ? brand : '#DAD5E6' });
+    const side = (label, icon, href, on) => ({ label, icon, href, side: true, center: false, color: on ? brand : '#5F5A73' });
+    return {
+      brand,
+      stats: [{ value: '14', label: 'Owners contacted' }, { value: '₹4,820', label: 'You saved' }, { value: '3', label: 'Reviews' }],
+      tabs: [tab('All', true), tab('Called', false), tab('WhatsApp', false), tab('Shared', false)],
+      groups: [
+        { day: 'Today', rows: [
+          { biz: 'Sunrise Bakery', how: 'Called', offer: 'Cakes', price: '₹300', time: '6:42 PM', icon: phone, tint: '#ECE7FA', ink: '#3A1D8F' },
+          { biz: 'Hotel Orchid', how: 'WhatsApp', offer: 'Deluxe room', price: '₹1,999', time: '4:15 PM', icon: chat, tint: '#E3F4EA', ink: '#0F6E3C' },
+        ] },
+        { day: 'Yesterday', rows: [
+          { biz: 'Green Basket', how: 'Shared my number', offer: 'Veg box', price: '₹149', time: '8:02 PM', icon: send, tint: '#FFF1E0', ink: '#8A4300' },
+          { biz: 'City Travels', how: 'Viewed number', offer: '2 bus seats', price: '₹799', time: '11:30 AM', icon: eye, tint: '#E9EEFF', ink: '#1E4BB8' },
+          { biz: 'Glow Salon', how: 'Called', offer: 'Hair spa', price: '₹499', time: '10:05 AM', icon: phone, tint: '#ECE7FA', ink: '#3A1D8F' },
+        ] },
+      ],
+      nav: [side('Home', home, 'Main.dc.html', false), side('Map', map, '#', false), { label: 'Near me', icon: near, center: true, side: false },
+        side('History', phone, 'Contacts.dc.html', true), side('Account', user, 'Account.dc.html', false)],
+    };
+  }
+}
+</script>
+</body>
+</html>

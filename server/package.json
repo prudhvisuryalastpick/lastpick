@@ -1,0 +1,20 @@
+{
+  "name": "lastpick-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LastPick API. One codebase, three servers: SERVICE=customer | partner | admin.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "test": "node --test test/api.test.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

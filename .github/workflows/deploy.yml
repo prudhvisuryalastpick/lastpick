@@ -1,0 +1,144 @@
+name: Deploy to AWS
+
+# Every push to main: run the tests, build one ARM container image (server + the three web apps),
+# push it to ECR, then roll it out to the three ECS services (customer, partner, admin).
+# Each service starts the new containers next to the old ones and switches over only when they are healthy;
+# a version that doesn't become healthy is rolled back by ECS automatically.
+# Every Monday the image is rebuilt and redeployed even without code changes, to pick up security fixes.
+# Needs the repo variable AWS_DEPLOY_ROLE_ARN (from `terraform output deploy_role_arn`). No AWS keys are stored in GitHub.
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", "web/**", "Dockerfile", ".dockerignore", ".github/workflows/deploy.yml"]
+  schedule:
+    - cron: "30 20 * * 0" # Monday 02:00 India time
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Create / refresh the test accounts"
+        type: boolean
+        default: false
+      demo:
+        description: "Also add a sample verified business with offers (Bengaluru)"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: lastpick_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Server tests (API end to end)
+        working-directory: server
+        run: npm install --no-audit --no-fund && npm test
+        env: { DATABASE_URL: "postgres://postgres:postgres@localhost:5432/lastpick_test" }
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read deploy settings (written by Terraform)
+        run: |
+          CFG=$(aws ssm get-parameter --name /lastpick/deploy --query Parameter.Value --output text)
+          {
+            echo "REPO=$(jq -r .repository <<<"$CFG")"
+            echo "CLUSTER=$(jq -r .cluster <<<"$CFG")"
+            echo "SERVICES=$(jq -r '.services | join(" ")' <<<"$CFG")"
+            echo "SEED_TASK=$(jq -r .seedTask <<<"$CFG")"
+            echo "SUBNETS=$(jq -r '.subnets | join(",")' <<<"$CFG")"
+            echo "SG=$(jq -r .securityGroup <<<"$CFG")"
+            echo "CUSTOMER_URL=$(jq -r .customerUrl <<<"$CFG")"
+            echo "PARTNER_URL=$(jq -r .partnerUrl <<<"$CFG")"
+            echo "ADMIN_URL=$(jq -r .adminUrl <<<"$CFG")"
+          } >> "$GITHUB_ENV"
+
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push the image (ARM / Graviton)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          pull: true # always start from the newest Node.js / Alpine base image
+          no-cache: ${{ github.event_name == 'schedule' }}
+          provenance: false
+          tags: |
+            ${{ env.REPO }}:${{ github.sha }}
+            ${{ env.REPO }}:latest
+          build-args: |
+            VITE_CUSTOMER_URL=${{ vars.CUSTOMER_URL || env.CUSTOMER_URL }}
+            VITE_PARTNER_URL=${{ vars.PARTNER_URL || env.PARTNER_URL }}
+            VITE_LEGAL_NAME=${{ vars.LEGAL_NAME }}
+            VITE_LEGAL_ADDRESS=${{ vars.LEGAL_ADDRESS }}
+            VITE_GRIEVANCE_OFFICER=${{ vars.GRIEVANCE_OFFICER }}
+            VITE_GRIEVANCE_EMAIL=${{ vars.GRIEVANCE_EMAIL }}
+            VITE_GRIEVANCE_PHONE=${{ vars.GRIEVANCE_PHONE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Roll out to the three services
+        run: |
+          # each service resolves "latest" to this exact image; database migrations run when the new containers start
+          for s in $SERVICES; do
+            aws ecs update-service --cluster "$CLUSTER" --service "$s" --force-new-deployment --query 'service.serviceName' --output text
+          done
+          echo "Waiting until every service runs the new version and is healthy..."
+          if ! aws ecs wait services-stable --cluster "$CLUSTER" --services $SERVICES; then
+            aws ecs describe-services --cluster "$CLUSTER" --services $SERVICES \
+              --query 'services[].{service:serviceName,running:runningCount,desired:desiredCount,rollout:deployments[0].rolloutState,reason:deployments[0].rolloutStateReason}' --output table
+            echo "::error::A service did not become healthy. ECS rolls it back to the previous version; check its logs in CloudWatch (/lastpick/<service>)."
+            exit 1
+          fi
+          aws ecs describe-services --cluster "$CLUSTER" --services $SERVICES \
+            --query 'services[].{service:serviceName,running:runningCount,rollout:deployments[0].rolloutState}' --output table
+
+      - name: Test accounts
+        if: inputs.seed || inputs.demo
+        run: |
+          ARGS='["node","scripts/seed.js"]'
+          [ "${{ inputs.demo }}" = "true" ] && ARGS='["node","scripts/seed.js","--demo"]'
+          TASK=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$SEED_TASK" --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG],assignPublicIp=ENABLED}" \
+            --overrides "$(jq -n --argjson c "$ARGS" '{containerOverrides: [{name: "admin", command: $c}]}')" \
+            --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+          CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" --query 'tasks[0].containers[0].exitCode' --output text)
+          [ "$CODE" = "0" ] || { echo "::error::seeding failed (exit $CODE), see CloudWatch /lastpick/admin"; exit 1; }
+          echo "Test accounts ready. Password: Secrets Manager -> lastpick/test-accounts"
+
+      - name: Summary
+        run: |
+          {
+            echo "### LastPick deployed (${GITHUB_SHA::7})"
+            echo "- Customer: $CUSTOMER_URL"
+            echo "- Partner: $PARTNER_URL"
+            echo "- Admin: $ADMIN_URL"
+          } >> "$GITHUB_STEP_SUMMARY"

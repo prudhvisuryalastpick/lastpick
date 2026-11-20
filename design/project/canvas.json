@@ -1,0 +1,173 @@
+{
+"v": 3,
+"createdOnFiles": {
+"v": 1,
+"at": "2026-11-20T10:00:00Z"
+},
+"title": "LastPick app UI (icon-led, payments-app style)",
+"launch": {
+"view": "canvas"
+},
+"pages": [],
+"boards": {
+"Splash.dc.html": {
+"x": 0,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer · Opening animation",
+"radius": 28
+},
+"Main.dc.html": {
+"x": 470,
+"y": 0,
+"w": 390,
+"h": 1760,
+"title": "Customer · Home (full scroll)",
+"radius": 28
+},
+"Offer.dc.html": {
+"x": 940,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer · Offer",
+"radius": 28
+},
+"Contacts.dc.html": {
+"x": 1410,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer · History",
+"radius": 28
+},
+"Account.dc.html": {
+"x": 1880,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer · Account",
+"radius": 28
+},
+"PartnerSplash.dc.html": {
+"x": 0,
+"y": 2160,
+"w": 390,
+"h": 844,
+"title": "Partner · Opening animation",
+"radius": 28
+},
+"PartnerHome.dc.html": {
+"x": 470,
+"y": 2160,
+"w": 390,
+"h": 1560,
+"title": "Partner · Home (full scroll)",
+"radius": 28
+},
+"PostOffer.dc.html": {
+"x": 940,
+"y": 2160,
+"w": 390,
+"h": 844,
+"title": "Partner · Post offer",
+"radius": 28
+},
+"Leads.dc.html": {
+"x": 1410,
+"y": 2160,
+"w": 390,
+"h": 844,
+"title": "Partner · Leads",
+"radius": 28
+},
+"Admin.dc.html": {
+"x": 0,
+"y": 4120,
+"w": 1280,
+"h": 900,
+"title": "Admin · Dashboard",
+"expand": "fill"
+},
+"Savings.dc.html": {
+"x": 2350,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer · My savings",
+"radius": 28
+},
+"Support.dc.html": {
+"x": 2820,
+"y": 0,
+"w": 390,
+"h": 844,
+"title": "Customer & partner · Help & support",
+"radius": 28
+},
+"Business.dc.html": {
+"x": 1880,
+"y": 2160,
+"w": 390,
+"h": 844,
+"title": "Partner · Business from LastPick",
+"radius": 28
+}
+},
+"order": [
+"Splash.dc.html",
+"Main.dc.html",
+"Offer.dc.html",
+"Contacts.dc.html",
+"Account.dc.html",
+"Savings.dc.html",
+"Support.dc.html",
+"PartnerSplash.dc.html",
+"PartnerHome.dc.html",
+"PostOffer.dc.html",
+"Leads.dc.html",
+"Business.dc.html",
+"Admin.dc.html"
+],
+"notes": {
+"t1": {
+"x": 0,
+"y": -300,
+"text": "Customer app",
+"kind": "title1",
+"maxW": 3210
+},
+"t2": {
+"x": 0,
+"y": 1860,
+"text": "Partner (business) app",
+"kind": "title1",
+"maxW": 2270
+},
+"t3": {
+"x": 0,
+"y": 3820,
+"text": "Admin panel",
+"kind": "title1",
+"maxW": 1800
+},
+"night": {
+"x": 3290,
+"y": 0,
+"w": 380,
+"text": "BUILT: working hours rule\n\n6 AM – 11 PM: everything is open.\n\nAfter 11 PM: only jobs and travel (bus seats, trips) stay listed and contactable, 24×7. Shops, doctors, stays and other posts are hidden until 6 AM.\n\nPartners can still post at night (sales, camp registrations); they go live at 6 AM.\n\nJobs and locals selling are shown only within 10 km (or the same pincode), never city-wide.",
+"color": "orange",
+"size": "m"
+},
+"theme": {
+"x": 3290,
+"y": 760,
+"w": 380,
+"text": "Theme: create business for locals.\nHome shows live deals, doctors & health camps, school/college admissions (pushed Jan–June), trips with free seats, jobs & part-time work, things locals sell, and businesses near you.\n\nLastPick is only a platform: it connects people and acts on providers through reviews and reports.",
+"color": "blue",
+"size": "m"
+}
+},
+"designSystems": []
+}

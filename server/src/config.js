@@ -1,0 +1,44 @@
+// All settings come from environment variables (on ECS Fargate: the task definition, secrets from Secrets Manager).
+import os from "node:os";
+const env = process.env;
+const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+export const PRODUCTION = env.NODE_ENV === "production";
+// Which server this is. "all" runs every route in one process (local development only).
+export const SERVICE = ["customer", "partner", "admin", "all"].includes(env.SERVICE) ? env.SERVICE : "all";
+export const PORT = Number(env.PORT || 8080);
+// unique per container (every container is process 1, so the host name tells them apart)
+export const INSTANCE_ID = env.INSTANCE_ID || `${SERVICE}-${os.hostname()}-${process.pid}`;
+
+// Database: DATABASE_URL, or the standard PGHOST / PGUSER / PGPASSWORD / PGDATABASE variables.
+export const DATABASE_URL = env.DATABASE_URL || "";
+export const DB_SSL = env.DB_SSL || (PRODUCTION ? "verify" : "off"); // off | require | verify
+export const DB_CA_FILE = env.DB_CA_FILE || "/etc/lastpick/rds-ca.pem";
+export const DB_POOL_MAX = Number(env.DB_POOL_MAX || 10);
+// Optional read replica: feeds, offer pages, dashboards and admin stats read from it, so they never slow down writes.
+// Empty = everything uses the main database.
+export const DB_READ_HOST = env.PGHOST_READ || "";
+
+export const JWT_SECRET = env.JWT_SECRET || (PRODUCTION ? "" : "dev-only-secret-change-me");
+if (PRODUCTION && JWT_SECRET.length < 32) throw new Error("JWT_SECRET must be set (32+ characters) in production");
+export const TOKEN_DAYS = Number(env.TOKEN_DAYS || 30);
+
+// Built web app served by this server (web/dist-<variant>).
+export const WEB_DIR = env.WEB_DIR || "";
+
+// Background jobs and scheduled tasks. Safe to run on every server: jobs are claimed with SKIP LOCKED.
+export const RUN_WORKER = env.RUN_WORKER !== "0";
+
+// CloudFront adds this header to every request it sends to the server. When set, requests without it are refused,
+// so nobody can skip CloudFront (and its caching and TLS) by calling the server directly.
+export const ORIGIN_SECRET = env.ORIGIN_SECRET || "";
+// Proxies in front of the server that each add one X-Forwarded-For entry: CloudFront = 1, CloudFront + load balancer = 2.
+export const PROXY_HOPS = Math.max(1, Number(env.PROXY_HOPS || 1));
+// The admin server can additionally be limited to some IP addresses (comma separated). Empty = anyone may try to log in.
+export const ADMIN_ALLOWED_IPS = list(env.ADMIN_ALLOWED_IPS);
+// Browser origins allowed to call the API from another site (the Android apps use https://localhost).
+export const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS || "https://localhost,capacitor://localhost,http://localhost:5173");
+
+// Sign-up through the API. "closed" (default) = test accounts only, until the real login/registration is built.
+export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
+export const LOG_LEVEL = env.LOG_LEVEL || "info";

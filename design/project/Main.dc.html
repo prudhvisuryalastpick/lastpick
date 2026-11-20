@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LastPick customer home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A1D8F}a:hover{color:#24105E}
+@keyframes lpLive{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+<div style="width: 390px; height: 1760px; position: relative; overflow: hidden; background: #F3F1F9; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1A1530">
+  <div style="background: {{brand}}; padding: 18px 18px 64px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="width: 40px; height: 40px; border-radius: 20px; background: #FFFFFF; display: grid; place-items: center; color: {{brand}}; font-weight: 800; font-size: 15px">AK</div>
+        <div style="display: flex; flex-direction: column; color: #FFFFFF">
+          <span style="font-size: 12px; opacity: .85">Deals near</span>
+          <span style="font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 4px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"></path></svg>
+            Indiranagar, Bengaluru
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+          </span>
+        </div>
+      </div>
+      <button aria-label="Notifications" style="width: 40px; height: 40px; border-radius: 20px; border: 0; background: rgba(255,255,255,.14); color: #FFFFFF; display: grid; place-items: center; position: relative">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20h4"></path></svg>
+        <span style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; border-radius: 4px; background: {{accent}}"></span>
+      </button>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #FFFFFF; background: rgba(255,255,255,.14); padding: 6px 10px; border-radius: 12px">
+        <span style="width: 8px; height: 8px; border-radius: 4px; background: #3DDC84; animation: lpLive 1.6s ease-in-out infinite"></span>
+        Open now · 214 live deals
+      </span>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #E3DDF6">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"></path></svg>
+        Shops close 11 PM
+      </span>
+    </div>
+    <label style="display: flex; align-items: center; gap: 10px; background: #FFFFFF; border-radius: 14px; padding: 0 14px; height: 48px; color: #5F5A73">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>
+      <input aria-label="Search" placeholder="Search rooms, doctors, trips, cakes" style="border: 0; outline: 0; flex: 1; font: inherit; font-size: 14px; color: #1A1530; background: transparent">
+    </label>
+  </div>
+
+  <div style="margin: -48px 14px 0; background: #FFFFFF; border-radius: 18px; padding: 16px 12px; box-shadow: 0 6px 20px rgba(36,16,94,.10); display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px">
+      <span style="font-size: 15px; font-weight: 700">What do you need today?</span>
+      <a href="#" style="font-size: 13px; font-weight: 600; text-decoration: none">All</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 4px">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="12">
+        <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: #1A1530; position: relative">
+          <span style="width: 52px; height: 52px; border-radius: 16px; background: {{c.tint}}; display: grid; place-items: center; color: {{c.ink}}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{c.icon}}"></path></svg>
+          </span>
+          <sc-if value="{{c.tag}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -6px; right: 2px; font-size: 9px; font-weight: 800; color: #FFFFFF; background: {{c.tagBg}}; padding: 2px 5px; border-radius: 6px">{{c.tag}}</span></sc-if>
+          <span style="font-size: 11.5px; font-weight: 600; text-align: center; line-height: 1.2">{{c.label}}</span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="margin: 12px 14px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+    <sc-for list="{{quick}}" as="q" hint-placeholder-count="4">
+      <a href="#" style="background: #FFFFFF; border-radius: 14px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: #1A1530">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{brand}}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{q.icon}}"></path></svg>
+        <span style="font-size: 11.5px; font-weight: 600">{{q.label}}</span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="margin: 14px 14px 0; border-radius: 18px; background: #0F5E52; color: #FFFFFF; padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden">
+    <span style="position: absolute; right: -30px; top: -30px; width: 140px; height: 140px; border-radius: 70px; background: rgba(255,255,255,.08)"></span>
+    <span style="align-self: flex-start; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; background: rgba(255,255,255,.18); padding: 4px 8px; border-radius: 8px">HEALTH CAMP · FREE</span>
+    <div style="display: flex; gap: 12px; align-items: center">
+      <span style="width: 48px; height: 48px; border-radius: 14px; background: #FFFFFF; color: #0F5E52; display: grid; place-items: center; flex: none">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path></svg>
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <b style="font-size: 16px">Free eye check-up camp</b>
+        <span style="font-size: 12.5px; opacity: .9">Dr. Rao Eye Clinic · Sun, 9 AM–1 PM · 1.8 km</span>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <span style="font-size: 12px; opacity: .9">42 of 60 slots left</span>
+      <a href="#" style="height: 36px; padding: 0 16px; border-radius: 10px; background: #FFFFFF; color: #0F5E52; display: flex; align-items: center; text-decoration: none; font-size: 13px; font-weight: 800">Register free</a>
+    </div>
+    <div style="display: flex; gap: 5px; justify-content: center"><span style="width: 18px; height: 5px; border-radius: 3px; background: #FFFFFF"></span><span style="width: 5px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.45)"></span><span style="width: 5px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.45)"></span></div>
+  </div>
+
+  <div style="margin: 18px 14px 0; display: flex; justify-content: space-between; align-items: center">
+    <span style="font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B35A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"></path></svg>
+      Ending soon
+    </span>
+    <a href="#" style="font-size: 12.5px; font-weight: 700; text-decoration: none">See all</a>
+  </div>
+  <div style="margin: 10px 0 0 14px; display: flex; gap: 10px">
+    <sc-for list="{{ending}}" as="o" hint-placeholder-count="3">
+      <a href="Offer.dc.html" style="width: 156px; flex: none; background: #FFFFFF; border-radius: 16px; overflow: hidden; text-decoration: none; color: #1A1530; display: flex; flex-direction: column">
+        <span style="height: 86px; background: {{o.tint}}; color: {{o.ink}}; display: grid; place-items: center; position: relative">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{o.icon}}"></path></svg>
+          <span style="position: absolute; left: 8px; top: 8px; font-size: 10.5px; font-weight: 800; color: #FFFFFF; background: #0F7A43; padding: 3px 6px; border-radius: 7px">{{o.off}}</span>
+          <span style="position: absolute; right: 8px; bottom: 8px; font-size: 10.5px; font-weight: 800; color: #8A4300; background: #FFFFFF; padding: 3px 6px; border-radius: 7px">{{o.left}}</span>
+        </span>
+        <span style="padding: 10px; display: flex; flex-direction: column; gap: 3px">
+          <b style="font-size: 13px">{{o.title}}</b>
+          <span style="font-size: 11px; color: #5F5A73">{{o.where}}</span>
+          <span style="font-size: 13px"><b>{{o.price}}</b> <s style="color: #5F5A73; font-size: 11.5px">{{o.was}}</s></span>
+        </span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="margin: 18px 14px 0; display: flex; justify-content: space-between; align-items: center">
+    <span style="font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F6E5C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6v12M6 12h12M4 4h16v16H4z"></path></svg>
+      Doctors &amp; health camps
+    </span>
+    <a href="#" style="font-size: 12.5px; font-weight: 700; text-decoration: none">See all</a>
+  </div>
+  <div style="margin: 10px 14px 0; background: #FFFFFF; border-radius: 16px; overflow: hidden">
+    <sc-for list="{{doctors}}" as="d" hint-placeholder-count="2">
+      <div style="display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #F0EDF6">
+        <span style="width: 44px; height: 44px; border-radius: 22px; background: #E4F5F2; color: #0F6E5C; display: grid; place-items: center; flex: none">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{d.icon}}"></path></svg>
+        </span>
+        <span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><b style="font-size: 13.5px">{{d.title}}</b><span style="font-size: 11.5px; color: #5F5A73">{{d.meta}}</span></span>
+        <a href="#" style="height: 32px; padding: 0 12px; border-radius: 9px; border: 1.5px solid #0F6E5C; color: #0F6E5C; display: flex; align-items: center; text-decoration: none; font-size: 12px; font-weight: 800">{{d.cta}}</a>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 18px 14px 0; display: flex; justify-content: space-between; align-items: center">
+    <span style="font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9C1F5A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 16h14v-4l-2-5H7l-2 5zM5 12h14M7.5 16v2M16.5 16v2"></path></svg>
+      Trips with free seats
+    </span>
+    <span style="font-size: 11px; font-weight: 800; color: #FFFFFF; background: #24105E; padding: 3px 8px; border-radius: 8px">Open at night</span>
+  </div>
+  <div style="margin: 10px 14px 0; display: flex; flex-direction: column; gap: 8px">
+    <sc-for list="{{trips}}" as="t" hint-placeholder-count="2">
+      <div style="background: #FFFFFF; border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800">
+          {{t.from}}
+          <svg width="40" height="12" viewBox="0 0 40 12" fill="none" stroke="#9C1F5A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 6h34M31 1l5 5-5 5"></path></svg>
+          {{t.to}}
+          <span style="margin-left: auto; font-size: 14px">{{t.price}}<span style="font-size: 11px; color: #5F5A73; font-weight: 600"> /seat</span></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #5F5A73">
+          <span style="width: 26px; height: 26px; border-radius: 13px; background: #FCE9F2; color: #9C1F5A; display: grid; place-items: center; font-weight: 800; font-size: 10.5px">{{t.initials}}</span>
+          {{t.meta}}
+          <span style="margin-left: auto; font-weight: 800; color: #9C1F5A">{{t.seats}}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 18px 14px 0; display: flex; justify-content: space-between; align-items: center">
+    <span style="font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3A1D8F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01"></path></svg>
+      Locals are selling
+    </span>
+    <a href="#" style="font-size: 12.5px; font-weight: 700; text-decoration: none">Sell yours</a>
+  </div>
+  <div style="margin: 10px 14px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+    <sc-for list="{{sells}}" as="s" hint-placeholder-count="4">
+      <a href="#" style="background: #FFFFFF; border-radius: 16px; padding: 10px; text-decoration: none; color: #1A1530; display: flex; flex-direction: column; gap: 6px">
+        <span style="height: 70px; border-radius: 12px; background: {{s.tint}}; color: {{s.ink}}; display: grid; place-items: center">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{s.icon}}"></path></svg>
+        </span>
+        <b style="font-size: 13px">{{s.title}}</b>
+        <span style="display: flex; justify-content: space-between; font-size: 11.5px; color: #5F5A73"><b style="color: #1A1530; font-size: 13px">{{s.price}}</b>{{s.dist}}</span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="margin: 18px 14px 0; display: flex; justify-content: space-between; align-items: center">
+    <span style="font-size: 15px; font-weight: 800">Local businesses near you</span>
+  </div>
+  <div style="margin: 10px 14px 0; background: #FFFFFF; border-radius: 16px; padding: 14px 8px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+    <sc-for list="{{shops}}" as="b" hint-placeholder-count="5">
+      <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: #1A1530">
+        <span style="width: 50px; height: 50px; border-radius: 25px; background: {{b.bg}}; color: #FFFFFF; display: grid; place-items: center; font-weight: 800; font-size: 14px; border: 3px solid {{b.ring}}">{{b.initials}}</span>
+        <span style="font-size: 10.5px; font-weight: 600; text-align: center; line-height: 1.2">{{b.name}}</span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="margin: 14px 14px 0; border-radius: 18px; background: #24105E; color: #FFFFFF; padding: 16px; display: flex; align-items: center; gap: 14px">
+    <span style="width: 48px; height: 48px; border-radius: 14px; background: {{accent}}; color: #24105E; display: grid; place-items: center; flex: none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"></path></svg>
+    </span>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <b style="font-size: 15px">You helped 14 local businesses</b>
+      <span style="font-size: 12.5px; opacity: .9">and saved ₹4,820 this month. Thank you for buying local.</span>
+    </div>
+  </div>
+
+  <nav aria-label="Main" style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #FFFFFF; border-top: 1px solid #E6E2F0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+      <sc-if value="{{n.center}}" hint-placeholder-val="{{ false }}">
+        <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #1A1530; font-size: 11px; font-weight: 700; margin-top: -26px">
+          <span style="width: 56px; height: 56px; border-radius: 28px; background: {{brand}}; color: #FFFFFF; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(58,29,143,.35); border: 4px solid #FFFFFF">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          </span>
+          {{n.label}}
+        </a>
+      </sc-if>
+      <sc-if value="{{n.side}}" hint-placeholder-val="{{ true }}">
+        <a href="{{n.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: {{n.color}}; font-size: 11px; font-weight: 600">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+          {{n.label}}
+        </a>
+      </sc-if>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#3A1D8F","options":["#3A1D8F","#0B5CAD","#0F6E5C","#7A1E4B"]},"accent":{"editor":"color","default":"#FF9A1F","options":["#FF9A1F","#FFC21A","#21C29A"]},"$preview":{"width":390,"height":1760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const brand = this.props.brand ?? '#3A1D8F';
+    const I = {
+      food: 'M4 11h16v9H4zM4 15h16M8 11V8M12 11V6M16 11V8',
+      grocery: 'M3 10h18l-2 10H5L3 10zM8 10l4-6 4 6',
+      stay: 'M3 18V8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3',
+      venue: 'M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6',
+      bus: 'M5 4h14v12H5zM5 10h14M7 20v-4M17 20v-4',
+      car: 'M5 16h14v-4l-2-5H7l-2 5zM5 12h14M7.5 16v2M16.5 16v2',
+      doctor: 'M8 3v5a4 4 0 0 0 8 0V3M12 12v3a4 4 0 0 0 8 0v-1M20 12a1.5 1.5 0 1 0 0-.01',
+      tag: 'M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01',
+      salon: 'M6 6a2.5 2.5 0 1 0 0 .01M6 18a2.5 2.5 0 1 0 0 .01M8 7.5L20 18M8 16.5L20 6',
+      book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M9 7h6',
+      camp: 'M12 3l9 17H3zM12 3v17M8 20l4-7 4 7',
+      more: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+      cap: 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5M22 9v6',
+      job: 'M4 8h16v12H4zM9 8V5h6v3M4 13h16',
+      near: 'M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 3v3M12 18v3M3 12h3M18 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10',
+      map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14',
+      pin: 'M5 9h14M5 15h14M10 4L8 20M16 4l-2 16',
+      heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
+      user: 'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+      eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+      tooth: 'M7 3c-2.5 0-4 2-3.5 5 .4 2.4 1.5 4 2 7 .5 3 1 6 2.5 6s1.5-4 4-4 2.5 4 4 4 2-3 2.5-6c.5-3 1.6-4.6 2-7C21 5 19.5 3 17 3c-2 0-3 1-5 1S9 3 7 3z',
+      bike: 'M5.5 17.5a3.5 3.5 0 1 0 0-.01M18.5 17.5a3.5 3.5 0 1 0 0-.01M5.5 17.5L9 9h6l3.5 8.5M9 9l3 8.5h2M14 6h3',
+      table: 'M3 8h18M5 8v12M19 8v12M3 8l2-4h14l2 4',
+      jar: 'M8 3h8v3H8zM6 6h12v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM6 11h12',
+      stroller: 'M4 5h3l3 9h9l2-6H8M10 19a1.5 1.5 0 1 0 0-.01M18 19a1.5 1.5 0 1 0 0-.01',
+    };
+    const side = (label, icon, href, on) => ({ label, icon, href, side: true, center: false, color: on ? brand : '#5F5A73' });
+    const cat = (label, icon, tint, ink, tag, tagBg) => ({ label, icon, tint, ink, tag: tag || '', tagBg: tagBg || '#0F7A43' });
+    return {
+      brand,
+      accent: this.props.accent ?? '#FF9A1F',
+      cats: [
+        cat('Food', I.food, '#FFF1E0', '#B35A00'), cat('Grocery', I.grocery, '#E8F6EC', '#0F7A43'),
+        cat('Stays', I.stay, '#E9EEFF', '#1E4BB8'), cat('Halls', I.venue, '#FCE9F2', '#9C1F5A'),
+        cat('Doctors', I.doctor, '#E4F5F2', '#0F6E5C', 'CAMP', '#0F6E5C'), cat('Trips', I.car, '#FDEAF0', '#9C1F5A', 'NIGHT', '#24105E'),
+        cat('Sell & buy', I.tag, '#F2ECFF', '#3A1D8F', 'NEW', '#B35A00'), cat('Bus seats', I.bus, '#E4F5F2', '#0F6E5C'),
+        cat('Admissions', I.cap, '#EAF3FF', '#1E4BB8', 'JAN–JUN', '#1E4BB8'), cat('Jobs', I.job, '#EAF6EE', '#0F7A43', '24×7', '#0F7A43'),
+        cat('Salon', I.salon, '#F2ECFF', '#6B2FB3'), cat('More', I.more, '#F0EFF4', '#3A3550'),
+      ],
+      quick: [{ label: 'Near me', icon: I.near }, { label: 'Map', icon: I.map }, { label: 'Pincode', icon: I.pin }, { label: 'Saved', icon: I.heart }],
+      ending: [
+        { title: 'Closing-time cakes', where: 'Sunrise Bakery · 1.2 km', price: '₹300', was: '₹600', off: '-50%', left: '2h 10m', icon: I.food, tint: '#FFF1E0', ink: '#B35A00' },
+        { title: 'Deluxe room tonight', where: 'Hotel Orchid · 3.4 km', price: '₹1,999', was: '₹3,500', off: '-43%', left: '6h', icon: I.stay, tint: '#E9EEFF', ink: '#1E4BB8' },
+        { title: 'Hall free Sunday', where: 'Jayanagar · 300 guests', price: '₹40k', was: '₹65k', off: '-38%', left: '2 days', icon: I.venue, tint: '#FCE9F2', ink: '#9C1F5A' },
+      ],
+      doctors: [
+        { title: 'Free eye camp · Sunday', meta: 'Dr. Rao Eye Clinic · 1.8 km · 42 slots', cta: 'Register', icon: I.eye },
+        { title: 'Dental check-up ₹99 today', meta: 'SmileCare · 2.3 km · till 8 PM', cta: 'Call', icon: I.tooth },
+      ],
+      trips: [
+        { from: 'Bengaluru', to: 'Mysuru', price: '₹350', initials: 'RK', meta: 'Ravi · Tomorrow 6:00 AM · Swift', seats: '2 seats left' },
+        { from: 'Bengaluru', to: 'Tirupati', price: '₹600', initials: 'SP', meta: 'Suresh · Friday 10:30 PM · Innova', seats: '3 seats left' },
+      ],
+      sells: [
+        { title: 'Used cycle', price: '₹1,500', dist: '900 m', icon: I.bike, tint: '#F2ECFF', ink: '#3A1D8F' },
+        { title: 'Study table', price: '₹800', dist: '1.4 km', icon: I.table, tint: '#FFF6D6', ink: '#8A6100' },
+        { title: 'Homemade pickles', price: '₹220', dist: '600 m', icon: I.jar, tint: '#E8F6EC', ink: '#0F7A43' },
+        { title: 'Baby stroller', price: '₹2,000', dist: '2.1 km', icon: I.stroller, tint: '#FCE9F2', ink: '#9C1F5A' },
+      ],
+      shops: [
+        { initials: 'SB', name: 'Sunrise Bakery', bg: '#B35A00', ring: '#FFD7A8' },
+        { initials: 'HO', name: 'Hotel Orchid', bg: '#1E4BB8', ring: '#C7D5FF' },
+        { initials: 'GB', name: 'Green Basket', bg: '#0F7A43', ring: '#BFE8CF' },
+        { initials: 'DR', name: 'Dr. Rao Clinic', bg: '#0F6E5C', ring: '#BCE8DF' },
+        { initials: 'GS', name: 'Glow Salon', bg: '#6B2FB3', ring: '#DCC9F5' },
+      ],
+      nav: [side('Home', I.home, '#', true), side('Map', I.map, '#', false), { label: 'Near me', icon: I.near, center: true, side: false },
+        side('History', I.phone, 'Contacts.dc.html', false), side('Account', I.user, 'Account.dc.html', false)],
+    };
+  }
+}
+</script>
+</body>
+</html>
