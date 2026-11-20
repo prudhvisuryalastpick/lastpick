@@ -1,9 +1,9 @@
 import { Logo } from "../lib/brand.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
-import { BackButton, Empty, NeedLogin, PlanCard, Spinner } from "../components.jsx";
-import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, savePct } from "../lib/config.js";
+import { BackButton, Empty, NeedLogin, PlanCard, Spinner, useLive } from "../components.jsx";
+import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, savePct, categoryOf } from "../lib/config.js";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { AdminSupport } from "./impact.jsx";
@@ -192,7 +192,7 @@ function AdminOverview({ toast, go }) {
   const { isAdmin } = useApp();
   const [data, setData] = useState(null);
   const [stateFilter, setStateFilter] = useState("");
-  useEffect(() => { api.adminStats().then(setData).catch((e) => { toast(errText(e)); setData({ totals: {}, cities: [] }); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useLive((first) => api.adminStats().then(setData).catch((e) => { if (first) { toast(errText(e)); setData({ totals: {}, cities: [] }); } }));
   if (!data) return <Spinner />;
   const t = data.totals;
   const mrr = (t.customers || 0) * PLANS.customer.price + (t.owners || 0) * PLANS.owner.price;
@@ -252,23 +252,29 @@ function BizPlanControls({ b, toast, onDone }) {
     try { await api.adminBusinessPlan(b.id, action, extra); toast(msg); onDone(); } catch (e) { toast(errText(e)); }
     setBusy(false);
   };
+  const extra = b.trialEndsAt && b.trialEndsAt > Date.now();
+  const daysLeft = active ? Math.ceil((b.planUntil - Date.now()) / 86400000) : 0;
   return (
-    <div className="box" style={{ marginTop: 10 }}>
-      <div className="row" style={{ alignItems: "center" }}><div className="small" style={{ fontWeight: 700 }}>Plan</div>
-        {active ? <span className="pill p-ok">✔ Active plan</span> : <span className="pill p-mute">No plan</span>}</div>
-      {active && <div className="small" style={{ fontWeight: 700, color: "var(--ok)" }}>{PLANS.owner.name} active · {Math.ceil((b.planUntil - Date.now()) / 86400000)} days left</div>}
-      <div className="muted small">{[b.planUntil && `${PLANS.owner.name} till ${day(b.planUntil)}`, b.trialEndsAt && b.trialEndsAt > Date.now() && `Extra days till ${day(b.trialEndsAt)}`].filter(Boolean).join(" · ")
-        || (b.status === "verified" ? "No active plan: cannot post" : "Not verified yet")}</div>
-      <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <select aria-label="Plan length" value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
-          {PLANS.owner.options.map((o) => <option key={o.months} value={o.months}>{planLabel(o.months)} ({rupee(o.price)})</option>)}</select>
-        <button className={"btn sm " + (active ? "ghost" : "main")} disabled={busy} onClick={() => run("unlock", { months }, active ? `Plan extended by ${planLabel(months)}` : `${PLANS.owner.name} unlocked for ${planLabel(months)}`)}>{active ? "Extend plan" : "Unlock plan"}</button>
+    <div className={"bc-plan" + (active ? " on" : "")}>
+      <div className="bc-plan-top">
+        <div>
+          <div className="bc-plan-title">{active ? `${PLANS.owner.name} · active` : b.status === "verified" ? "No active plan" : "Not verified yet"}</div>
+          <div className="muted small">{active ? `Till ${day(b.planUntil)} · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : b.status === "verified" ? "This partner can't post until a plan is unlocked" : "Verify the business first"}{extra ? ` · extra days till ${day(b.trialEndsAt)}` : ""}</div>
+        </div>
+        {active ? <span className="pill p-ok">✓ Active</span> : <span className="pill p-mute">Inactive</span>}
       </div>
-      <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <select aria-label="Extend by" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
-          {[7, 15, 30, 60].map((d) => <option key={d} value={d}>+{d} days</option>)}</select>
-        <button className="btn ghost sm" disabled={busy} onClick={() => run("extendTrial", { days }, `Added ${days} extra days`)}>Give extra days</button>
-        {(b.planUntil || (b.trialEndsAt && b.trialEndsAt > Date.now())) && <button className="btn danger sm" disabled={busy} onClick={() => run("end", {}, "Plan ended")}>End plan</button>}
+      <div className="bc-plan-controls">
+        <div className="bc-ctl">
+          <select aria-label="Plan length" value={months} onChange={(e) => setMonths(Number(e.target.value))}>
+            {PLANS.owner.options.map((o) => <option key={o.months} value={o.months}>{planLabel(o.months)} · {rupee(o.price)}</option>)}</select>
+          <button className={"btn sm " + (active ? "ghost" : "main")} disabled={busy} onClick={() => run("unlock", { months }, active ? `Plan extended by ${planLabel(months)}` : `${PLANS.owner.name} unlocked for ${planLabel(months)}`)}>{active ? "Extend" : "Unlock plan"}</button>
+        </div>
+        <div className="bc-ctl">
+          <select aria-label="Extra days" value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            {[7, 15, 30, 60].map((d) => <option key={d} value={d}>+{d} days</option>)}</select>
+          <button className="btn ghost sm" disabled={busy} onClick={() => run("extendTrial", { days }, `Added ${days} extra days`)}>Give days</button>
+        </div>
+        {(active || extra) && <button className="btn ghost sm bc-danger" disabled={busy} onClick={() => run("end", {}, "Plan ended")}>End plan</button>}
       </div>
     </div>
   );
@@ -280,8 +286,8 @@ function AdminBusinesses({ toast }) {
   const [status, setStatus] = useState("pending");
   const [state, setState] = useState("");
   const [note, setNote] = useState("");
-  const load = () => { setList(null); api.adminBusinesses({ status: status === "all" ? null : status, state: state || null }).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
-  useEffect(() => { load(); }, [status, state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = (first = false) => { if (first) setList(null); api.adminBusinesses({ status: status === "all" ? null : status, state: state || null }).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  useLive(load, [status, state]);
   const act = async (b, st) => {
     try { await api.setBusinessStatus(b.id, st, st === "verified" ? "" : note.trim()); toast(`${b.name}: ${st}`); setNote(""); load(); } catch (e) { toast(errText(e)); }
   };
@@ -293,16 +299,29 @@ function AdminBusinesses({ toast }) {
         <div className="fld"><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note to owner when rejecting or suspending" /></div>
       </div>
       {!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here" /> : list.map((b) => (
-        <div className="panel" key={b.id}>
-          <div className="row"><b>{b.name}</b><span className={"pill " + (b.status === "verified" ? "p-ok" : b.status === "pending" ? "p-warn" : "p-bad")}>{b.status}</span></div>
-          <div className="muted small">{(b.categories || [b.category]).join(", ")}{b.rating?.count ? ` · ★ ${b.rating.avg} (${b.rating.count})` : ""} · {b.address || "-"}, {b.area}, {b.city}, {b.state || "state missing"}</div>
-          <div className="muted small">📞 {b.phone ? <Reveal masked={b.phone} load={() => api.revealBusiness(b.id)} render={(c) => <span>{prettyPhone(c.phone)} <a className="link" href={"tel:" + c.phone}>Call to verify</a></span>} /> : "no number"} · {b.lat != null ? "📍 location set" : "no map location"}{b.createdAt ? " · joined " + ago(b.createdAt) : ""}</div>
-          {b.flags?.length > 0 && <div className="gap" style={{ flexWrap: "wrap", marginTop: 6 }}>{b.flags.map((f) => <span key={f} className="pill p-bad">⚠️ {f}</span>)}</div>}
-          {b.statusNote && <div className="muted small">Note: {b.statusNote}</div>}
-          <div className="gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
+        <div className="bizcard" key={b.id}>
+          <div className="bc-head">
+            <div className="bc-avatar">{(b.name || "?")[0]}</div>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="bc-name">{b.name}</div>
+              <div className="bc-cat">{(b.categories || [b.category]).map((c) => categoryOf(c)?.label || c).join(", ")}{b.rating?.count ? ` · ★ ${b.rating.avg} (${b.rating.count})` : ""}</div>
+            </div>
+            <span className={"pill " + (b.status === "verified" ? "p-ok" : b.status === "pending" ? "p-warn" : "p-bad")} style={{ textTransform: "capitalize" }}>{b.status}</span>
+          </div>
+          <div className="bc-grid">
+            <div><span>Address</span><b>{[b.address, b.area, b.city, b.state || "state missing"].filter(Boolean).join(", ")}{b.pincode ? ` · ${b.pincode}` : ""}</b></div>
+            <div><span>Phone</span><b>{b.phone ? <Reveal masked={b.phone} load={() => api.revealBusiness(b.id)} render={(c) => <>{prettyPhone(c.phone)} <a className="link" href={"tel:" + c.phone}>Call</a></>} /> : "No number"}</b></div>
+            <div><span>Map location</span><b>{b.lat != null ? "Set" : "Missing"}</b></div>
+            <div><span>Joined</span><b>{b.createdAt ? ago(b.createdAt) : "-"}</b></div>
+          </div>
+          {(b.flags?.length > 0 || b.statusNote) && <div className="bc-flags">
+            {(b.flags || []).map((f) => <span key={f} className="bc-flag">{f}</span>)}
+            {b.statusNote && <span className="muted small">Note: {b.statusNote}</span>}
+          </div>}
+          <div className="bc-actions">
             {b.status !== "verified" && <button className="btn main sm" onClick={() => act(b, "verified")}>Verify</button>}
             {["pending", "verified", "suspended"].includes(b.status) && <button className="btn ghost sm" onClick={() => act(b, "rejected")}>Reject</button>}
-            {b.status === "verified" && <button className="btn danger sm" onClick={() => act(b, "suspended")}>Suspend</button>}
+            {b.status === "verified" && <button className="btn ghost sm bc-danger" onClick={() => act(b, "suspended")}>Suspend</button>}
           </div>
           {isAdmin && <BizPlanControls b={b} toast={toast} onDone={load} />}
         </div>
@@ -313,8 +332,8 @@ function AdminBusinesses({ toast }) {
 
 function AdminReports({ toast }) {
   const [list, setList] = useState(null);
-  const load = () => api.adminReports().then(setList).catch((e) => { toast(errText(e)); setList([]); });
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = (first = false) => api.adminReports().then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } });
+  useLive(load);
   const resolve = async (r, status, removeOffer) => {
     try { await api.resolveReport(r.id, status, removeOffer); toast(removeOffer ? "Offer removed" : "Report " + status); load(); } catch (e) { toast(errText(e)); }
   };
@@ -342,8 +361,8 @@ function AdminComplaints({ toast }) {
   const [status, setStatus] = useState("open");
   const [list, setList] = useState(null);
   const [reply, setReply] = useState({});
-  const load = () => { setList(null); api.adminGrievances(status).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
-  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = (first = false) => { if (first) setList(null); api.adminGrievances(status).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  useLive(load, [status]);
   const update = async (g, st) => {
     try { await api.adminUpdateGrievance(g.ticket, st, reply[g.ticket] || g.reply || ""); toast(`Ticket ${g.ticket}: ${st}`); load(); } catch (e) { toast(errText(e)); }
   };
@@ -373,8 +392,9 @@ function AdminComplaints({ toast }) {
 function AdminUsers({ toast }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState(null);
-  const search = (term) => { setList(null); api.adminFindUsers(term).then(setList).catch((e) => { toast(errText(e)); setList([]); }); };
-  useEffect(() => { search(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const search = (term, first = true) => { if (first) setList(null); api.adminFindUsers(term).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  const qRef = useRef(""); qRef.current = q;
+  useLive((first) => search(qRef.current.trim(), first));
   const plan = (s) => !s ? <span className="pill p-mute">none</span> : s.active ? <span className="pill p-ok">till {day(s.until)}</span> : <span className="pill p-bad">{s.status}</span>;
   return (
     <>

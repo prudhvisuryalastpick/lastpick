@@ -114,7 +114,7 @@ export default function App() {
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
       {!IS_ADMIN_APP && !fullScreen && !loading && <QuoteStrip partner={biz} />}
-      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "")} path={path} query={query} />}</main>
+      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>
       {showNav && !needsConsent && !biz && (
         <nav className="nav cust" aria-label="Main">
           {CUSTOMER_NAV.map(([to, icon, label]) => to === "near"

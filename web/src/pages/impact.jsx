@@ -2,7 +2,7 @@
 // (the admissions-season section was removed: every offer now ends within 24 hours).
 import { useEffect, useState } from "react";
 import { api } from "../api/index.js";
-import { BackButton, Empty, NeedLogin, Spinner } from "../components.jsx";
+import { BackButton, Empty, NeedLogin, Spinner, useLive } from "../components.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
 import {
   APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf,
@@ -237,8 +237,8 @@ export function AdminSupport({ toast }) {
   const [status, setStatus] = useState("open");
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(null);
-  const load = () => api.adminSupport(status).then(setList).catch((e) => { toast(errText(e)); setList([]); });
-  useEffect(() => { setList(null); load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = (first = false) => { if (first) setList(null); return api.adminSupport(status).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  useLive(load, [status]);
   if (open) return <>
     <div className="pad" style={{ paddingBottom: 0 }}><button className="link" onClick={() => { setOpen(null); load(); }}>‹ All conversations</button></div>
     <Thread id={open} staff load={() => api.adminSupportThread(open)} reply={(m) => api.adminSupportReply(open, m)}

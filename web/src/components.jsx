@@ -171,3 +171,16 @@ export function MapView({ offers, center }) {
 }
 
 export const catLabel = (id) => { const c = categoryOf(id); return `${c.icon} ${c.label}`; };
+
+// Keeps a page's data fresh: loads now, again every 20 seconds, and whenever the window comes back into view.
+// load(first) gets true only for the first load, so later reloads can skip the spinner.
+export function useLive(load, deps = [], ms = 20000) {
+  useEffect(() => {
+    load(true);
+    const t = setInterval(() => { if (document.visibilityState !== "hidden") load(false); }, ms);
+    const back = () => { if (document.visibilityState !== "hidden") load(false); };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", back); window.removeEventListener("focus", back); };
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+}

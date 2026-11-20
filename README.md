@@ -48,7 +48,7 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 - **Trusted partners only:** a business can post only after the LastPick team verifies it and an admin activates its plan.
 - **Names only:** partners see the names of interested customers, never their numbers. Customers see the shop's number as text (no call or WhatsApp buttons).
 - **Offer times:** customers see "Offer ends in 4 hours" with the time, the normal price struck off, the offer price and the % off.
-- **Boost and reviews:** a boosted offer goes to the top of customers' home screens. Partners see how many customers saw each offer, and read and reply to reviews.
+- **Views and reviews:** partners see how many customers saw each offer, and read and reply to reviews. There is no Boost button in the partner app (featuring an offer is admin-only, under Admin → Revenue).
 - **Pincode first:** the business profile fills state, city and the area list from the pincode (India Post data, every state), and "Use my location" fills the whole address (OpenStreetMap).
 - **No dashboards** for customers or partners; admins see platform totals.
 - **Combos (admin switch):** one offer bundling a hotel room, food, pickup & drop and ironing. Off by default; Admin → Overview → Combos switches it on for partners (to post) and customers (Combos tile) at once.

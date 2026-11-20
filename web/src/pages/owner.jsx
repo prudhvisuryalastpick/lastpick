@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { BoostSheet } from "./revenue.jsx";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { COMBO_ITEMS, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, COMBO_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
@@ -159,9 +158,6 @@ export function OwnerOffers() {
   const [history, setHistory] = useState(null);
   const [tab, setTab] = useState("current");
   const [ending, setEnding] = useState(null);
-  const [boosting, setBoosting] = useState(null);
-  const [boosts, setBoosts] = useState([]);
-  useEffect(() => { api.myBoosts().then(setBoosts).catch(() => {}); }, [offers]);
   const now = useNow(30000);
   const load = () => api.myOffers().then(setOffers).catch(() => setOffers([]));
   useEffect(() => { load(); }, []);
@@ -174,7 +170,7 @@ export function OwnerOffers() {
     <>
       <div className="page-h row"><div><h1 className="title">My offers</h1><div className="muted">Views and status of everything you posted</div></div><a className="btn main sm" href="#/owner/post">＋ New</a></div>
       <StatusBanner />
-      <div className="banner" style={{ background: "var(--hi)", color: "var(--hi-ink)" }}>🚀<span><b>Boost</b> puts your offer at the top of customers' home screens, so it reaches many more customers. You can see below how many customers have seen each offer.</span></div>
+      <div className="muted small pad" style={{ paddingTop: 0 }}>See below how many customers have seen each offer.</div>
       <a className="menu-item" href="#/owner/reviews">⭐ Your reviews {business?.rating?.count ? <RatingBadge rating={business.rating} /> : <span className="muted small">none yet</span>}<span className="chev">›</span></a>
       <div className="tabs"><button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>Current</button><button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button></div>
       {tab === "history" ? (
@@ -202,10 +198,7 @@ export function OwnerOffers() {
                 <div className="small" style={{ fontWeight: 700, color: "var(--ink)", margin: "2px 0" }}>👀 Seen by {o.views || 0} customer{o.views === 1 ? "" : "s"}</div>
                 <div className="muted small">{live ? `Offer ends in ${hoursText(o.endsAt - now)} (at ${clockIST(o.endsAt)})` : o.status === "removed" ? "Removed by LastPick for breaking the rules" : "Ended"}</div>
                 {live && (() => {
-                  const bo = boosts.find((x) => x.offerId === o.id && (x.status === "pending" || x.live));
                   return <div className="gap" style={{ marginTop: 8, flexWrap: "wrap" }}><a className="chip" href={"#/offer/" + o.id}>View</a>
-                    {bo ? <span className="chip" style={{ background: "var(--hi)", borderColor: "var(--hi)", color: "var(--hi-ink)" }}>{bo.status === "pending" ? "Boost: waiting for payment" : `Featured · ${timeLeft(bo.endsAt - now)}`}</span>
-                      : <button className="chip" style={{ background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" }} onClick={() => setBoosting(o)}>🚀 Boost</button>}
                     <button className="chip" onClick={() => setEnding(o)}>End now</button></div>;
                 })()}
               </div>
@@ -213,7 +206,6 @@ export function OwnerOffers() {
             </div>
           );
         })}
-      {boosting && <BoostSheet offer={boosting} onClose={() => setBoosting(null)} onDone={() => api.myBoosts().then(setBoosts).catch(() => {})} />}
       {ending && (
         <Sheet onClose={() => setEnding(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>End this offer?</h2>
@@ -312,6 +304,19 @@ export function PostOffer() {
     } catch (e) { setErr(errText(e)); setBusy(false); }
   };
 
+  // Outside posting hours (10:30 PM – 4 AM) a partner who isn't a hotel or travel business can't post anything:
+  // show a closed screen instead of a form they can't send.
+  const anyAllDay = allowed.some((c) => runs24x7(c));
+  if (!postingOpen && !anyAllDay) return (
+    <div className="page"><StatusBanner />
+      <div className="card" style={{ textAlign: "center", padding: 24, marginTop: 16 }}>
+        <div style={{ fontSize: 40 }}>🌙</div>
+        <h2>Posting opens at 4 AM</h2>
+        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels and travel can post at night.</p>
+        <a className="btn ghost" href="#/owner/offers">See my offers</a>
+      </div>
+    </div>
+  );
   if (business && business.status !== "verified") return (
     <div className="page"><StatusBanner />
       <div className="card" style={{ textAlign: "center", padding: 24 }}>
