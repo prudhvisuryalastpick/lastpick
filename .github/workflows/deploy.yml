@@ -54,6 +54,8 @@ jobs:
 
   deploy:
     needs: test
+    # skipped until the AWS setup exists and AWS_DEPLOY_ROLE_ARN is set (see lastpick-terraform)
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
