@@ -356,6 +356,12 @@ test("working hours: after 11 PM only hotels and travel", async () => {
     assert.equal(postingOpen(at(22) + 30 * 60000), false); // last post 10:30 PM
     assert.equal(postingOpen(at(23)), false);
   }
+  {
+    const { fixTitlePercent, runs24x7 } = await import("../src/util.js");
+    assert.equal(fixTitlePercent("Haircut slots free this evening, 40% off", 80), "Haircut slots free this evening, 80% off");
+    assert.equal(fixTitlePercent("Fresh cakes", 50), "Fresh cakes");
+    assert.ok(runs24x7("stay") && runs24x7("combo", ["food", "pickup"]) && !runs24x7("combo", ["food", "ironing"]) && !runs24x7("food"));
+  }
   const cfg = await client("customer").get("/api/config");
   assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
@@ -370,6 +376,37 @@ test("working hours: after 11 PM only hotels and travel", async () => {
     const r = await n.post(`/api/offers/${day.id}/reveal`);
     assert.equal(r.data.code, "closed_for_night");
   }
+});
+
+test("combos switch, automatic % in the title, 24-hour hotel offers", async () => {
+  const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+  const pool = new Pool({ connectionString: DB });
+  await pool.query("UPDATE offers SET created_at = now() - interval '2 days'"); // lift today's post limit
+  await pool.end();
+  const p = client("partner"); await p.login("owner@test.lastpick.in");
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const combo = { title: "Room + dinner + pickup, 30% off", category: "combo", comboItems: ["stay", "food", "pickup"], origPrice: 4000, price: 2800, endsAt: soon(60) };
+  // off by default: partners can't post combos and customers don't see them
+  assert.equal((await client("customer").get("/api/config")).data.combos, false);
+  assert.equal((await p.post("/api/owner/offers", combo)).status, 403);
+  assert.equal((await a.post("/api/admin/settings", { combos: true })).data.combos, true);
+  assert.equal((await client("customer").get("/api/config")).data.combos, true);
+  assert.equal((await p.post("/api/owner/offers", { ...combo, comboItems: ["food"] })).status, 400, "a combo needs 2 or more things");
+  const made = await p.post("/api/owner/offers", combo);
+  assert.equal(made.status, 200, JSON.stringify(made.data));
+  const seen = (await client("customer").get("/api/offers?lat=12.97&lng=77.64&radius=5")).data.find((o) => o.id === made.data.id);
+  assert.deepEqual(seen.comboItems, ["stay", "food", "pickup"]);
+  // switched off again: hidden
+  await a.post("/api/admin/settings", { combos: false });
+  assert.ok(!(await client("customer").get("/api/offers?lat=12.97&lng=77.64&radius=5")).data.some((o) => o.id === made.data.id));
+  // the % in the title is worked out from the prices: 400 -> 80 is 80% off, not 40%
+  const cut = await p.post("/api/owner/offers", { title: "Cake slices, 40% off", category: "food", origPrice: 400, price: 80, endsAt: soon(30) });
+  assert.equal(cut.status, 200, JSON.stringify(cut.data));
+  assert.equal((await p.get("/api/offers/" + cut.data.id)).data.title, "Cake slices, 80% off");
+  // hotels can run for up to 24 hours (past midnight); more than that is refused
+  const room = await p.post("/api/owner/offers", { title: "Rooms tonight and tomorrow", category: "stay", origPrice: 3000, price: 2000, endsAt: Date.now() + 20 * 3600000 });
+  assert.equal(room.status, 200, JSON.stringify(room.data));
+  assert.equal((await p.post("/api/owner/offers", { title: "Rooms", category: "stay", origPrice: 3000, price: 2000, endsAt: Date.now() + 30 * 3600000 })).status, 400);
 });
 
 test("revenue: boosted offers, sponsored banners, revenue page", async () => {

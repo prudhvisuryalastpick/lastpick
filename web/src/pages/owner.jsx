@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { BoostSheet } from "./revenue.jsx";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { ALWAYS_OPEN, HOURS, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
+import { COMBO_ITEMS, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, COMBO_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -230,14 +230,14 @@ export function PostOffer() {
   const { business, toast, config } = useApp();
   // a partner posts ONLY in its own registered categories (a bakery posts bakery offers), plus job openings at its shop
   const own = business?.categories?.length ? business.categories : [business?.category || "other"];
-  const allowed = [...new Set([...own, "jobs"])];
+  const allowed = [...new Set([...own, "jobs", ...(config?.combos ? ["combo"] : [])])];
   const [postedToday, setPostedToday] = useState(null);
   useEffect(() => {
     const dayStart = Math.floor((Date.now() + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000;
     api.myOffers().then((l) => setPostedToday(l.filter((o) => o.createdAt >= dayStart).length)).catch(() => setPostedToday(0));
   }, []);
   const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
-  const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6 });
+  const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6, comboItems: [] });
   const [photo, setPhoto] = useState(null); // { file, url } (compressed when posting)
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -247,18 +247,29 @@ export function PostOffer() {
   const job = f.category === "jobs";
   // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels and travel.
   // Posting is open only from 4 AM to 11 PM.
-  const allDay = ALWAYS_OPEN.includes(f.category);
+  // Hotels and travel (and combos with a room or pickup & drop): post any time, run up to 24 hours.
+  const combo = f.category === "combo";
+  const allDay = runs24x7(f.category, f.comboItems);
   const dayStart = istDayStart(now);
-  const closing = allDay ? dayStart + 86400000 - 60000 : dayStart + HOURS.close * 3600000;
+  const closing = allDay ? now + 24 * 3600000 : dayStart + HOURS.close * 3600000;
   const hourNow = (now - dayStart) / 3600000; // hours since midnight, India time
-  const postingOpen = hourNow >= HOURS.postFrom && hourNow < HOURS.postTill;
+  const postingOpen = allDay || (hourNow >= HOURS.postFrom && hourNow < HOURS.postTill);
   const hoursLeft = (closing - now) / 3600000;
-  const choices = [...DURATIONS.filter((h) => h < hoursLeft), "close"];
-  const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, closing));
-  const closeLabel = allDay ? "12 midnight" : "11 PM";
-  const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...JOB_TEMPLATES];
-  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
+  const choices = allDay ? [...DURATIONS, 18, 24] : [...DURATIONS.filter((h) => h < hoursLeft), "close"];
+  const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, allDay ? Date.now() + 24 * 3600000 : closing));
+  const closeLabel = allDay ? "24 hours" : "11 PM";
+  const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
+  const toggleItem = (id) => setF((p) => ({ ...p, comboItems: p.comboItems.includes(id) ? p.comboItems.filter((x) => x !== id) : [...p.comboItems, id] }));
+  const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...(config?.combos ? COMBO_TEMPLATES : []), ...JOB_TEMPLATES];
+  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours, comboItems: t.comboItems || [] }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
+  // the % off is worked out from the prices, and any "40% off" in the title is kept in step automatically
+  const setPrice = (k, v) => setF((p) => {
+    const n = { ...p, [k]: v };
+    const o = Number(n.origPrice), pr = Number(n.price);
+    if (n.category !== "jobs" && o > 0 && n.price !== "" && pr >= 0 && pr < o) n.title = fixTitlePercent(n.title, Math.round((1 - pr / o) * 100));
+    return n;
+  });
 
   const price = Number(f.price);
   const orig = job ? price : Number(f.origPrice);
@@ -270,15 +281,13 @@ export function PostOffer() {
     if (!(price >= 0) || f.price === "") problems.push("the offer price");
     else if (orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
   }
-  // the title says "40% off" but the prices give a different discount: warn before posting
-  const titlePct = Number((f.title.match(/(\d{1,2})\s*%/) || [])[1]);
-  const realPct = !job && orig > 0 && price >= 0 && price < orig ? Math.round((1 - price / orig) * 100) : null;
-  const pctMismatch = titlePct > 0 && realPct != null && Math.abs(titlePct - realPct) > 2;
+  if (combo && f.comboItems.length < 2) problems.push("at least 2 things in the combo");
+  const realPct = !job && orig > 0 && f.price !== "" && price >= 0 && price < orig ? Math.round((1 - price / orig) * 100) : null;
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
     title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: photo?.url || null,
-    origPrice: orig || 0, price: f.price === "" ? null : price, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
+    origPrice: orig || 0, price: f.price === "" ? null : price, comboItems: combo ? f.comboItems : [], quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   const onPhoto = (file) => {
@@ -296,7 +305,7 @@ export function PostOffer() {
       await api.createOffer({
         title: f.title.trim(), description: f.description.trim(), category: f.category, emoji: f.emoji,
         photoThumb: pics?.thumb || null, photo: pics?.photo || null,
-        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours),
+        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours), comboItems: combo ? f.comboItems : undefined,
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
       navigate("/owner/offers");
@@ -329,25 +338,30 @@ export function PostOffer() {
         <div className="fld"><label>Category</label>
           <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job
-            ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today."
+            ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
+            : combo ? "A combo bundles things customers book together, at one price. With a hotel room or pickup & drop it runs 24×7."
             : allDay
-              ? "You can post only in your registered category. Hotels and travel are shown 24×7: your offer can run till 12 midnight today."
+              ? "Hotels and travel run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
+        {combo && <div className="fld"><label>What's in the combo? (pick 2 or more)</label>
+          <div className="gap" style={{ flexWrap: "wrap", gap: 6 }}>{COMBO_ITEMS.map((c) => (
+            <button type="button" key={c.id} className={"chip " + (f.comboItems.includes(c.id) ? "on" : "")} onClick={() => toggleItem(c.id)}>{f.comboItems.includes(c.id) ? "✓ " : ""}{c.label}</button>))}</div></div>}
         <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
         <div className="two">
           {job
             ? <div className="fld"><label>Pay ₹</label><input type="number" min="1" inputMode="numeric" value={f.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 12000" /></div>
-            : <><div className="fld"><label>Normal price ₹</label><input type="number" min="1" inputMode="numeric" value={f.origPrice} onChange={(e) => set("origPrice", e.target.value)} /></div>
-              <div className="fld"><label>Offer price ₹</label><input type="number" min="0" inputMode="numeric" value={f.price} onChange={(e) => set("price", e.target.value)} /></div></>}
+            : <><div className="fld"><label>Normal price ₹</label><input type="number" min="1" inputMode="numeric" value={f.origPrice} onChange={(e) => setPrice("origPrice", e.target.value)} /></div>
+              <div className="fld"><label>Offer price ₹</label><input type="number" min="0" inputMode="numeric" value={f.price} onChange={(e) => setPrice("price", e.target.value)} /></div></>}
         </div>
+        {!job && realPct != null && <div className="pctline">Discount: <b>{realPct}% off</b> <span className="muted small">· worked out from your prices{/\d\s*%/.test(f.title) ? ", and updated in your title" : ""}</span></div>}
         <div className="two">
           <div className="fld"><label>{job ? "Pay per" : "How many"}</label><input maxLength={60} value={f.quantity} onChange={(e) => set("quantity", e.target.value)} placeholder={job ? "e.g. Pay per month" : "e.g. 3 rooms"} /></div>
           <div className="fld"><label>{job ? "Show for" : "Offer ends in"}</label>
             <select value={choices.includes(f.hours) ? f.hours : "close"} onChange={(e) => set("hours", e.target.value === "close" ? "close" : Number(e.target.value))}>
-              {choices.map((h) => <option key={h} value={h}>{h === "close" ? `Till ${closeLabel} (today)` : `${h} hour${h > 1 ? "s" : ""} · till ${clockIST(Math.min(now + h * 3600000, closing))}`}</option>)}
+              {choices.map((h) => <option key={h} value={h}>{h === "close" ? "Till 11 PM (today)" : `${h} hour${h > 1 ? "s" : ""} · till ${whenText(Math.min(now + h * 3600000, closing))}`}</option>)}
             </select>
-            <span className="hint">Offers end by {closeLabel} today{allDay ? "" : " (hotels and travel: 12 midnight)"}. Last time to post: 10:30 PM.</span></div>
+            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels and travel: any time, up to 24 hours.)"}</span></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
@@ -358,10 +372,9 @@ export function PostOffer() {
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
-        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time), hotels and travel too. Post again at 4 AM.</span></div>}
+        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels and travel can post any time. Post again at 4 AM.</span></div>}
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
-        {pctMismatch && <div className="banner warn" style={{ margin: "0 0 10px" }}>Your title says {titlePct}% off, but ₹{price} instead of ₹{orig} is {realPct}% off. Please check the prices or the title.</div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>
       </div>
     </>

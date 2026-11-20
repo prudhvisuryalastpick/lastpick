@@ -574,3 +574,8 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .brandmark b { display: block; font-family: var(--font-h); font-size: 19px; font-weight: 800; line-height: 1.1; color: var(--ink); }
 .brandmark small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
 .brandmark.light b { color: #fff; } .brandmark.light small { color: rgba(255,255,255,.75); }
+.pctline { margin-top: -4px; font-size: 14px; color: var(--ink); }
+.pctline b { color: var(--ok, #0F7B4F); }
+.combochips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.combochips span { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #FFF0E3; color: #B4410E; }
+.switchrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

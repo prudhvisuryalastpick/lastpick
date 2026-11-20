@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, PLANS, categoryOf } from "./lib/config.js";
+import { APP_NAME, PLANS, categoryOf, comboLabel } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
@@ -39,6 +39,7 @@ export function OfferCard({ offer, preview = false }) {
           <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{offer.price == null ? "₹ –" : offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.price != null && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pct">{discount(offer)}% off</span></>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
+        {offer.category === "combo" && offer.comboItems?.length > 0 && <div className="combochips">{offer.comboItems.map((x) => <span key={x}>{comboLabel(x)}</span>)}</div>}
         <OfferQuote offer={offer} />
         {!(isCustomer || preview) && <div className="lock">Number locked · get the Customer Pass</div>}
       </div>

@@ -137,6 +137,8 @@ export const api = {
   async resolveReport(id, status, removeOffer = false) { await post(`/api/admin/reports/${enc(id)}/resolve`, { status, removeOffer }); },
   async adminSetPlan(email, plan, months) { await post("/api/admin/plans", { email, plan, months }); },
   async adminSetConfig(cfg) { clearCache(); return post("/api/admin/config", cfg); },
+  async adminSettings() { return get("/api/admin/settings"); },
+  async setAdminSettings(v) { const r = await post("/api/admin/settings", v); memo.clear(); return r; },
   async adminBusinessPlan(businessId, action, extra = {}) { await post(`/api/admin/businesses/${enc(businessId)}/plan`, { action, ...extra }); },
   async adminGrievances(status) { return get(`/api/admin/grievances?status=${enc(status || "open")}`); },
   async adminUpdateGrievance(ticket, status, reply) { await post(`/api/admin/grievances/${enc(ticket)}`, { status, reply }); },

@@ -33,17 +33,16 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 
 ## Planned (after we have good partners)
 
-- **Combos:** one booking that bundles partners, e.g. pickup & drop + food + hotel. Not built yet.
+- **Combos across partners:** today a combo is posted by one partner. Later: one booking that joins several partners (e.g. a cab partner's pickup + a hotel's room).
 
 ## Product rules built in
 
 - **One device at a time:** logging in on a new device logs out the old one, and the old device says why.
 - **Consent checked on the server:** customers can't view numbers, share theirs or review without accepting the current notice. That notice includes "LastPick is only a platform". Partners can't post without accepting the business terms.
 - **Working hours (India time):**
-  - Partners can post only from 4 AM to 10:30 PM (hotels and travel too), so a post at 10 PM can run till 11 PM at most. Posting is closed from 10:30 PM to 4 AM.
-  - Hotels and travel are available 24×7: their offers can run till 12 midnight.
-  - Everything else is shown from 4 AM to 11 PM and must end by 11 PM.
-  - Every post is valid for that day only and is removed at 12 midnight. Customers are told this on the home screen.
+  - Hotels and travel (and combos with a room or pickup & drop) are 24×7: they can post at any time, and an offer runs for up to 24 hours.
+  - Everyone else can post from 4 AM to 10:30 PM, so a post at 10 PM can run till 11 PM at most. Their offers are shown 4 AM to 11 PM, end by 11 PM and are removed at 12 midnight.
+  - Customers are told this on the home screen.
   - Change the hours with `OPEN_HOUR` / `CLOSE_HOUR` (shown hours) and `POST_FROM_HOUR` / `POST_TILL_HOUR` (posting).
 - **One category per partner:** a partner picks one category and posts offers only in it, plus job openings at their shop (shown within 10 km or the same pincode). 3 posts a day.
 - **Trusted partners only:** a business can post only after the LastPick team verifies it and an admin activates its plan.
@@ -52,6 +51,8 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 - **Boost and reviews:** a boosted offer goes to the top of customers' home screens. Partners see how many customers saw each offer, and read and reply to reviews.
 - **Pincode first:** the business profile fills state, city and the area list from the pincode (India Post data, every state), and "Use my location" fills the whole address (OpenStreetMap).
 - **No dashboards** for customers or partners; admins see platform totals.
+- **Combos (admin switch):** one offer bundling a hotel room, food, pickup & drop and ironing. Off by default; Admin → Overview → Combos switches it on for partners (to post) and customers (Combos tile) at once.
+- **Automatic discount:** the % off is worked out from the prices; any "40% off" in the title is corrected automatically (app and server).
 - **Quotes:** one short moral quote at a time in the top bar (changes every 7 seconds; a new set every 30 minutes) and one on every offer.
 - **Support:** customers and partners chat with the LastPick team in the app (Help & support); admins and moderators answer in Admin → Support chats. Formal complaints keep their own ticket system.
 - **Rules:** a plain-language "How LastPick works & rules" page plus the full Terms. They say LastPick is only a platform, takes no responsibility for the deal, and acts on providers through reviews and reports.

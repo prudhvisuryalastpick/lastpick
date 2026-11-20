@@ -4,9 +4,10 @@ import { clearCache } from "../cache.js";
 import { many, one, q, tx } from "../db.js";
 import { freeMode, planActive } from "../plans.js";
 import { limit } from "../ratelimit.js";
+import { COMBO_ITEMS, combosOn } from "../settings.js";
 import { audit, mapBusiness, mapOffer, mapReview, needConsent, offerSelect } from "../shared.js";
 import {
-  ALWAYS_OPEN, POSTING_HOURS, closingTimeIST, postingOpen, MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
+  POSTING_HOURS, closingTimeIST, fixTitlePercent, postingOpen, runs24x7, MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
 } from "../util.js";
 
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
@@ -84,25 +85,36 @@ export function partnerRoutes(r) {
     if (!b.phone) throw precondition("Add your contact number in Business profile first");
     if (!b.city || !b.state || !b.pincode) throw precondition("Add your city, state and pincode in Business profile first");
 
-    const title = str(d.title, 120);
+    let title = str(d.title, 120);
     const origPrice = Number(d.origPrice), price = Number(d.price), endsAt = Number(d.endsAt);
     if (title.length < 3) throw bad("Title is too short");
     const allowed = b.categories?.length ? b.categories : [b.category || "other"];
-    const category = d.category === "jobs" ? "jobs" : d.category ? normCategory(d.category) : allowed[0];
+    const category = d.category === "jobs" ? "jobs" : d.category === "combo" ? "combo" : d.category ? normCategory(d.category) : allowed[0];
     const hiring = category === "jobs";
-    // a business posts only in its registered categories (plus job openings at its own shop)
-    if (!hiring && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
-    if (!postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Please post again at ${POSTING_HOURS.from} AM.`);
-    const closing = closingTimeIST(category);
-    const lastTime = ALWAYS_OPEN.includes(category) ? "12 midnight" : "11 PM";
+    // combos (a hotel room + food + pickup & drop + ironing in one offer) only while an admin has them switched on
+    let comboItems = [];
+    if (category === "combo") {
+      if (!(await combosOn())) throw denied("Combos are not open yet.");
+      comboItems = [...new Set((Array.isArray(d.comboItems) ? d.comboItems : []).filter((x) => COMBO_ITEMS.includes(x)))];
+      if (comboItems.length < 2) throw bad("Pick at least 2 things for a combo");
+    }
+    // a business posts only in its registered categories (plus job openings at its own shop, and combos)
+    if (!hiring && category !== "combo" && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
+    // Hotels and travel (and combos with a room or pickup & drop) run 24×7: post any time, offer runs up to 24 hours.
+    // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
+    const allDay = runs24x7(category, comboItems);
+    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels and travel can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
     } else {
       // offers and discounts only: the offer price must be lower than the normal price
       if (!(origPrice > 0) || !(price >= 0) || !(price < origPrice) || origPrice > 1e9) throw bad("Offer price must be lower than the normal price");
+      // the % in the title is always the real discount, worked out from the prices
+      title = fixTitlePercent(title, Math.round((1 - price / origPrice) * 100));
     }
-    // same day only: ends by 11 PM (hotels and travel: 12 midnight)
-    if (!(endsAt > Date.now()) || endsAt > closing) throw bad(`Offers are for the same day only: they must end by ${lastTime} (India time)`);
+    if (allDay) {
+      if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Hotel and travel offers can run for up to 24 hours");
+    } else if (!(endsAt > Date.now()) || endsAt > closingTimeIST(category)) throw bad("Offers are for the same day only: they must end by 11 PM (India time)");
     const photoThumb = isDataImage(d.photoThumb, 30000) ? d.photoThumb : null;
     const photo = isDataImage(d.photo, 200000) ? d.photo : null;
 
@@ -113,10 +125,10 @@ export function partnerRoutes(r) {
       const today = (await c.query("SELECT count(*)::int AS n FROM offers WHERE owner_id = $1 AND created_at >= $2", [u.id, new Date(startOfDayIST())])).rows[0].n;
       if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again tomorrow from 4 AM.`);
       const { rows } = await c.query(
-        `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags, combo_items)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [u.id, title, str(d.description, 1000), category, str(d.emoji, 8) || "📦", photoThumb, !!photo, hiring ? price : origPrice, price, str(d.quantity, 60),
-          new Date(endsAt), !hiring && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : []]);
+          new Date(endsAt), !hiring && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : [], comboItems]);
       if (photo) await c.query("INSERT INTO offer_photos (offer_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
       return { id: rows[0].id, postsLeftToday: POSTS_PER_DAY - today - 1 };
     });

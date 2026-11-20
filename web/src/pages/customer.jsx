@@ -3,7 +3,7 @@ import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel, OfferQuote } from "../components.jsx";
-import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
+import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey, comboLabel } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
@@ -163,12 +163,12 @@ export function Home() {
       ) : <>
         {config?.night
           ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels and travel are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
-          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Every offer is valid for today and is removed at 12 midnight. Hotels and travel are available 24×7; everything else from {hourText(hours.open)} to {hourText(hours.close)}.</span></div>}
+          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels and travel are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
-          {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = (t.id === "jobs" ? jobs : live).filter((o) => o.category === t.id).length; return (
+          {(config?.combos ? [{ id: "combo", tag: "NEW", tagBg: "#B4410E" }, ...HOME_TILES] : HOME_TILES).map((t, k) => { const st = catStyle(t.id); const n = (t.id === "jobs" ? jobs : live).filter((o) => o.category === t.id).length; return (
             <button key={t.id} className="cattile" onClick={() => open(t.id)}>
               <IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={50} rot={[-6, 4, -3, 6][k % 4]} />
               <b>{st.short}</b><span>{offers ? (n ? `${n} live` : "None yet") : " "}</span>
@@ -208,7 +208,7 @@ export function CategoryPage({ id }) {
     .map((x) => x.o), [offers, id, sort, location, now]);
   return (
     <>
-      <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id).label}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div></div>
+      <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id)?.label || "Offers"}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div></div>
       <div className="chips" style={{ padding: "4px 14px 10px" }}>
         {[["ending", "Ending soon"], ["near", "Nearest"], ["off", "Biggest discount"]].map(([k, l]) => <button key={k} className={"chip " + (sort === k ? "on" : "")} onClick={() => setSort(k)}>{l}</button>)}
       </div>
@@ -469,6 +469,7 @@ export function OfferPage({ id }) {
         <div className="catline"><span className="catpill" style={{ background: catStyle(offer.category).tint, color: catStyle(offer.category).ink }}><Icon d={catStyle(offer.category).icon} size={14} stroke={2.2} />{categoryOf(offer.category).label}</span><span className="muted small">{offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</span></div>
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
+        {offer.category === "combo" && offer.comboItems?.length > 0 && <div className="box" style={{ marginTop: 12 }}><div className="muted small" style={{ fontWeight: 700 }}>This combo includes</div><div className="combochips">{offer.comboItems.map((x) => <span key={x}>✓ {comboLabel(x)}</span>)}</div></div>}
         <OfferQuote offer={offer} big />
 
         <div className="box row" style={{ marginTop: 14 }}>

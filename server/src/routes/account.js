@@ -1,4 +1,5 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
+import { combosOn } from "../settings.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
 import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
@@ -168,8 +169,8 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN,
-  }), { cache: "public, max-age=30" });
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, combos: await combosOn(),
+  }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------
   r.post("/api/consent", async (ctx) => {

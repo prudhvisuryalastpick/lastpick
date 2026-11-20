@@ -35,6 +35,13 @@ export const isNight = (now = Date.now()) => { const h = istHour(now); return h 
 // midnight today in India (UTC+05:30)
 const IST = 5.5 * 3600000;
 export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY) * DAY - IST;
+// hotels, travel, and combos that include a room or pickup & drop, run 24×7
+export const runs24x7 = (category, comboItems = []) => ALWAYS_OPEN.includes(category) || (category === "combo" && comboItems.some((x) => ["stay", "pickup"].includes(x)));
+// "Haircut slots, 40% off" with prices 400 -> 80 becomes "Haircut slots, 80% off"
+export function fixTitlePercent(title, pct) {
+  if (!(pct > 0)) return title;
+  return title.replace(/\b\d{1,3}(\.\d+)?\s*%\s*(off|discount)?/i, (m, _d, word) => `${pct}%${word ? " " + word : ""}`);
+}
 export const postingOpen = (now = Date.now()) => { const d = new Date(now + IST); const h = d.getUTCHours() + d.getUTCMinutes() / 60; return h >= POSTING_HOURS.from && h < POSTING_HOURS.till; };
 // latest end time for an offer posted today: 11 PM, or 12 midnight for hotels and travel
 export const closingTimeIST = (category, now = Date.now()) => startOfDayIST(now) + (ALWAYS_OPEN.includes(category) ? DAY : BUSINESS_HOURS.close * 3600000);

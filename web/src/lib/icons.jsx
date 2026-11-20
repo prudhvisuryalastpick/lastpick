@@ -89,6 +89,7 @@ export const CAT_STYLE = {
   beauty: { icon: "salon", tint: "#EEF1F5", ink: "#6B2FB3", short: "Salon" },
   admissions: { icon: "cap", tint: "#EAF3FF", ink: "#1E4BB8", short: "Schools" },
   laundry: { icon: "laundry", tint: "#E6F3FA", ink: "#0B5C80", short: "Laundry" },
+  combo: { icon: "spark", tint: "#FFF0E3", ink: "#B4410E", short: "Combos" },
   retail: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Shopping" },
   electronics: { icon: "phoneDevice", tint: "#EEF0F6", ink: "#3B4654", short: "Electronics" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },

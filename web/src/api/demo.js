@@ -1,7 +1,7 @@
 // Demo backend: same interface as firebase.js, data kept in this browser's localStorage.
 // Used automatically when VITE_FIREBASE_API_KEY is not set. No real payments happen here.
 import { compressPhoto } from "../lib/image.js";
-import { CONSENT_VERSION, cityKey } from "../lib/config.js";
+import { CONSENT_VERSION, cityKey, fixTitlePercent, runs24x7 } from "../lib/config.js";
 import { distanceKm, indianPhone } from "../lib/format.js";
 
 const KEY = "lastpick-demo-v11";
@@ -180,7 +180,8 @@ const ALWAYS_OPEN = ["stay", "travel"];
 const LOCAL_ONLY = ["jobs"];
 const tonight = () => Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H + D;
 const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 4 || h >= 23; };
-const openNow = (o) => !night() || ALWAYS_OPEN.includes(o.category);
+const combosOnIn = (db) => !!db.settings?.combos;
+const openNow = (o) => (o.category !== "combo" || combosOnIn(load())) && (!night() || runs24x7(o.category, o.comboItems));
 const snapOf = (db, c) => c.snap || (() => { const o = db.offers.find((x) => x.id === c.offerId); return o ? { title: o.title, category: o.category, price: o.price, origPrice: o.origPrice, businessId: o.businessId } : null; })();
 const monthsBack = (rows, field) => {
   const out = []; const d0 = new Date();
@@ -315,7 +316,9 @@ export const api = {
       .filter((o) => o.business?.pincode === String(pin) && bizVisible(db, db.businesses.find((b) => b.id === o.businessId)))
       .sort((a, b) => a.endsAt - b.endsAt);
   },
-  async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
+  async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN, combos: combosOnIn(load()) }; },
+  async adminSettings() { const db = load(); staff(db); return { combos: combosOnIn(db) }; },
+  async setAdminSettings({ combos }) { const db = load(); staff(db, true); db.settings = { ...(db.settings || {}), combos: !!combos }; save(db); return { combos: !!combos }; },
   async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
     const db = load(), now = Date.now(), map = {};
@@ -348,20 +351,28 @@ export const api = {
     if (b.status !== "verified") throw new Error("Only verified partners can post. Our team checks every business, usually within 1 working day.");
     if (!hasPlan(db, u.id, "owner")) throw new Error("Business Pro is not active. Pick a plan to post offers (there is no free version).");
     const allowed = b.categories?.length ? b.categories : [b.category || "other"];
-    if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
+    const items = o.category === "combo" ? [...new Set(o.comboItems || [])] : [];
+    if (o.category === "combo") {
+      if (!combosOnIn(db)) throw new Error("Combos are not open yet.");
+      if (items.length < 2) throw new Error("Pick at least 2 things for a combo");
+    } else if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
+    const allDay = runs24x7(o.category, items);
+    const h = (Date.now() + 5.5 * H) % D / H;
+    if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels and travel can post any time.");
     if (o.category === "jobs") {
       if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
-      if (o.endsAt > tonight()) throw new Error("Everything posted must end today (before midnight)");
     } else {
       if (!(o.price < o.origPrice)) throw new Error("Offer price must be lower than the normal price");
-      if (o.endsAt > tonight()) throw new Error("Offers are for the same day: they must end today (before midnight)");
+      o = { ...o, title: fixTitlePercent(o.title, Math.round((1 - o.price / o.origPrice) * 100)) };
     }
+    const latest = allDay ? Date.now() + D + 60000 : tonight() - D + 23 * H;
+    if (o.endsAt > latest) throw new Error(allDay ? "Hotel and travel offers can run for up to 24 hours" : "Offers are for the same day only: they must end by 11 PM (India time)");
     if (!b.city || !b.state || !b.pincode) throw new Error("Add your city, state and pincode in Business profile first");
     const dayStart = Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H;
     if (db.offers.filter((x) => x.businessId === b.id && x.createdAt >= dayStart).length >= 3) throw new Error("You can post 3 offers a day. You can post again after midnight.");
     const id = rid();
     db.offers.push({ id, businessId: b.id, title: o.title, description: o.description, category: o.category, emoji: o.emoji, photoUrl: o.photoThumb || null,
-      hasPhoto: !!o.photo, origPrice: o.origPrice, price: o.price, quantity: o.quantity, endsAt: o.endsAt, status: "live", views: 0, createdAt: Date.now(),
+      hasPhoto: !!o.photo, origPrice: o.origPrice, price: o.price, quantity: o.quantity, endsAt: o.endsAt, status: "live", views: 0, createdAt: Date.now(), comboItems: items,
       flags: o.category !== "jobs" && 1 - o.price / o.origPrice >= 0.9 ? ["very-high-discount"] : [] });
     if (o.photo) { db.photos = db.photos || {}; db.photos[id] = o.photo; }
     save(db);

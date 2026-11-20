@@ -1,5 +1,6 @@
 // Admin panel API. "admin" (super admin) sees all of India. A "moderator" (area agent) sees only their area:
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
+import { combosOn, setSetting } from "../settings.js";
 import { needUser } from "../auth.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, rmany, rone } from "../db.js";
@@ -176,6 +177,17 @@ export function adminRoutes(r) {
              WHERE id = $1`, [id, status, str(ctx.body.note, 300), me.id, TRIAL_DAYS]);
     clearCache("feed:"); clearCache("cities:");
     audit("admin_business_status", me.id, { businessId: id, status });
+  });
+
+  // Super admins: switches such as combos (off until LastPick has enough good partners).
+  r.get("/api/admin/settings", async (ctx) => { staff(ctx); return { combos: await combosOn() }; });
+  r.post("/api/admin/settings", async (ctx) => {
+    const me = superAdmin(ctx);
+    if (typeof ctx.body?.combos !== "boolean") throw bad("Say whether combos are on or off");
+    await setSetting("combos", ctx.body.combos, me.id);
+    clearCache("feed:");
+    audit("setting_changed", me.id, { combos: ctx.body.combos });
+    return { combos: ctx.body.combos };
   });
 
   // Super admins: unlock Business Pro (1/3/6/12 months), extend the free month, or end both.

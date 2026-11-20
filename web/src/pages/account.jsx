@@ -167,6 +167,27 @@ function PaymentsNote() {
   );
 }
 
+// Combos (hotel room + food + pickup & drop + ironing in one offer): off until LastPick has enough good partners.
+// Switching on shows them to partners (to post) and customers (to see) straight away.
+function ComboSwitch({ toast }) {
+  const { refresh } = useApp();
+  const [on, setOn] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.adminSettings().then((x) => setOn(!!x.combos)).catch(() => setOn(false)); }, []);
+  const flip = async (v) => {
+    setBusy(true);
+    try { const r = await api.setAdminSettings({ combos: v }); setOn(r.combos); toast(r.combos ? "Combos are on for partners and customers" : "Combos are off"); refresh?.(); } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="panel switchrow" style={{ margin: "4px 16px 12px" }}>
+      <div><b>Combos</b> {on ? <span className="pill p-ok">On</span> : <span className="pill p-mute">Off</span>}
+        <div className="muted small">Hotel room + food + pickup & drop + ironing in one offer. When on, partners can post combos and customers see a Combos section.</div></div>
+      {on == null ? <span className="muted small">…</span> : <button type="button" aria-label="Combos on or off" aria-pressed={on} className={"sw " + (on ? "on" : "")} disabled={busy} onClick={() => flip(!on)} />}
+    </div>
+  );
+}
+
 function AdminOverview({ toast, go }) {
   const { isAdmin } = useApp();
   const [data, setData] = useState(null);
@@ -181,6 +202,7 @@ function AdminOverview({ toast, go }) {
   return (
     <>
       {isAdmin && <PaymentsNote />}
+      {isAdmin && <ComboSwitch toast={toast} />}
       {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>
         <div className="amt" style={{ fontSize: 32 }}>{rupee(mrr)}</div>

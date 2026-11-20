@@ -75,7 +75,7 @@ export const CATEGORIES = [
   { id: "travel", label: "Bus & travel", icon: "🚌" },
   { id: "grocery", label: "Grocery", icon: "🥬" },
   { id: "beauty", label: "Salon & spa", icon: "💇" },
-  { id: "laundry", label: "Laundry & dry cleaning", icon: "🧺" },
+  { id: "laundry", label: "Laundry, ironing & dry cleaning", icon: "🧺" },
   { id: "vehicle", label: "Bike & car service", icon: "🔧" },
   { id: "sports", label: "Gym, sports & fitness", icon: "⚽" },
   { id: "admissions", label: "Schools & colleges", icon: "🎓" },
@@ -93,8 +93,15 @@ export const CATEGORIES = [
 // Not a business category: any shop can post a job opening for workers at its own shop. Shown only to
 // customers in that local area (10 km / same pincode), like an advertisement.
 export const JOB_CATEGORY = { id: "jobs", label: "Job opening at my shop", icon: "📣" };
-export const normCategory = (id) => (id === "jobs" ? "jobs" : CATEGORIES.some((c) => c.id === id) ? id : "other");
-export const categoryOf = (id) => (id === "jobs" ? JOB_CATEGORY : CATEGORIES.find((c) => c.id === normCategory(id)));
+export const normCategory = (id) => (id === "jobs" || id === "combo" ? id : CATEGORIES.some((c) => c.id === id) ? id : "other");
+// Combos: one offer that bundles services (hotel room + food + pickup & drop + ironing).
+// Shown only while an admin has switched combos on (config.combos). Keep in sync with server/src/settings.js.
+export const COMBO_CATEGORY = { id: "combo", label: "Combos", icon: "🎁" };
+export const COMBO_ITEMS = [
+  { id: "stay", label: "Hotel room" }, { id: "food", label: "Food" }, { id: "pickup", label: "Pickup & drop" }, { id: "ironing", label: "Ironing" },
+];
+export const comboLabel = (id) => COMBO_ITEMS.find((x) => x.id === id)?.label || id;
+export const categoryOf = (id) => (id === "jobs" ? JOB_CATEGORY : id === "combo" ? COMBO_CATEGORY : CATEGORIES.find((c) => c.id === normCategory(id)));
 
 export const TINTS = {
   food: "#fff1e6", grocery: "#ecf8e6", stay: "#e9f0ff", travel: "#e8f7f1", sports: "#eef8e3", beauty: "#f4ecff",
@@ -106,11 +113,18 @@ export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌"
 
 // Everything posted is for the same day (India time). Keep in sync with server/src/util.js.
 export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing runs past today
-// Hotels and travel stay open 24×7 (their offers can run till 12 midnight); everything else is shown 4 AM – 11 PM
+// Hotels and travel stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
 // and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
 // Everything is removed at 12 midnight.
 export const ALWAYS_OPEN = ["stay", "travel"];
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
+// Hotels and travel (and combos with a room or pickup & drop) run 24×7: post any time, up to 24 hours.
+export const runs24x7 = (category, comboItems = []) => ALWAYS_OPEN.includes(category) || (category === "combo" && comboItems.some((x) => x === "stay" || x === "pickup"));
+// The % in a title always matches the prices: "40% off" with 400 -> 80 becomes "80% off". Same rule as the server.
+export function fixTitlePercent(title, pct) {
+  if (!(pct > 0)) return title;
+  return title.replace(/\b\d{1,3}(\.\d+)?\s*%\s*(off|discount)?/i, (m, _d, word) => `${pct}%${word ? " " + word : ""}`);
+}
 
 export const REPORT_REASONS = [
   "Fake or misleading offer",
@@ -141,6 +155,11 @@ export const TEMPLATES = [
   { label: "Pet grooming", category: "pets", emoji: "🐾", title: "Dog bath & grooming 40% off today", origPrice: 1000, price: 600, quantity: "6 slots", hours: 9 },
   { label: "Cake orders", category: "food", emoji: "🎂", title: "Custom cakes 25% off for orders placed today", origPrice: 1200, price: 900, quantity: "10 orders", hours: 10 },
   { label: "Event seats", category: "other", emoji: "🎟️", title: "Seats left for tonight's event, 50% off", origPrice: 400, price: 200, quantity: "30 seats", hours: 6 },
+];
+// Combo templates (only while combos are switched on).
+export const COMBO_TEMPLATES = [
+  { label: "Stay combo", category: "combo", emoji: "🎁", comboItems: ["stay", "food", "pickup"], title: "Room + dinner + pickup & drop, 30% off", origPrice: 4000, price: 2800, quantity: "3 combos", hours: 12 },
+  { label: "Stay + ironing", category: "combo", emoji: "🎁", comboItems: ["stay", "ironing"], title: "Room tonight + free ironing of 5 clothes, 25% off", origPrice: 2400, price: 1800, quantity: "4 rooms", hours: 12 },
 ];
 // Job opening templates (any shop can use these). price = pay in rupees; same day only.
 export const JOB_TEMPLATES = [
