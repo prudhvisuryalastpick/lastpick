@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, PLANS, TINTS, categoryOf } from "./lib/config.js";
+import { APP_NAME, PLANS, categoryOf } from "./lib/config.js";
+import { Icon, catStyle } from "./lib/icons.jsx";
 import { discount, distanceKm, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
 
@@ -15,9 +16,12 @@ export function Countdown({ end }) {
   return <span className={"tm " + (ms < 3600000 ? "hot" : "")}>{timeLeft(ms)}</span>;
 }
 
-export function OfferImage({ offer, className = "top", children }) {
-  const style = offer.photoUrl ? { backgroundImage: `url("${offer.photoUrl}")` } : { background: TINTS[offer.category] || TINTS.other };
-  return <div className={className} style={style}>{!offer.photoUrl && offer.emoji}{children}</div>;
+// The offer's photo, or its category icon on the category colour when there's no photo.
+export function OfferImage({ offer, className = "top", children, size }) {
+  if (offer.photoUrl) return <div className={className} style={{ backgroundImage: `url("${offer.photoUrl}")` }}>{children}</div>;
+  const s = catStyle(offer.category);
+  const px = size || (className.includes("hero") ? 84 : className.includes("ic") || className.includes("li") ? 22 : 40);
+  return <div className={className} style={{ background: s.tint, color: s.ink }}><Icon d={s.icon} size={px} stroke={1.6} />{children}</div>;
 }
 
 export function OfferCard({ offer, preview = false }) {
@@ -46,7 +50,7 @@ export function CategoryChips({ value, onChange, categories }) {
   return (
     <div className="chips">
       <button className={"chip " + (value === "all" ? "on" : "")} onClick={() => onChange("all")}>✨ All</button>
-      {categories.map((c) => <button key={c.id} className={"chip " + (value === c.id ? "on" : "")} onClick={() => onChange(c.id)}>{c.icon} {c.label}</button>)}
+      {categories.map((c) => <button key={c.id} className={"chip " + (value === c.id ? "on" : "")} onClick={() => onChange(c.id)}><Icon d={catStyle(c.id).icon} size={16} style={{ marginRight: 6, color: value === c.id ? "#fff" : catStyle(c.id).ink }} />{c.label}</button>)}
     </div>
   );
 }
@@ -81,7 +85,7 @@ export function Sheet({ onClose, children }) {
 }
 
 export function BackButton({ to }) {
-  return <button className="back" aria-label="Back" onClick={() => (to ? navigate(to) : window.history.length > 1 ? window.history.back() : navigate("/"))}>←</button>;
+  return <button className="back" aria-label="Back" onClick={() => (to ? navigate(to) : window.history.length > 1 ? window.history.back() : navigate("/"))}><Icon d="back" size={20} stroke={2.2} /></button>;
 }
 
 // Requires login; otherwise shows a prompt that returns here after login.

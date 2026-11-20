@@ -11,6 +11,7 @@ import { BusinessInsights, Rules, Savings, Support, SupportThread } from "./page
 import { CONSENT_VERSION } from "./lib/config.js";
 import { match, navigate, useApp, useRoute } from "./state.jsx";
 import { IS_ADMIN_APP, IS_OWNER_APP } from "./lib/config.js";
+import { Icon as LineIcon } from "./lib/icons.jsx";
 
 const I = {
   offers: "M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01",
@@ -23,7 +24,8 @@ const I = {
   myoffers: "M4 4h16v16H4zM4 10h16M10 4v16",
 };
 const Icon = ({ d }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
-const CUSTOMER_NAV = [["/", I.offers, "Offers"], ["/map", I.map, "Map"], ["/contacts", I.contacts, "Contacts"], ["/account", I.account, "Account"]];
+// customer bottom bar: Home, Map, raised "Near me" button, History (businesses contacted), Account
+const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["near", "near", "Near me"], ["/contacts", "phone", "History"], ["/account", "user", "Account"]];
 const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"]];
 // pages anyone can open without accepting the privacy notice first
 const OPEN_PAGES = ["/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
@@ -85,7 +87,7 @@ function LoadError() {
 
 export default function App() {
   const { path, query } = useRoute();
-  const { loading, mode, setMode, session, profile } = useApp();
+  const { loading, mode, setMode, session, profile, area, setArea } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
   const firstVisit = !loading && !session && !IS_OWNER_APP && !IS_ADMIN_APP && path === "/" && !welcomed();
@@ -103,14 +105,22 @@ export default function App() {
 
   const biz = IS_OWNER_APP || ownerArea || (mode === "owner" && ["/account", "/plans"].includes(path));
   const nav = biz ? OWNER_NAV : CUSTOMER_NAV;
+  const nearMe = (e) => { e.preventDefault(); setArea({ mode: "near", radius: area.mode === "near" ? area.radius : 5 }); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const fullScreen = path === "/login" || path === "/welcome" || firstVisit || needsProfile;
   const showNav = !fullScreen && !IS_ADMIN_APP;
 
   return (
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
-      <main className="main" style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page path={path} query={query} />}</main>
-      {showNav && !needsConsent && (
+      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page path={path} query={query} />}</main>
+      {showNav && !needsConsent && !biz && (
+        <nav className="nav cust" aria-label="Main">
+          {CUSTOMER_NAV.map(([to, icon, label]) => to === "near"
+            ? <a key={to} href="#/" className="centre" onClick={nearMe}><span className="cb"><LineIcon d={icon} size={26} stroke={2} /></span>{label}</a>
+            : <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}><LineIcon d={icon} size={22} />{label}</a>)}
+        </nav>
+      )}
+      {showNav && !needsConsent && biz && (
         <nav className="nav" aria-label="Main">
           {nav.map(([to, icon, label]) => (
             <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}>

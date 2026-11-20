@@ -8,6 +8,7 @@ import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS, TRIAL_DAYS } fr
 import { errText, indianPhone, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
+import { Icon, catStyle } from "../lib/icons.jsx";
 
 export const markWelcomed = () => { try { localStorage.setItem("lastpick-welcomed", "1"); } catch { /* ignore */ } };
 export const welcomed = () => { try { return localStorage.getItem("lastpick-welcomed") === "1"; } catch { return true; } };
@@ -19,8 +20,45 @@ const FLOAT = [
   { e: "🎬", t: IS_OWNER_APP ? "42 movie seats filled" : "Movie tonight, ₹80", s: IS_OWNER_APP ? "6:30 PM show" : "Empty seats · 6:30 PM", o: "-60%", style: { right: 10, bottom: 26, animationDelay: ".4s" } },
 ];
 
+// Opening animation for the customer app: radar rings, deal cards floating in, the categories locals post in.
+const CFLOAT = [
+  { cat: "stay", t: "Room for tonight", s: "Ends in 5 h · 3.4 km", o: "-47%", style: { left: 0, top: 10 } },
+  { cat: "food", t: "Cakes at closing", s: "1.2 km · 7 left", o: "-50%", style: { right: 0, top: 36, animationDelay: ".8s" } },
+  { cat: "health", t: "Free eye camp", s: "Sunday · register", o: "FREE", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
+  { cat: "events", t: "Movie tonight, ₹80", s: "Empty seats · 6:30 PM", o: "-60%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
+];
+const TRAIL = ["food", "stay", "health", "events", "trips", "sell", "jobs", "admissions"];
+
 export function Welcome() {
   const go = (to) => { markWelcomed(); navigate(to, { replace: true }); };
+  if (IS_OWNER_APP) return <OwnerWelcome go={go} />;
+  return (
+    <div className="welcome cwel">
+      <div className="brand" style={{ animation: "fadeUp .5s ease both" }}><span className="logo">L</span>{APP_NAME}</div>
+      <div className="radar" aria-hidden="true">
+        <span className="ring" /><span className="ring r2" /><span className="core"><Icon d="place" size={40} stroke={1.8} /></span>
+        {CFLOAT.map((f) => {
+          const st = catStyle(f.cat);
+          return <div key={f.t} className="floatcard" style={f.style}><span className="fi" style={{ background: st.tint, color: st.ink }}><Icon d={st.icon} size={20} stroke={2} /></span><i>{f.o}</i><b>{f.t}</b><span>{f.s}</span></div>;
+        })}
+      </div>
+      <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
+        <span className="giftpill"><Icon d="gift" size={14} stroke={2.2} />Your first month is free</span>
+        <h1>Deals from local businesses, near you.</h1>
+        <p className="lead2">Empty rooms and seats, food at closing time, doctors' camps, trips, movie tickets, jobs and things locals sell. Call the owner directly. Every rupee stays local.</p>
+        <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
+        <p className="fine">After {TRIAL_DAYS} days: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20, animation: "fadeUp .6s ease .35s both" }}>
+        <button className="btn main" onClick={() => go("/login")}>Get started</button>
+        <button className="btn line" onClick={() => go("/")}>Look around first</button>
+      </div>
+    </div>
+  );
+}
+
+// Business app welcome (redesign comes with the partner app)
+function OwnerWelcome({ go }) {
   return (
     <div className="welcome">
       <div className="brand" style={{ animation: "fadeUp .5s ease both" }}><span className="logo">L</span>{APP_NAME}</div>
@@ -32,7 +70,6 @@ export function Welcome() {
         <span className="giftpill">🎁 Your first month is free</span>
         <h1>Last-minute deals,<br />within 30 km.</h1>
         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: "#C9C7C0" }}>Empty rooms, halls, seats, food and slots that businesses near you must fill today. Call the owner directly.</p>
-        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#A9A79F" }}>After {TRIAL_DAYS} days: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22, animation: "fadeUp .6s ease .35s both" }}>
         <button className="btn main" onClick={() => go("/login")}>Get started →</button>

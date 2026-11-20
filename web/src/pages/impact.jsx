@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/index.js";
 import { BackButton, Empty, NeedLogin, Spinner } from "../components.jsx";
+import { Icon, catStyle } from "../lib/icons.jsx";
 import {
   APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf, inAdmissionSeason,
 } from "../lib/config.js";
@@ -39,9 +40,8 @@ function SavingsInner() {
   if (!d) return <Spinner />;
   return (
     <>
-      <Back />
-      <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">My savings</h1><div className="muted">Deals you went for through {APP_NAME}, {d.period}</div></div>
-      <div className="plan" style={{ margin: "4px 16px 12px", padding: 18 }}>
+      <PageHead title={<>My savings</>} sub={<>Deals you went for through {APP_NAME}, {d.period}</>} />
+      <div className="plan" style={{ margin: "14px 16px 12px", padding: 18 }}>
         <div style={{ opacity: .8, fontSize: 13 }}>You saved</div>
         <div className="amt" style={{ fontSize: 36 }}>{rupee(d.saved)}</div>
         <div style={{ opacity: .85, fontSize: 13 }}>{rupee(d.savedThisMonth)} this month · {d.percent}% off on average</div>
@@ -50,7 +50,7 @@ function SavingsInner() {
         <div className="kpi"><div className="n">{d.businessesHelped}</div><div className="l">Local businesses you supported</div></div>
         <div className="kpi"><div className="n">{rupee(d.spentLocal)}</div><div className="l">Business you gave to locals</div></div>
         <div className="kpi"><div className="n">{d.deals}</div><div className="l">Deals you contacted</div></div>
-        <div className="kpi"><div className="n">{d.categories[0] ? categoryOf(d.categories[0].category).icon : "–"}</div><div className="l">{d.categories[0] ? `Most saved on ${categoryOf(d.categories[0].category).label}` : "No category yet"}</div></div>
+        <div className="kpi"><div className="n" style={{ color: d.categories[0] ? catStyle(d.categories[0].category).ink : "var(--muted)" }}>{d.categories[0] ? <Icon d={catStyle(d.categories[0].category).icon} size={26} stroke={2} /> : "–"}</div><div className="l">{d.categories[0] ? `Most saved on ${categoryOf(d.categories[0].category).label}` : "No category yet"}</div></div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}><b>Savings by month</b><Bars months={d.months} field="saved" color="var(--ok)" /></div>
       {d.recent.length > 0 && <div className="panel"><b>Recent</b>
@@ -75,9 +75,8 @@ export function BusinessInsights() {
   const top = Math.max(1, ...steps.map((s) => s[1]));
   return (
     <>
-      <Back />
-      <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Business from {APP_NAME}</h1><div className="muted">{d.period}</div></div>
-      <div className="plan" style={{ margin: "4px 16px 12px", padding: 18 }}>
+      <PageHead title={<>Business from {APP_NAME}</>} sub={<>{d.period}</>} />
+      <div className="plan" style={{ margin: "14px 16px 12px", padding: 18 }}>
         <div style={{ opacity: .8, fontSize: 13 }}>Business generated (estimated)</div>
         <div className="amt" style={{ fontSize: 36 }}>{rupee(d.businessGenerated)}</div>
         <div style={{ opacity: .85, fontSize: 13 }}>{rupee(d.businessThisMonth)} this month · from {d.customers} interested customers</div>
@@ -106,12 +105,27 @@ export function BusinessInsights() {
 }
 
 // Small summary cards for the home screens
+// Page header in the app colour, with a back button
+export function PageHead({ title, sub, to }) {
+  return (
+    <div className="phead">
+      <button className="cround" aria-label="Back" onClick={() => (to ? navigate(to) : window.history.length > 1 ? window.history.back() : navigate("/"))}><Icon d="back" size={20} stroke={2.2} /></button>
+      <div style={{ minWidth: 0 }}><h1>{title}</h1>{sub && <div className="sub">{sub}</div>}</div>
+    </div>
+  );
+}
+
 export function SavingsCard() {
   const { session } = useApp();
   const [d, setD] = useState(null);
   useEffect(() => { if (session) api.mySavings().then(setD).catch(() => {}); }, [session]);
   if (!session || !d || !d.deals) return null;
-  return <a className="banner sub" href="#/savings">💚<span>You saved <b>{rupee(d.saved)}</b> and supported {d.businessesHelped} local business{d.businessesHelped === 1 ? "" : "es"}. See your savings ›</span></a>;
+  return (
+    <a className="thanks" href="#/savings">
+      <span className="hi"><Icon d="heart" size={24} stroke={2} /></span>
+      <div><b>You helped {d.businessesHelped} local business{d.businessesHelped === 1 ? "" : "es"}</b><span>and saved {rupee(d.saved)}. Thank you for buying local.</span></div>
+    </a>
+  );
 }
 export function BusinessCard() {
   const [d, setD] = useState(null);
@@ -126,13 +140,11 @@ export function AdmissionsRail({ offers }) {
   const list = (offers || []).filter((o) => o.category === "admissions").slice(0, 6);
   return (
     <>
-      <div className="sect"><h2>🎓 Admissions open</h2><span className="muted small" style={{ fontWeight: 600 }}>Early-bird discounts till June</span></div>
-      {list.length ? <div className="rail">{list.map((o) => (
-        <a key={o.id} href={"#/offer/" + o.id} className="railcard">
-          <span className="emo" aria-hidden="true">{o.emoji || "🎓"}</span>
-          <span className="when">{o.business?.name}</span>
-          <span className="tt">{o.title}</span>
-          <span className="pp"><b style={{ fontSize: 15 }}>{rupee(o.price)}</b> <s>{rupee(o.origPrice)}</s></span>
+      <div className="shead"><h2><Icon d="cap" size={18} stroke={2.2} style={{ color: "#1E4BB8" }} />Admissions open</h2><span className="muted small" style={{ fontWeight: 600 }}>Early-bird till June</span></div>
+      {list.length ? <div className="hrail">{list.map((o) => (
+        <a key={o.id} href={"#/offer/" + o.id} className="mini">
+          <span className="mt" style={{ background: "#EAF3FF", color: "#1E4BB8" }}><Icon d="cap" size={34} stroke={1.7} />{o.origPrice > o.price && <span className="b1">-{Math.round((1 - o.price / o.origPrice) * 100)}%</span>}</span>
+          <span className="mb"><b className="tt">{o.title}</b><span className="w">{o.business?.name}</span><span className="pr"><b>{rupee(o.price)}</b> <s>{rupee(o.origPrice)}</s></span></span>
         </a>))}</div>
         : <div className="panel small muted">Schools and colleges near you will post admission discounts here before June.</div>}
     </>
@@ -173,13 +185,12 @@ export function Support() {
   };
   return (
     <>
-      <Back />
-      <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Help & support</h1><div className="muted">We're here {SUPPORT_HOURS}</div></div>
+      <PageHead title={<>Help & support</>} sub={<>We're here {SUPPORT_HOURS}</>} />
       <div className="kpis">
-        <a className="kpi" href="#support-chat" style={{ textDecoration: "none", color: "inherit" }}><div className="n">💬</div><div className="l">Chat with us in the app</div></a>
-        {SUPPORT_WHATSAPP && <a className="kpi" href={waLink(SUPPORT_WHATSAPP, `Hi ${APP_NAME} support,`)} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}><div className="n">🟢</div><div className="l">WhatsApp {SUPPORT_WHATSAPP}</div></a>}
-        {SUPPORT_PHONE && <a className="kpi" href={telLink(SUPPORT_PHONE)} style={{ textDecoration: "none", color: "inherit" }}><div className="n">📞</div><div className="l">Call {SUPPORT_PHONE}</div></a>}
-        <a className="kpi" href={"mailto:" + SUPPORT_EMAIL} style={{ textDecoration: "none", color: "inherit" }}><div className="n">✉️</div><div className="l">{SUPPORT_EMAIL}</div></a>
+        <a className="kpi" href="#support-chat" style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="chat" size={22} stroke={2} /></div><div className="l">Chat with us in the app</div></a>
+        {SUPPORT_WHATSAPP && <a className="kpi" href={waLink(SUPPORT_WHATSAPP, `Hi ${APP_NAME} support,`)} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}><div className="n kic" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}><Icon d="whatsapp" size={22} stroke={2} /></div><div className="l">WhatsApp {SUPPORT_WHATSAPP}</div></a>}
+        {SUPPORT_PHONE && <a className="kpi" href={telLink(SUPPORT_PHONE)} style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="phone" size={22} stroke={2} /></div><div className="l">Call {SUPPORT_PHONE}</div></a>}
+        <a className="kpi" href={"mailto:" + SUPPORT_EMAIL} style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="mail" size={22} stroke={2} /></div><div className="l">{SUPPORT_EMAIL}</div></a>
       </div>
       <div className="sect"><h3>Common questions</h3></div>
       <div className="panel">{FAQ[role].map(([q, a], i) => <details key={q} style={{ padding: "10px 0", borderTop: i ? "1px solid var(--line)" : 0 }}><summary style={{ fontWeight: 600, cursor: "pointer" }}>{q}</summary><p className="muted small" style={{ margin: "8px 0 0" }}>{a}</p></details>)}</div>
@@ -266,8 +277,7 @@ export function Rules() {
   const R = ({ icon, title, children }) => <div className="panel" style={{ display: "flex", gap: 12 }}><span style={{ fontSize: 26 }} aria-hidden="true">{icon}</span><div><b>{title}</b><div className="muted small" style={{ marginTop: 4, lineHeight: 1.5 }}>{children}</div></div></div>;
   return (
     <>
-      <Back />
-      <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">How {APP_NAME} works & our rules</h1><div className="muted">The short version. Full text: <a className="link" href="#/terms">Terms</a>.</div></div>
+      <PageHead title={<>How {APP_NAME} works & our rules</>} sub={<>The short version. Full text: <a className="link" href="#/terms">Terms</a>.</>} />
       <R icon="🤝" title={`${APP_NAME} is only a platform`}>We connect customers with local businesses and service providers. We don't sell, deliver, book, collect payment for, or guarantee any offer, camp, trip, admission or item. The deal is between you and them.</R>
       <R icon="⚖️" title="We are not responsible for the deal">Quality, safety, price, availability, refunds and anything that goes wrong in the deal are the responsibility of the business or person offering it. This doesn't take away your rights under Indian consumer law.</R>
       <R icon="⭐" title="Reviews and action on providers">Only customers who contacted a provider through {APP_NAME} can review it. If a provider fails, misleads or behaves badly, report it. We review reports and reviews and act on the provider: warning, hiding offers, suspension or removal.</R>

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { AdmissionsRail, SavingsCard } from "./impact.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel } from "../components.jsx";
-import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, TINTS, cityKey } from "../lib/config.js";
+import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
+import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
-import { ago, day, daysLeft, discount, distanceKm, errText, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
+import { ago, day, daysLeft, discount, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, nearestCity, useApp, useNow } from "../state.jsx";
 import { RADIUS_OPTIONS, validPincode } from "../lib/geo.js";
 
@@ -112,78 +113,327 @@ function CityPicker({ onClose, onPicked }) {
 }
 
 // ------------------------------------------------------------------ Home
+const hourText = (h) => (h === 0 || h === 24 ? "12 AM" : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`);
+const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+const offLabel = (o) => (isJob(o) ? "JOB" : o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
+
 export function Home() {
-  const { location, isCustomer, session, city, area, freeMode, trial, config } = useApp();
+  const { location, isCustomer, session, profile, city, area, setArea, freeMode, config } = useApp();
   const { offers, error, needGps, locationStatus } = useAreaOffers();
   const [picking, setPicking] = useState(false);
+  const [allCats, setAllCats] = useState(false);
   const now = useNow(30000);
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("ending");
+  const listRef = useRef(null);
 
+  const live = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
   const shown = useMemo(() => {
-    if (!offers) return [];
     const needle = q.trim().toLowerCase();
-    return offers
-      .filter((o) => o.endsAt > now && (cat === "all" || o.category === cat))
-      .filter((o) => !needle || `${o.title} ${o.description} ${o.business?.name} ${o.business?.area}`.toLowerCase().includes(needle))
+    return live
+      .filter((o) => cat === "all" || o.category === cat || (cat === "trips" && o.category === "travel"))
+      .filter((o) => !needle || `${o.title} ${o.description} ${o.business?.name} ${o.business?.area} ${categoryOf(o.category).label}`.toLowerCase().includes(needle))
       .map((o) => ({ o, km: distanceKm(location, o.business) }))
       .sort((a, b) => sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt)
       .map((x) => x.o);
-  }, [offers, cat, q, sort, location, now]);
+  }, [live, cat, q, sort, location]);
+  const byCat = (...ids) => live.filter((o) => ids.includes(o.category)).sort((a, b) => a.endsAt - b.endsAt);
 
-  const usedCats = CATEGORIES.filter((c) => offers?.some((o) => o.category === c.id));
-
-  const ending = shown.filter((o) => o.endsAt - now < 6 * 3600000).slice(0, 3);
-  const left = daysLeft(trial?.customer);
+  const browsing = !q.trim() && cat === "all";
+  const toList = () => setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const pick = (id) => { setCat(cat === id ? "all" : id); setAllCats(false); toList(); };
   const noLocation = needGps && locationStatus !== "asking";
+  const hours = config?.hours || { open: 6, close: 23 };
+  const where = area.mode === "near"
+    ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off")
+    : areaLabel(area, city);
+  const ending = live.filter((o) => !isJob(o) && o.endsAt - now < 24 * 3600000).sort((a, b) => a.endsAt - b.endsAt).slice(0, 8);
 
   return (
     <>
-      <div className="homehead">
-        <button className="locbtn" onClick={() => setPicking(true)} aria-label="Change city">
-          <span className="livedot" aria-hidden="true" />
-          <span><span className="k">{area.mode === "near" ? `Within ${area.radius} km of you` : "Showing offers"}</span>
-            <span className="v">{area.mode === "near" ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off") : areaLabel(area, city)} ▾</span></span>
-        </button>
-        {session
-          ? <a className="trialpill" href="#/plans">{left > 0 ? `Free · ${left} day${left > 1 ? "s" : ""} left` : freeMode ? "Free during launch" : "See plans"}</a>
-          : <a className="trialpill" href="#/login">🎁 1 month free</a>}
+      <div className="chead">
+        <div className="chead-top">
+          <button className="cwho" onClick={() => setPicking(true)} aria-label="Change area">
+            <span className="cavatar">{initialsOf(profile?.name) || <Icon d="place" size={20} stroke={2} />}</span>
+            <span style={{ minWidth: 0 }}>
+              <span className="k">{area.mode === "near" ? `Deals within ${area.radius} km` : "Deals in"}</span>
+              <span className="v"><Icon d="place" size={16} stroke={2} />{where}<Icon d="chevDown" size={14} stroke={2.2} /></span>
+            </span>
+          </button>
+          {session
+            ? <a className="cround" href="#/support" aria-label="Help and support"><Icon d="help" size={20} stroke={2} /></a>
+            : <a className="cround" href="#/login" aria-label="Log in"><Icon d="user" size={20} stroke={2} /><span className="pip" /></a>}
+        </div>
+        <div className="cstatus">
+          {config?.night
+            ? <span className="live night"><i />Night · jobs &amp; travel open</span>
+            : <span className="live"><i />Open now{offers ? ` · ${live.length} live deal${live.length === 1 ? "" : "s"}` : ""}</span>}
+          <span className="hrs"><Icon d="clock" size={14} stroke={2} />{config?.night ? `Shops open at ${hourText(hours.open)}` : `Shops close ${hourText(hours.close)}`}</span>
+        </div>
+        <label className="csearch">
+          <Icon d="search" size={20} stroke={2} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && toList()} placeholder="Search rooms, doctors, trips, cakes" aria-label="Search offers" />
+          {q && <button type="button" className="clear" aria-label="Clear search" onClick={() => setQ("")}><Icon d="M6 6l12 12M18 6L6 18" size={14} stroke={2.4} /></button>}
+        </label>
       </div>
+
       {noLocation ? <PinScreen onCity={() => setPicking(true)} /> : <>
-        <div className="searchbox"><span aria-hidden="true">🔎</span><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rooms, halls, cakes, bus seats…" aria-label="Search offers" /></div>
+        <div className="tilecard">
+          <div className="th"><span>What do you need today?</span><button onClick={() => setAllCats(true)}>All</button></div>
+          <div className="tilegrid">
+            {HOME_TILES.map((t) => {
+              const st = catStyle(t.id);
+              return (
+                <button key={t.id} className={"tile" + (cat === t.id ? " on" : "")} aria-pressed={cat === t.id} onClick={() => pick(t.id)}>
+                  <span className="ti" style={{ background: st.tint, color: st.ink }}><Icon d={st.icon} size={24} /></span>
+                  {t.tag && <span className="tag" style={{ background: t.tagBg }}>{t.tag}</span>}
+                  <span className="tl">{st.short}</span>
+                </button>
+              );
+            })}
+            <button className="tile" onClick={() => setAllCats(true)}>
+              <span className="ti" style={{ background: "#F0EFF4", color: "#3A3550" }}><Icon d="more" size={24} /></span><span className="tl">More</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="quick">
+          <button className="qbtn" onClick={() => { setArea({ mode: "near", radius: area.mode === "near" ? area.radius : 5 }); toList(); }}><Icon d="near" size={22} />Near me</button>
+          <a className="qbtn" href="#/map"><Icon d="map" size={22} />Map</a>
+          <button className="qbtn" onClick={() => setPicking(true)}><Icon d="pin" size={22} />Pincode</button>
+          <a className="qbtn" href="#/savings"><Icon d="heart" size={22} />Savings</a>
+        </div>
+
         {!isCustomer && (session
-          ? !freeMode && <a className="banner sub" href="#/plans">🔓<span>Your free month has ended. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
-          : <a className="banner sub" href="#/login">🎁<span><b>First month free.</b> Log in to see business numbers and call them directly</span></a>)}
-        {needGps && <div className="banner ok">📍 Finding offers within {area.radius} km of you…</div>}
-        {config?.night && <div className="banner" style={{ background: "#1C0F4A", color: "#fff" }}>🌙<span><b>Night hours.</b> Only jobs and travel are open now. Shops, doctors and other offers open again at {config.hours?.open ?? 6} AM.</span></div>}
-        <SavingsCard />
-        <CategoryChips value={cat} onChange={setCat} categories={usedCats.length ? usedCats : CATEGORIES} />
-        {!q && cat === "all" && <AdmissionsRail offers={offers} />}
-        {ending.length > 0 && !q && cat === "all" && <>
-          <div className="sect"><h2>Ending soon</h2><span className="muted small" style={{ fontWeight: 600 }}>{shown.length} offers nearby</span></div>
-          <div className="rail">{ending.map((o) => (
-            <a key={o.id} href={"#/offer/" + o.id} className={"railcard" + (o.photoUrl ? " photo" : "")} style={o.photoUrl ? { backgroundImage: `url("${o.photoUrl}")` } : null}>
-              {!o.photoUrl && <span className="emo" aria-hidden="true">{o.emoji}</span>}
-              <span className="when">{timeLeft(o.endsAt - now)} left</span>
-              <span className="tt">{o.title}</span>
-              <span className="pp"><b style={{ fontSize: 15 }}>{rupee(o.price)}</b> {o.origPrice > o.price && <s>{rupee(o.origPrice)}</s>}{distanceKm(location, o.business) != null ? " · " + kmText(distanceKm(location, o.business)) : ""}</span>
-            </a>))}</div>
+          ? !freeMode && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Your free month has ended. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
+          : <a className="cbanner" href="#/login"><span className="bi"><Icon d="gift" size={20} /></span><span><b>First month free.</b> Log in to see business numbers and call them directly</span></a>)}
+        {needGps && <div className="cbanner"><span className="bi"><Icon d="near" size={20} /></span>Finding offers within {area.radius} km of you…</div>}
+        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only jobs and travel are open now. Shops, doctors and other offers open again at {hourText(hours.open)}.</span></div>}
+
+        {browsing && offers && <>
+          <Featured offers={[...byCat("health"), ...byCat("events"), ...byCat("trips", "travel")].slice(0, 3)} />
+          <AdmissionsRail offers={live} />
+          <MiniRail title="Ending soon" icon="clock" color="#B35A00" items={ending} action="See all" onAction={() => { setSort("ending"); toList(); }} />
+          <MiniRail title="Movie tickets tonight" icon="ticket" color="#B3261E" items={byCat("events")} action="See all" onAction={() => pick("events")} />
+          <HealthList items={byCat("health")} onAll={() => pick("health")} />
+          <TripList items={byCat("trips", "travel")} />
+          <SellGrid items={byCat("sell")} onAll={() => pick("sell")} />
+          <JobList items={byCat("jobs")} onAll={() => pick("jobs")} />
+          <Shops offers={live} />
+          <SavingsCard />
         </>}
-        <div className="sect">
-          <h3>{offers ? (area.mode === "near" ? "Near you" : `${shown.length} live offer${shown.length === 1 ? "" : "s"}`) : needGps ? "Offers near you" : "Loading offers"}</h3>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
+
+        <div ref={listRef} className="shead" style={{ scrollMarginTop: 12 }}>
+          <h2>{q.trim() ? `Results for "${q.trim()}"` : cat !== "all" ? <><Icon d={catStyle(cat).icon} size={18} stroke={2.2} style={{ color: catStyle(cat).ink }} />{categoryOf(cat).label}</> : area.mode === "near" ? "All deals near you" : `All deals · ${areaLabel(area, city)}`}</h2>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort" style={{ border: 0, background: "none", fontWeight: 700, color: "var(--muted)", fontSize: 12.5 }}>
             <option value="ending">Ending soon</option><option value="near">Nearest</option><option value="off">Biggest discount</option>
           </select>
         </div>
+        {(cat !== "all" || q.trim()) && <div className="filterbar">
+          {cat !== "all" && <button className="fchip" onClick={() => setCat("all")}>{catStyle(cat).short}<Icon d="M6 6l12 12M18 6L6 18" size={12} stroke={2.6} /></button>}
+          <span className="muted small" style={{ fontWeight: 600 }}>{shown.length} deal{shown.length === 1 ? "" : "s"}</span>
+        </div>}
+        <div style={{ height: 10 }} />
         {error && <div className="pad"><div className="error">{error}</div></div>}
         {!offers && !error && !needGps && <Spinner />}
-        {offers && shown.length === 0 && <Empty icon="🕵️" title={area.mode === "near" ? `No live offers within ${area.radius} km yet` : area.mode === "pincode" ? `No live offers in ${area.pincode} yet` : `No live offers in ${city.name} yet`}
-          action={<button className="btn ghost" onClick={() => setPicking(true)}>{area.mode === "near" && area.radius < 30 ? "Search a wider area" : "Enter a pincode"}</button>}>Try another category, or check back this evening.</Empty>}
+        {offers && shown.length === 0 && <Empty icon={<span className="emptyic"><Icon d="search" size={30} /></span>} title={q.trim() || cat !== "all" ? "Nothing here right now" : area.mode === "near" ? `No live offers within ${area.radius} km yet` : area.mode === "pincode" ? `No live offers in ${area.pincode} yet` : `No live offers in ${city.name} yet`}
+          action={<button className="btn ghost" onClick={() => (cat !== "all" || q ? (setCat("all"), setQ("")) : setPicking(true))}>{cat !== "all" || q ? "Show all deals" : area.mode === "near" && area.radius < 30 ? "Search a wider area" : "Enter a pincode"}</button>}>Try another category, or check back this evening.</Empty>}
         {shown.map((o) => <OfferCard key={o.id} offer={o} />)}
       </>}
       {picking && <AreaSheet onClose={() => setPicking(false)} />}
+      {allCats && <AllCategories value={cat} onPick={pick} onClose={() => setAllCats(false)} />}
     </>
+  );
+}
+
+// Big rotating banner: health camps, movie tickets and trips with free seats.
+function Featured({ offers }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (offers.length < 2) return;
+    const t = setInterval(() => setI((x) => (x + 1) % offers.length), 5000);
+    return () => clearInterval(t);
+  }, [offers.length]);
+  if (!offers.length) return null;
+  const o = offers[i % offers.length];
+  const kind = o.category === "health" ? { bg: "#0F5E52", kick: "Health camp" + (o.price === 0 ? " · free" : ""), cta: o.price === 0 ? "Register free" : "See details" }
+    : o.category === "events" ? { bg: "#8E1F1A", kick: "Movie tonight · low price", cta: "Get tickets" }
+      : { bg: "#6B1640", kick: "Seats free · open 24×7", cta: "Book a seat" };
+  const st = catStyle(o.category);
+  return (
+    <a className="feature" href={"#/offer/" + o.id} style={{ background: kind.bg }} key={o.id}>
+      <span className="kick">{kind.kick}</span>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <span className="fi" style={{ color: kind.bg }}><Icon d={st.icon} size={26} stroke={2} /></span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <b style={{ fontSize: 16, lineHeight: 1.25 }}>{o.title}</b>
+          <span style={{ fontSize: 12.5, opacity: .9 }}>{o.business?.name}{o.business?.area ? " · " + o.business.area : ""}</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 12, opacity: .9 }}>{o.quantity || (o.price === 0 ? "Free" : rupee(o.price))} · ends in {timeLeft(o.endsAt - Date.now())}</span>
+        <span className="go" style={{ color: kind.bg }}>{kind.cta}</span>
+      </div>
+      {offers.length > 1 && <div className="dots" onClick={(e) => e.preventDefault()}>{offers.map((x, k) => <button key={x.id} className={k === i % offers.length ? "on" : ""} aria-label={`Banner ${k + 1}`} onClick={(e) => { e.preventDefault(); setI(k); }} />)}</div>}
+    </a>
+  );
+}
+
+function SectionHead({ title, icon, color, action, onAction, badge }) {
+  return (
+    <div className="shead">
+      <h2><Icon d={icon} size={18} stroke={2.2} style={{ color }} />{title}</h2>
+      {badge ? <span className="badge">{badge}</span> : action && <button onClick={onAction}>{action}</button>}
+    </div>
+  );
+}
+
+function MiniRail({ title, icon, color, items, action, onAction }) {
+  const { location } = useApp();
+  if (!items.length) return null;
+  return (
+    <>
+      <SectionHead title={title} icon={icon} color={color} action={action} onAction={onAction} />
+      <div className="hrail">{items.map((o) => {
+        const km = distanceKm(location, o.business);
+        return (
+          <a key={o.id} className="mini" href={"#/offer/" + o.id}>
+            <OfferImage offer={o} className="mt" size={34}>
+              {offLabel(o) && <span className="b1">{offLabel(o)}</span>}
+              <span className="b2">{timeLeft(o.endsAt - Date.now())}</span>
+            </OfferImage>
+            <span className="mb">
+              <b className="tt">{o.title}</b>
+              <span className="w">{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""}</span>
+              <span className="pr"><b>{isJob(o) ? "Pay " + rupee(o.price) : o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s>{rupee(o.origPrice)}</s>}</span>
+            </span>
+          </a>
+        );
+      })}</div>
+    </>
+  );
+}
+
+function HealthList({ items, onAll }) {
+  const { location } = useApp();
+  if (!items.length) return null;
+  return (
+    <>
+      <SectionHead title="Doctors & health camps" icon="M12 6v12M6 12h12M4 4h16v16H4z" color="#0F6E5C" action="See all" onAction={onAll} />
+      <div className="listbox">{items.slice(0, 4).map((o) => {
+        const km = distanceKm(location, o.business);
+        return (
+          <a key={o.id} className="lrow" href={"#/offer/" + o.id}>
+            <span className="li" style={{ background: "#E4F5F2", color: "#0F6E5C" }}><Icon d="doctor" size={22} stroke={2} /></span>
+            <span className="lt"><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""}{o.quantity ? " · " + o.quantity : ""}</span></span>
+            <span className="lcta" style={{ color: "#0F6E5C" }}>{o.price === 0 ? "Register" : "View"}</span>
+          </a>
+        );
+      })}</div>
+    </>
+  );
+}
+
+function TripList({ items }) {
+  if (!items.length) return null;
+  return (
+    <>
+      <SectionHead title="Trips & seats free" icon="car" color="#9C1F5A" badge="Open 24×7" />
+      <div className="trips">{items.slice(0, 4).map((o) => (
+        <a key={o.id} className="trip" href={"#/offer/" + o.id}>
+          <span className="r1"><span className="tt">{o.title}</span><span className="p">{rupee(o.price)}<small> /seat</small></span></span>
+          <span className="r2">
+            <span className="ini" style={{ background: "#FCE9F2", color: "#9C1F5A" }}>{initialsOf(o.business?.name)}</span>
+            <span className="ellipsis">{o.business?.name} · ends in {timeLeft(o.endsAt - Date.now())}</span>
+            {o.quantity && <span className="seats" style={{ color: "#9C1F5A" }}>{o.quantity}</span>}
+          </span>
+        </a>
+      ))}</div>
+    </>
+  );
+}
+
+function SellGrid({ items, onAll }) {
+  const { location } = useApp();
+  if (!items.length) return null;
+  return (
+    <>
+      <SectionHead title="Locals are selling" icon="tag" color="#3A1D8F" action="See all" onAction={onAll} />
+      <div className="sellgrid">{items.slice(0, 4).map((o) => {
+        const km = distanceKm(location, o.business);
+        return (
+          <a key={o.id} className="sellcard" href={"#/offer/" + o.id}>
+            <OfferImage offer={o} className="st" size={30} />
+            <b className="tt">{o.title}</b>
+            <span className="sp"><b>{rupee(o.price)}</b>{km != null && km < 100 ? kmText(km) : o.business?.area}</span>
+          </a>
+        );
+      })}</div>
+    </>
+  );
+}
+
+function JobList({ items, onAll }) {
+  const { location } = useApp();
+  if (!items.length) return null;
+  return (
+    <>
+      <SectionHead title="Jobs & part-time work nearby" icon="job" color="#0F7A43" action="See all" onAction={onAll} />
+      <div className="listbox">{items.slice(0, 4).map((o) => {
+        const km = distanceKm(location, o.business);
+        return (
+          <a key={o.id} className="lrow" href={"#/offer/" + o.id}>
+            <span className="li" style={{ background: "#EAF6EE", color: "#0F7A43" }}><Icon d="job" size={22} stroke={2} /></span>
+            <span className="lt"><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""} · Pay {rupee(o.price)}</span></span>
+            <span className="lcta" style={{ color: "#0F7A43" }}>Apply</span>
+          </a>
+        );
+      })}</div>
+    </>
+  );
+}
+
+// Local businesses with live offers, as round badges (tap = their soonest-ending offer).
+function Shops({ offers }) {
+  const seen = new Map();
+  [...offers].sort((a, b) => a.endsAt - b.endsAt).forEach((o) => { if (o.business?.name && !seen.has(o.business.name)) seen.set(o.business.name, o); });
+  const list = [...seen.values()].slice(0, 5);
+  if (list.length < 2) return null;
+  return (
+    <>
+      <div className="shead"><h2>Local businesses near you</h2></div>
+      <div className="shops">{list.map((o) => {
+        const st = catStyle(o.category);
+        return (
+          <a key={o.id} className="shop" href={"#/offer/" + o.id}>
+            <span className="sa" style={{ background: st.ink, borderColor: st.tint }}>{initialsOf(o.business.name)}</span>
+            <span className="sn">{o.business.name}</span>
+          </a>
+        );
+      })}</div>
+    </>
+  );
+}
+
+function AllCategories({ value, onPick, onClose }) {
+  return (
+    <Sheet onClose={onClose}>
+      <h2 className="title" style={{ fontSize: 19, marginBottom: 16 }}>All categories</h2>
+      <div className="tilegrid">
+        <button className={"tile" + (value === "all" ? " on" : "")} onClick={() => onPick("all")}>
+          <span className="ti" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon d="more" size={24} /></span><span className="tl">Everything</span>
+        </button>
+        {CATEGORIES.map((c) => {
+          const st = catStyle(c.id);
+          return (
+            <button key={c.id} className={"tile" + (value === c.id ? " on" : "")} onClick={() => onPick(c.id)}>
+              <span className="ti" style={{ background: st.tint, color: st.ink }}><Icon d={st.icon} size={24} /></span><span className="tl">{c.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
   );
 }
 
@@ -217,8 +467,8 @@ export function MapPage() {
     : area.mode === "pincode" && first ? first : { lat: city.lat ?? location.lat, lng: city.lng ?? location.lng };
   return (
     <>
-      <div className="page-h"><h1 className="title">Offers {area.mode === "near" ? "near you" : area.mode === "pincode" ? "in " + area.pincode : "in " + city.name}</h1>
-        <div className="muted">{needGps ? "Allow location, or choose a pincode on the Offers tab." : `${areaLabel(area, city)}. Change it on the Offers tab.`}</div></div>
+      <div className="phead"><span className="cround"><Icon d="map" size={20} stroke={2} /></span><div><h1>Deals {area.mode === "near" ? "near you" : area.mode === "pincode" ? "in " + area.pincode : "in " + city.name}</h1>
+        <div className="sub">{needGps ? "Allow location, or choose a pincode on Home." : `${areaLabel(area, city)}. Change it on Home.`}</div></div></div>
       {offers ? <MapView offers={offers} center={center} /> : <Spinner />}
     </>
   );
@@ -281,7 +531,7 @@ export function OfferPage({ id }) {
         {!ended && <Countdown end={offer.endsAt} />}
       </OfferImage>
       <div className="pad">
-        <div className="muted">{catLabel(offer.category)} · {offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</div>
+        <div className="catline"><span className="catpill" style={{ background: catStyle(offer.category).tint, color: catStyle(offer.category).ink }}><Icon d={catStyle(offer.category).icon} size={14} stroke={2.2} />{categoryOf(offer.category).label}</span><span className="muted small">{offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</span></div>
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
 
@@ -296,7 +546,7 @@ export function OfferPage({ id }) {
         <div className="panel" style={{ margin: "14px 0 0" }}>
           <div className="owner-row">
             <div className="avatar">{(offer.business?.name || "?")[0]}</div>
-            <div className="grow"><b>{offer.business?.name}</b> <RatingBadge rating={offer.business?.rating} /><div className="verified">✔ Verified owner · {offer.business?.area}{offer.business?.city ? ", " + offer.business.city : ""}</div></div>
+            <div className="grow"><b>{offer.business?.name}</b> <RatingBadge rating={offer.business?.rating} /><div className="verified" style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon d="shield" size={14} stroke={2.2} />Verified partner · {offer.business?.area}{offer.business?.city ? ", " + offer.business.city : ""}</div></div>
           </div>
 
           {own ? (
@@ -306,7 +556,7 @@ export function OfferPage({ id }) {
               <div className="num blur" style={{ marginTop: 12 }} aria-hidden="true">+91 98••• •••••</div>
               {freeMode ? <>
                 <div className="muted" style={{ marginTop: 6 }}>Log in to see the owner's number, call or WhatsApp them, and share your number. Your first month is free.</div>
-                <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>🔓 Log in to see the number</a>
+                <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}><Icon d="lock" size={18} stroke={2.2} />Log in to see the number</a>
               </> : IS_NATIVE ? <>
                 <div className="muted" style={{ marginTop: 6 }}>{session ? `Your account doesn't have an active ${PLANS.customer.name}.` : "Log in to see the owner's number."}</div>
                 {!session && <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>Log in</a>}
@@ -323,14 +573,14 @@ export function OfferPage({ id }) {
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>
               <div className="two" style={{ marginTop: 10 }}>
-                <a className="btn call" href={telLink(contact.phone)} onClick={() => api.logContact(offer.id, "Called")}>📞 Call</a>
+                <a className="btn call" href={telLink(contact.phone)} onClick={() => api.logContact(offer.id, "Called")}><Icon d="phone" size={18} stroke={2.2} />Call</a>
                 {contact.whatsapp
-                  ? <a className="btn wa" href={waLink(contact.phone, contactText)} target="_blank" rel="noreferrer" onClick={() => api.logContact(offer.id, "WhatsApp")}>💬 WhatsApp</a>
+                  ? <a className="btn wa" href={waLink(contact.phone, contactText)} target="_blank" rel="noreferrer" onClick={() => api.logContact(offer.id, "WhatsApp")}><Icon d="whatsapp" size={18} stroke={2.2} />WhatsApp</a>
                   : <button className="btn ghost" disabled>WhatsApp off</button>}
               </div>
               {!ended && (
                 <button className="btn ghost" style={{ marginTop: 10 }} disabled={shared || busy} onClick={askShare}>
-                  {shared ? "✓ Your number was shared with the owner" : busy ? "Sharing…" : `🙋 Share my number${profile?.phone ? ` (${prettyPhone(profile.phone)})` : ""} with the owner`}
+                  <Icon d={shared ? "check" : "share"} size={18} stroke={2.2} />{shared ? "Your number was shared with the owner" : busy ? "Sharing…" : `Share my number${profile?.phone ? ` (${prettyPhone(profile.phone)})` : ""} with the owner`}
                 </button>
               )}
             </>
@@ -339,7 +589,7 @@ export function OfferPage({ id }) {
 
         <ReviewsBlock business={offer.business} own={own} />
         <Disclaimer />
-        {session && !own && <button className="btn ghost sm" style={{ marginTop: 12 }} onClick={() => setReporting(true)}>🚩 Report this offer</button>}
+        {session && !own && <button className="btn ghost sm" style={{ marginTop: 12 }} onClick={() => setReporting(true)}><Icon d="flag" size={16} stroke={2.2} />Report this offer</button>}
       </div>
       {reporting && <ReportSheet offerId={offer.id} onClose={() => setReporting(false)} />}
       {confirmShare && (
@@ -394,28 +644,45 @@ function ContactsInner() {
 
   return (
     <>
-      <div className="page-h"><h1 className="title">My contacts</h1><div className="muted">Owners you viewed, called, messaged or shared your number with</div></div>
+      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you viewed, called, messaged or shared your number with</div></div></div>
+      <div style={{ height: 12 }} />
       {!isCustomer ? (
-        <Empty icon="🔒" title="Your free month has ended" action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
+        <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title="Your free month has ended" action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
       ) : !list ? <Spinner /> : list.length === 0 ? (
-        <Empty icon="📇" title="No contacts yet" action={<a className="btn ghost" href="#/">Browse offers</a>}>Open an offer to see the owner's number.</Empty>
+        <Empty icon={<span className="emptyic"><Icon d="phone" size={30} /></span>} title="No businesses contacted yet" action={<a className="btn ghost" href="#/">Browse deals</a>}>Open a deal to see the owner's number. Everyone you contact shows up here.</Empty>
       ) : list.map((c) => {
         const p = phones[c.offer.id];
         return (
           <div className="item" key={c.offer.id}>
-            <a className="ic" href={"#/offer/" + c.offer.id} style={c.offer.photoUrl ? { backgroundImage: `url("${c.offer.photoUrl}")` } : { background: TINTS[c.offer.category] || TINTS.other }}>{!c.offer.photoUrl && c.offer.emoji}</a>
+            <a href={"#/offer/" + c.offer.id} style={{ flex: "none" }}><OfferImage offer={c.offer} className="ic" /></a>
             <a className="grow" href={"#/offer/" + c.offer.id}>
               <b className="ellipsis" style={{ display: "block", fontSize: 14 }}>{c.offer.business?.name}</b>
               <div className="muted small ellipsis">{c.offer.title}</div>
               <div className="muted small">{p?.phone ? prettyPhone(p.phone) : p?.error ? "Number unavailable" : "…"} · {c.how} · {ago(c.at)}</div>
             </a>
-            {p?.phone && <a className="icon-btn" aria-label="Call" href={telLink(p.phone)} onClick={() => api.logContact(c.offer.id, "Called")}>📞</a>}
-            {p?.phone && p.whatsapp && <a className="icon-btn wa" aria-label="WhatsApp" target="_blank" rel="noreferrer" href={waLink(p.phone, `Hi, about your ${APP_NAME} offer: "${c.offer.title}"`)} onClick={() => api.logContact(c.offer.id, "WhatsApp")}>💬</a>}
-            {c.offer.businessId && <button className="icon-btn" aria-label={`Rate ${c.offer.business?.name}`} onClick={() => setRating(c.offer)}>⭐</button>}
+            {p?.phone && <a className="icon-btn" aria-label="Call" href={telLink(p.phone)} onClick={() => api.logContact(c.offer.id, "Called")}><Icon d="phone" size={18} stroke={2} /></a>}
+            {p?.phone && p.whatsapp && <a className="icon-btn wa" aria-label="WhatsApp" target="_blank" rel="noreferrer" href={waLink(p.phone, `Hi, about your ${APP_NAME} offer: "${c.offer.title}"`)} onClick={() => api.logContact(c.offer.id, "WhatsApp")}><Icon d="whatsapp" size={18} stroke={2} /></a>}
+            {c.offer.businessId && <button className="icon-btn soft" aria-label={`Rate ${c.offer.business?.name}`} onClick={() => setRating(c.offer)}><Icon d="star" size={18} stroke={2} /></button>}
           </div>
         );
       })}
       {rating && <ContactReview offer={rating} onClose={() => setRating(null)} />}
+    </>
+  );
+}
+
+// A titled box of menu rows, each with an icon tile: [icon, label, link or action, tint?, ink?, newTab?]
+function MenuGroup({ title, items }) {
+  const rows = items.filter(Boolean);
+  return (
+    <>
+      <div className="secthead">{title}</div>
+      <div className="menubox">{rows.map(([icon, label, to, tint, ink, newTab]) => {
+        const inner = <><span className="mic" style={tint ? { background: tint, color: ink } : null}><Icon d={icon} size={18} stroke={2.1} /></span>{label}<span className="chev"><Icon d="chevRight" size={18} stroke={2} /></span></>;
+        return typeof to === "function"
+          ? <button key={label} className="mi" onClick={to}>{inner}</button>
+          : <a key={label} className="mi" href={to} {...(newTab ? { target: "_blank", rel: "noreferrer" } : {})}>{inner}</a>;
+      })}</div>
     </>
   );
 }
@@ -453,7 +720,8 @@ function AccountInner() {
 
   return (
     <>
-      <div className="page-h owner-row"><div className="avatar">{(profile?.name || "?")[0]}</div><div><h1 className="title" style={{ fontSize: 20 }}>{profile?.name || "Your account"}</h1><div className="muted">{profile?.email}</div></div></div>
+      <div className="acchead"><span className="cavatar">{initialsOf(profile?.name) || "?"}</span><div style={{ minWidth: 0 }}><h1>{profile?.name || "Your account"}</h1><div className="muted small ellipsis">{profile?.email}{profile?.phone ? " · " + prettyPhone(profile.phone) : ""}</div></div></div>
+      <div className="lift2">
 
       {["customer", "owner"].map((plan) => {
         const s = subs[plan];
@@ -467,8 +735,8 @@ function AccountInner() {
               : freeMode ? ["ok", "🎉", "Free during launch", "Your free month is over, but everything stays free during launch."]
                 : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];
         return (
-          <div key={plan} className={"status " + cls}>
-            <span style={{ fontSize: 24 }}>{icon}</span>
+          <div key={plan} className={"status " + cls} style={{ margin: "0 14px 12px", background: "#fff", boxShadow: "var(--shadow)" }}>
+            <span className="mic" style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", flex: "none", background: cls === "ok" ? "var(--ok-soft)" : "var(--warn-soft)", color: cls === "ok" ? "var(--ok)" : "var(--warn)" }}><Icon d={cls === "ok" ? (s?.active ? "check" : "gift") : "clock"} size={20} stroke={2.2} /></span>
             <div className="grow"><b>{title}</b><div className="muted small">{sub}</div></div>
             {s?.active && s.status !== "cancelled" && !IS_NATIVE
               ? <button className="btn ghost sm" onClick={() => setCancelling(plan)}>Cancel</button>
@@ -477,35 +745,37 @@ function AccountInner() {
         );
       })}
 
-      <div className="label-up" style={{ marginTop: 10 }}>Your details</div>
-      <div className="form" style={{ paddingTop: 8 }}>
+      </div>
+      <div className="secthead">Your details</div>
+      <div className="form panel" style={{ margin: "0 14px 6px", padding: 14 }}>
         <div className="fld"><label>Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="fld"><label>Phone number</label><input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile number" />
           <span className="hint">Shared with an owner only when you tap "Share my number".</span></div>
         {dirty && <button className="btn dark" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>}
       </div>
 
-      <div style={{ marginTop: 6 }}>
-        {IS_CUSTOMER_APP
-          ? <a className="menu-item" href={PARTNER_URL} target="_blank" rel="noreferrer">🏪 Own a business? Get the LastPick Business app<span className="chev">›</span></a>
-          : IS_OWNER_APP
-            ? <a className="menu-item" href="#/owner/business">🏪 Business profile<span className="chev">›</span></a>
-            : <button className="menu-item" onClick={() => { setMode("owner"); navigate("/owner"); }}>🏪 {business ? "Switch to owner mode" : "Post offers as a business owner"}<span className="chev">›</span></button>}
-        {isStaff && <a className="menu-item" href="#/admin">🛡️ {profile?.role === "moderator" ? "Moderator panel" : "Admin panel"}<span className="chev">›</span></a>}
-        <a className="menu-item" href="#/plans">💳 Plans and pricing<span className="chev">›</span></a>
-        <a className="menu-item" href="#/account/privacy">🔐 Privacy & your data<span className="chev">›</span></a>
-        {!IS_OWNER_APP && <a className="menu-item" href="#/savings">💚 My savings<span className="chev">›</span></a>}
-        {(IS_OWNER_APP || business) && <a className="menu-item" href="#/owner/insights">📈 Business from {APP_NAME}<span className="chev">›</span></a>}
-        <a className="menu-item" href="#/support">🛟 Help & support (chat with us)<span className="chev">›</span></a>
-        <a className="menu-item" href="#/rules">🤝 How {APP_NAME} works & rules<span className="chev">›</span></a>
-        <a className="menu-item" href="#/grievance">🧾 Complaints<span className="chev">›</span></a>
-        <a className="menu-item" href="#/terms">📜 Terms & disclaimer<span className="chev">›</span></a>
-        <a className="menu-item" href="#/privacy">🔏 Privacy notice<span className="chev">›</span></a>
-        <a className="menu-item" href="#/refund">💸 Refund & cancellation policy<span className="chev">›</span></a>
-        <a className="menu-item" href="#/contact">✉️ Contact us<span className="chev">›</span></a>
-        <button className="menu-item" style={{ color: "var(--bad)" }} onClick={async () => { await api.signOut(); navigate("/"); }}>↩ Log out<span className="chev">›</span></button>
-      </div>
-
+      <MenuGroup title="Your LastPick" items={[
+        !IS_OWNER_APP && ["heart", "My savings", "#/savings", "#E3F4EA", "#0F7A43"],
+        (IS_OWNER_APP || business) && ["chart", `Business from ${APP_NAME}`, "#/owner/insights"],
+        ["card", "Plans and pricing", "#/plans"],
+        isStaff && ["shield", profile?.role === "moderator" ? "Moderator panel" : "Admin panel", "#/admin"],
+        IS_CUSTOMER_APP ? ["store", "Own a business? Get LastPick Business", PARTNER_URL, "#FFF1E0", "#B35A00", true]
+          : IS_OWNER_APP ? ["store", "Business profile", "#/owner/business"]
+            : ["store", business ? "Switch to owner mode" : "Post offers as a business owner", () => { setMode("owner"); navigate("/owner"); }, "#FFF1E0", "#B35A00"],
+      ]} />
+      <MenuGroup title="Help" items={[
+        ["chat", "Help & support (chat with us)", "#/support", "#E4F5F2", "#0F6E5C"],
+        ["handshake", `How ${APP_NAME} works & rules`, "#/rules"],
+        ["receipt", "Complaints", "#/grievance"],
+        ["mail", "Contact us", "#/contact"],
+      ]} />
+      <MenuGroup title="Privacy & legal" items={[
+        ["lock", "Privacy & your data", "#/account/privacy"],
+        ["doc", "Terms & disclaimer", "#/terms"],
+        ["shield", "Privacy notice", "#/privacy"],
+        ["rupeeSave", "Refund & cancellation policy", "#/refund"],
+      ]} />
+      <div className="menubox"><button className="mi bad" onClick={async () => { await api.signOut(); navigate("/"); }}><span className="mic"><Icon d="logout" size={18} stroke={2.1} /></span>Log out</button></div>
       {cancelling && (
         <Sheet onClose={() => setCancelling(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>Cancel {PLANS[cancelling].name}?</h2>

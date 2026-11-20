@@ -1,6 +1,7 @@
 // Customer reviews. Only customers who contacted a business through LastPick can review it (checked on the server);
 // businesses can reply but not delete; anyone can report a review and moderators hide ones that break the rules.
 import { useEffect, useState } from "react";
+import { Icon } from "../lib/icons.jsx";
 import { api } from "../api/index.js";
 import { Empty, Sheet, Spinner } from "../components.jsx";
 import { APP_NAME, REVIEW_REPORT_REASONS } from "../lib/config.js";
@@ -52,7 +53,7 @@ export function ReviewsBlock({ business, own }) {
       {!list ? <Spinner /> : count === 0 ? <div className="muted small" style={{ paddingTop: 6 }}>No reviews yet. Customers who contact this business through {APP_NAME} can rate it.</div>
         : shown.map((r) => <ReviewItem key={r.id} r={r} onReport={session && !own && r.id !== mine?.id ? setReporting : null} />)}
       {count > 3 && !all && <button className="link small" onClick={() => setAll(true)}>Show all {count} reviews</button>}
-      {session && !own && <button className="btn ghost sm" style={{ marginTop: 10 }} onClick={() => setWriting(true)}>⭐ {mine ? "Edit your review" : "Rate this business"}</button>}
+      {session && !own && <button className="btn ghost sm" style={{ marginTop: 10 }} onClick={() => setWriting(true)}><Icon d="star" size={16} stroke={2.2} />{mine ? "Edit your review" : "Rate this business"}</button>}
       {writing && <ReviewSheet businessId={business.id} businessName={business.name} existing={mine} onClose={() => setWriting(false)} onDone={() => { setWriting(false); load(); }} />}
       {reporting && <ReportReviewSheet review={reporting} onClose={() => setReporting(null)} />}
     </div>
