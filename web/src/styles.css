@@ -134,6 +134,8 @@ main.main { flex: 1; padding-bottom: 100px; }
 .card .lock { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 4px; }
 .price { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
 .price b { font-size: 17px; font-weight: 800; } .price s { color: var(--muted); font-size: 12.5px; }
+.price .pct { font-size: 11.5px; font-weight: 800; color: var(--ok, #0F7B4F); background: var(--ok-soft, #E3F6EC); padding: 2px 7px; border-radius: 999px; }
+.tm { white-space: nowrap; }
 .pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; display: inline-block; }
 .p-ok { background: var(--ok-soft); color: var(--ok); } .p-warn { background: var(--warn-soft); color: var(--warn); }
 .p-mute { background: var(--soft); color: var(--muted); } .p-new { background: var(--brand-soft); color: var(--brand); } .p-bad { background: var(--bad-soft); color: var(--bad); }
@@ -395,6 +397,8 @@ table.admin { width: 100%; border-collapse: collapse; font-size: 13px; }
 .thanks b { font-size: 15px; display: block; } .thanks span { font-size: 12.5px; opacity: .9; }
 .nightcard { margin: 12px 14px 0; border-radius: 16px; background: #1C0F4A; color: #fff; padding: 12px 14px; display: flex; gap: 12px; align-items: center; font-size: 13px; line-height: 1.4; }
 .nightcard svg { color: var(--hi); flex: none; }
+.rulecard { margin: 12px 14px 0; border-radius: 16px; background: var(--glass); border: 1px solid var(--glass-line, rgba(0,0,0,.06)); padding: 12px 14px; display: flex; gap: 12px; align-items: center; font-size: 13px; line-height: 1.4; color: var(--ink); }
+.rulecard svg { color: var(--brand); flex: none; }
 .cbanner { margin: 12px 14px 0; border-radius: 16px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; font-size: 13px; font-weight: 600; background: #fff; color: var(--ink); box-shadow: var(--shadow); }
 .cbanner .bi { width: 38px; height: 38px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; flex: none; }
 .cbanner b { color: var(--brand); }
@@ -562,3 +566,11 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 
 .nightcard { background: var(--deep) !important; color: #fff; }
 .phead { display: flex; align-items: center; gap: 10px; }
+
+/* ---------- per-app logo ---------- */
+.logo-mark { display: inline-block; flex: none; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+.logo-mark svg { width: 100%; height: 100%; display: block; }
+.brandmark { display: flex; align-items: center; gap: 10px; }
+.brandmark b { display: block; font-family: var(--font-h); font-size: 19px; font-weight: 800; line-height: 1.1; color: var(--ink); }
+.brandmark small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+.brandmark.light b { color: #fff; } .brandmark.light small { color: rgba(255,255,255,.75); }

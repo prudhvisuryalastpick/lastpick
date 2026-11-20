@@ -5,6 +5,9 @@ import { AppProvider } from "./state.jsx";
 import "./styles.css";
 import { api } from "./api/index.js";
 import { APP_VARIANT } from "./lib/config.js";
+import { applyBrand } from "./lib/brand.jsx";
+
+applyBrand();
 
 // Crash reporting: uncaught errors go to the server log (CloudWatch) (at most 5 per session, no personal data).
 let sent = 0;

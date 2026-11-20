@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { APP_NAME, PLANS, categoryOf } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
-import { discount, distanceKm, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
+import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
 import { msToNextSlot, quoteForOffer, stripQuotes } from "./lib/quotes.js";
 
@@ -14,7 +14,7 @@ export function Empty({ icon, title, children, action }) {
 export function Countdown({ end }) {
   const now = useNow();
   const ms = end - now;
-  return <span className={"tm " + (ms < 3600000 ? "hot" : "")}>{timeLeft(ms)}</span>;
+  return <span className={"tm " + (ms < 3600000 ? "hot" : "")} title={ms > 0 ? "Ends at " + clockIST(end) : ""}>{ms > 0 ? "Ends in " + hoursText(ms) : "Ended"}</span>;
 }
 
 // The offer's photo, or its category icon on the category colour when there's no photo.
@@ -31,12 +31,12 @@ export function OfferCard({ offer, preview = false }) {
   const r = offer.business?.rating;
   const body = (
     <>
-      <OfferImage offer={offer}>{isJob(offer) ? <span className="off">JOB</span> : discount(offer) > 0 && <span className="off">-{discount(offer)}%</span>}</OfferImage>
+      <OfferImage offer={offer}>{isJob(offer) ? <span className="off">JOB</span> : offer.price != null && discount(offer) > 0 && <span className="off">-{discount(offer)}%</span>}</OfferImage>
       <div className="body">
         <div className="t">{offer.featured && <span className="featpill">Featured</span>}{offer.title}</div>
         <div className="s">{offer.business?.name}{r?.count ? <> · <span className="star">★ {Number(r.avg).toFixed(1)}</span></> : null} · {offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</div>
         <div className="foot">
-          <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{rupee(offer.price)}</b>{offer.origPrice > offer.price && <s>{rupee(offer.origPrice)}</s>}</>}</div>
+          <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{offer.price == null ? "₹ –" : offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.price != null && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pct">{discount(offer)}% off</span></>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
         <OfferQuote offer={offer} />

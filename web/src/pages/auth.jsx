@@ -1,5 +1,6 @@
 // Welcome, sign-in with a one-time code (mobile SMS or e-mail), password login for older accounts,
 // and the one-time "complete your profile" step with consent for new accounts.
+import { Brand } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
@@ -34,7 +35,7 @@ export function Welcome() {
   if (IS_OWNER_APP) return <OwnerWelcome go={go} />;
   return (
     <div className="welcome cwel">
-      <div className="brand" style={{ animation: "fadeUp .5s ease both" }}><span className="logo">L</span>{APP_NAME}</div>
+      <Brand light style={{ animation: "fadeUp .5s ease both" }} />
       <div className="radar" aria-hidden="true">
         <span className="ring" /><span className="ring r2" /><span className="core"><Icon d="place" size={40} stroke={1.8} /></span>
         {CFLOAT.map((f) => {
@@ -61,7 +62,7 @@ export function Welcome() {
 function OwnerWelcome({ go }) {
   return (
     <div className="welcome">
-      <div className="brand" style={{ animation: "fadeUp .5s ease both" }}><span className="logo">L</span>{APP_NAME}</div>
+      <Brand light style={{ animation: "fadeUp .5s ease both" }} />
       <div className="radar" aria-hidden="true">
         <span className="ring" /><span className="ring r2" /><span className="core">📍</span>
         {FLOAT.map((f) => <div key={f.t} className="floatcard" style={f.style}><span className="e">{f.e}</span><i>{f.o}</i><b>{f.t}</b><span>{f.s}</span></div>)}
@@ -167,6 +168,7 @@ export function Login({ next = "/" }) {
         <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !OTP_LOGIN ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
         {!IS_ADMIN_APP && <span className="trialpill">{IS_OWNER_APP ? "🛡️ Verified partners only" : "⏱️ Deals for today only"}</span>}
       </div>
+      <Brand style={{ marginTop: 16 }} />
 
       {step === "enter" && <>
         <h1>{IS_OWNER_APP ? "LastPick Business" : `Welcome to ${APP_NAME}`}</h1>

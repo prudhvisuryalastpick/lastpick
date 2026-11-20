@@ -104,10 +104,13 @@ export const TINTS = {
 
 export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌", "🚗", "⚽", "💇", "🩺", "👕", "📱", "🎬", "🛠️", "📚", "📦", "🎁"];
 
-// Everything posted is for the same day and ends by midnight (India time). Keep in sync with MAX_OFFER_MS on the server.
-export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till midnight"; nothing runs past today
-// Hotels and travel stay open 24×7; everything else only during working hours (6 AM – 11 PM).
+// Everything posted is for the same day (India time). Keep in sync with server/src/util.js.
+export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing runs past today
+// Hotels and travel stay open 24×7 (their offers can run till 12 midnight); everything else is shown 4 AM – 11 PM
+// and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
+// Everything is removed at 12 midnight.
 export const ALWAYS_OPEN = ["stay", "travel"];
+export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
 
 export const REPORT_REASONS = [
   "Fake or misleading offer",

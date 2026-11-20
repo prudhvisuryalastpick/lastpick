@@ -1,3 +1,4 @@
+import { Logo } from "../lib/brand.jsx";
 import { useEffect, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
@@ -138,7 +139,7 @@ function AdminInner() {
   return (
     <>
       <div className="page-h">
-        <h1 className="title">{isAdmin ? "Admin" : "Moderator"}</h1>
+        <div className="gap" style={{ alignItems: "center" }}><Logo size={42} /><h1 className="title">{isAdmin ? "LastPick Admin" : "LastPick Moderator"}</h1></div>
         <div className="muted">{isAdmin ? "All of India" : `Your area: ${[(profile?.regions || []).join(", "), (profile?.areaCities || []).join(", "), (profile?.areaPincodes || []).join(", ")].filter(Boolean).join(" · ") || "none assigned yet"}`}</div>
         {IS_ADMIN_APP && <div className="muted small" style={{ marginTop: 6 }}>{profile?.email} · <button className="link" onClick={async () => { await api.signOut(); navigate("/login"); }}>Log out</button></div>}
       </div>
@@ -223,6 +224,7 @@ function BizPlanControls({ b, toast, onDone }) {
   const [months, setMonths] = useState(1);
   const [days, setDays] = useState(15);
   const [busy, setBusy] = useState(false);
+  const active = !!b.planUntil && b.planUntil > Date.now();
   const run = async (action, extra, msg) => {
     setBusy(true);
     try { await api.adminBusinessPlan(b.id, action, extra); toast(msg); onDone(); } catch (e) { toast(errText(e)); }
@@ -230,13 +232,15 @@ function BizPlanControls({ b, toast, onDone }) {
   };
   return (
     <div className="box" style={{ marginTop: 10 }}>
-      <div className="small" style={{ fontWeight: 700 }}>Plan</div>
+      <div className="row" style={{ alignItems: "center" }}><div className="small" style={{ fontWeight: 700 }}>Plan</div>
+        {active ? <span className="pill p-ok">✔ Active plan</span> : <span className="pill p-mute">No plan</span>}</div>
+      {active && <div className="small" style={{ fontWeight: 700, color: "var(--ok)" }}>{PLANS.owner.name} active · {Math.ceil((b.planUntil - Date.now()) / 86400000)} days left</div>}
       <div className="muted small">{[b.planUntil && `${PLANS.owner.name} till ${day(b.planUntil)}`, b.trialEndsAt && b.trialEndsAt > Date.now() && `Extra days till ${day(b.trialEndsAt)}`].filter(Boolean).join(" · ")
         || (b.status === "verified" ? "No active plan: cannot post" : "Not verified yet")}</div>
       <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select aria-label="Plan length" value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>
           {PLANS.owner.options.map((o) => <option key={o.months} value={o.months}>{planLabel(o.months)} ({rupee(o.price)})</option>)}</select>
-        <button className="btn main sm" disabled={busy} onClick={() => run("unlock", { months }, `${PLANS.owner.name} unlocked for ${planLabel(months)}`)}>Unlock plan</button>
+        <button className={"btn sm " + (active ? "ghost" : "main")} disabled={busy} onClick={() => run("unlock", { months }, active ? `Plan extended by ${planLabel(months)}` : `${PLANS.owner.name} unlocked for ${planLabel(months)}`)}>{active ? "Extend plan" : "Unlock plan"}</button>
       </div>
       <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select aria-label="Extend by" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", background: "#fff" }}>

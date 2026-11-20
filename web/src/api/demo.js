@@ -179,7 +179,7 @@ const emit = () => listeners.forEach((cb) => cb());
 const ALWAYS_OPEN = ["stay", "travel"];
 const LOCAL_ONLY = ["jobs"];
 const tonight = () => Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H + D;
-const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 6 || h >= 23; };
+const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 4 || h >= 23; };
 const openNow = (o) => !night() || ALWAYS_OPEN.includes(o.category);
 const snapOf = (db, c) => c.snap || (() => { const o = db.offers.find((x) => x.id === c.offerId); return o ? { title: o.title, category: o.category, price: o.price, origPrice: o.origPrice, businessId: o.businessId } : null; })();
 const monthsBack = (rows, field) => {
@@ -315,7 +315,7 @@ export const api = {
       .filter((o) => o.business?.pincode === String(pin) && bizVisible(db, db.businesses.find((b) => b.id === o.businessId)))
       .sort((a, b) => a.endsAt - b.endsAt);
   },
-  async getConfig() { return { freeMode: false, night: night(), hours: { open: 6, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
+  async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
   async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
     const db = load(), now = Date.now(), map = {};

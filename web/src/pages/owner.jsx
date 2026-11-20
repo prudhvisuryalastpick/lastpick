@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { BoostSheet } from "./revenue.jsx";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
+import { ALWAYS_OPEN, HOURS, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
-import { ago, day, daysLeft, errText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
+import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
 import { validPincode } from "../lib/geo.js";
+import { addressFromLocation, lookupPincode } from "../lib/address.js";
 
 // Every owner page goes through this gate: login -> business profile -> Owner Pro -> page.
 export function OwnerGate({ children, allowWithoutPlan = false }) {
@@ -153,7 +154,7 @@ export function OwnerLeads() {
 
 // ------------------------------------------------------------------ My offers
 export function OwnerOffers() {
-  const { toast } = useApp();
+  const { toast, business } = useApp();
   const [offers, setOffers] = useState(null);
   const [history, setHistory] = useState(null);
   const [tab, setTab] = useState("current");
@@ -173,6 +174,8 @@ export function OwnerOffers() {
     <>
       <div className="page-h row"><div><h1 className="title">My offers</h1><div className="muted">Views and status of everything you posted</div></div><a className="btn main sm" href="#/owner/post">＋ New</a></div>
       <StatusBanner />
+      <div className="banner" style={{ background: "var(--hi)", color: "var(--hi-ink)" }}>🚀<span><b>Boost</b> puts your offer at the top of customers' home screens, so it reaches many more customers. You can see below how many customers have seen each offer.</span></div>
+      <a className="menu-item" href="#/owner/reviews">⭐ Your reviews {business?.rating?.count ? <RatingBadge rating={business.rating} /> : <span className="muted small">none yet</span>}<span className="chev">›</span></a>
       <div className="tabs"><button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>Current</button><button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button></div>
       {tab === "history" ? (
         <>
@@ -195,8 +198,9 @@ export function OwnerOffers() {
               <OfferImage offer={o} className="ic" />
               <div className="grow">
                 <b style={{ fontSize: 14 }}>{o.title}</b>
-                <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s> · {o.views} views</div>
-                <div className="muted small">{live ? "Ends in " + timeLeft(o.endsAt - now) : o.status === "removed" ? "Removed by LastPick for breaking the rules" : "Ended"}</div>
+                <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s>{o.origPrice > o.price ? ` · ${Math.round((1 - o.price / o.origPrice) * 100)}% off` : ""}</div>
+                <div className="small" style={{ fontWeight: 700, color: "var(--ink)", margin: "2px 0" }}>👀 Seen by {o.views || 0} customer{o.views === 1 ? "" : "s"}</div>
+                <div className="muted small">{live ? `Offer ends in ${hoursText(o.endsAt - now)} (at ${clockIST(o.endsAt)})` : o.status === "removed" ? "Removed by LastPick for breaking the rules" : "Ended"}</div>
                 {live && (() => {
                   const bo = boosts.find((x) => x.offerId === o.id && (x.status === "pending" || x.live));
                   return <div className="gap" style={{ marginTop: 8, flexWrap: "wrap" }}><a className="chip" href={"#/offer/" + o.id}>View</a>
@@ -241,11 +245,17 @@ export function PostOffer() {
   const now = useNow(60000);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const job = f.category === "jobs";
-  // everything ends the same day: only durations that finish before midnight (India time), plus "till midnight"
-  const midnight = Math.floor((now + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000 + 86400000 - 60000;
-  const hoursLeft = (midnight - now) / 3600000;
-  const choices = [...DURATIONS.filter((h) => h < hoursLeft), "midnight"];
-  const endsAtOf = (h) => (h === "midnight" ? midnight : Math.min(Date.now() + h * 3600000, midnight));
+  // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels and travel.
+  // Posting is open only from 4 AM to 11 PM.
+  const allDay = ALWAYS_OPEN.includes(f.category);
+  const dayStart = istDayStart(now);
+  const closing = allDay ? dayStart + 86400000 - 60000 : dayStart + HOURS.close * 3600000;
+  const hourNow = (now - dayStart) / 3600000; // hours since midnight, India time
+  const postingOpen = hourNow >= HOURS.postFrom && hourNow < HOURS.postTill;
+  const hoursLeft = (closing - now) / 3600000;
+  const choices = [...DURATIONS.filter((h) => h < hoursLeft), "close"];
+  const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, closing));
+  const closeLabel = allDay ? "12 midnight" : "11 PM";
   const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...JOB_TEMPLATES];
   const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
@@ -260,11 +270,15 @@ export function PostOffer() {
     if (!(price >= 0) || f.price === "") problems.push("the offer price");
     else if (orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
   }
+  // the title says "40% off" but the prices give a different discount: warn before posting
+  const titlePct = Number((f.title.match(/(\d{1,2})\s*%/) || [])[1]);
+  const realPct = !job && orig > 0 && price >= 0 && price < orig ? Math.round((1 - price / orig) * 100) : null;
+  const pctMismatch = titlePct > 0 && realPct != null && Math.abs(titlePct - realPct) > 2;
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
     title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: photo?.url || null,
-    origPrice: orig || 1, price: price || 0, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
+    origPrice: orig || 0, price: f.price === "" ? null : price, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   const onPhoto = (file) => {
@@ -316,7 +330,9 @@ export function PostOffer() {
           <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today."
-            : "You can post only in your registered category. Everything is for today and ends by midnight. Hotels and travel are open 24×7; others 6 AM – 11 PM."}</span></div>
+            : allDay
+              ? "You can post only in your registered category. Hotels and travel are shown 24×7: your offer can run till 12 midnight today."
+              : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
         <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
         <div className="two">
@@ -328,9 +344,10 @@ export function PostOffer() {
         <div className="two">
           <div className="fld"><label>{job ? "Pay per" : "How many"}</label><input maxLength={60} value={f.quantity} onChange={(e) => set("quantity", e.target.value)} placeholder={job ? "e.g. Pay per month" : "e.g. 3 rooms"} /></div>
           <div className="fld"><label>{job ? "Show for" : "Offer ends in"}</label>
-            <select value={choices.includes(f.hours) ? f.hours : "midnight"} onChange={(e) => set("hours", e.target.value === "midnight" ? "midnight" : Number(e.target.value))}>
-              {choices.map((h) => <option key={h} value={h}>{h === "midnight" ? "Till midnight (today)" : `${h} hour${h > 1 ? "s" : ""}`}</option>)}
-            </select></div>
+            <select value={choices.includes(f.hours) ? f.hours : "close"} onChange={(e) => set("hours", e.target.value === "close" ? "close" : Number(e.target.value))}>
+              {choices.map((h) => <option key={h} value={h}>{h === "close" ? `Till ${closeLabel} (today)` : `${h} hour${h > 1 ? "s" : ""} · till ${clockIST(Math.min(now + h * 3600000, closing))}`}</option>)}
+            </select>
+            <span className="hint">Offers end by {closeLabel} today{allDay ? "" : " (hotels and travel: 12 midnight)"}. Last time to post: 10:30 PM.</span></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
@@ -340,10 +357,11 @@ export function PostOffer() {
         {err && <div className="error" style={{ marginBottom: 10 }}>{err}</div>}
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
-          : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again after midnight.`}</div>
-        <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
+          : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
+        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time), hotels and travel too. Post again at 4 AM.</span></div>}
+        <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
-        {config?.night && !(config.alwaysOpen || []).includes(f.category) && <div className="banner warn" style={{ margin: "0 0 10px" }}>🌙<span>It's after working hours, so this goes live at {config.hours?.open ?? 6} AM. Hotels and travel offers go live straight away.</span></div>}
+        {pctMismatch && <div className="banner warn" style={{ margin: "0 0 10px" }}>Your title says {titlePct}% off, but ₹{price} instead of ₹{orig} is {realPct}% off. Please check the prices or the title.</div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>
       </div>
     </>
@@ -359,21 +377,51 @@ function BusinessForm({ first = false }) {
   const { business, profile, refresh, toast } = useApp();
   const needsConsent = profile?.partnerConsentVersion !== CONSENT_VERSION;
   const [f, setF] = useState(() => ({
-    extra: (business?.categories || []).filter((c) => c !== business?.category),
     name: business?.name || "", category: business?.category || "food", about: business?.about || "", address: business?.address || "",
     area: business?.area || "", city: business?.city || "", state: business?.state || "", pincode: business?.pincode || "", lat: business?.lat ?? null, lng: business?.lng ?? null,
-    phone: business?.phone || profile?.phone || "", whatsapp: business?.whatsapp ?? true, agree: false,
+    phone: business?.phone || profile?.phone || "", agree: false,
   }));
-  const toggleExtra = (id) => setF((p) => ({ ...p, extra: p.extra.includes(id) ? p.extra.filter((x) => x !== id) : p.extra.length < MAX_CATEGORIES - 1 ? [...p.extra, id] : p.extra }));
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
+  // Pincode first: a valid pincode fills state, city and the list of areas (post offices) for that pincode.
+  const [areas, setAreas] = useState([]);
+  const [pinState, setPinState] = useState(""); // "", "looking", "found", "unknown", "offline"
+  const fillFromPincode = async (pin, keep = {}) => {
+    if (!validPincode(pin)) { setAreas([]); setPinState(""); return; }
+    setPinState("looking");
+    try {
+      const r = await lookupPincode(pin);
+      if (!r) { setAreas([]); setPinState("unknown"); return; }
+      setAreas(r.areas);
+      setF((p) => ({ ...p, state: r.state || p.state, city: keep.city || r.city || p.city,
+        area: keep.area || (r.areas.includes(p.area) ? p.area : r.areas.length === 1 ? r.areas[0] : p.area) }));
+      setPinState("found");
+    } catch { setPinState("offline"); }
+  };
+  useEffect(() => { if (validPincode(f.pincode)) fillFromPincode(f.pincode, { city: f.city, area: f.area }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const onPincode = (v) => { const pin = v.replace(/\D/g, "").slice(0, 6); set("pincode", pin); if (pin.length === 6) fillFromPincode(pin); else { setAreas([]); setPinState(""); } };
+
+  // "Use my location": saves the map point AND fills address, area, city, state and pincode.
   const locate = () => {
     if (!navigator.geolocation) return toast("Location isn't available on this device");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (p) => { set("lat", p.coords.latitude); set("lng", p.coords.longitude); setLocating(false); toast("Location saved"); },
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        setF((x) => ({ ...x, lat, lng }));
+        try {
+          const a = await addressFromLocation(lat, lng);
+          if (a.outsideIndia) { toast("This location is outside India. LastPick is for businesses in India."); }
+          else {
+            setF((x) => ({ ...x, address: x.address || a.address, area: a.area || x.area, city: a.city || x.city, state: a.state || x.state, pincode: a.pincode || x.pincode }));
+            if (a.pincode) await fillFromPincode(a.pincode, { city: a.city, area: a.area });
+            toast(a.pincode ? "Address filled from your location. Please check it." : "Location saved. Enter your pincode.");
+          }
+        } catch { toast("Location saved. We couldn't fetch the address, please type it."); }
+        setLocating(false);
+      },
       () => { setLocating(false); toast("Couldn't get your location. Allow location access and try again."); },
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -394,8 +442,8 @@ function BusinessForm({ first = false }) {
     setBusy(true);
     try {
       const city = f.city.trim().replace(/\s+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
-      const categories = [f.category, ...f.extra.filter((c) => c !== f.category)].slice(0, MAX_CATEGORIES);
-      await api.saveBusiness({ ...business, ...f, categories, name: f.name.trim(), area: f.area.trim(), city, phone: f.phone.trim() });
+      const categories = [f.category];
+      await api.saveBusiness({ ...business, ...f, whatsapp: false, categories, name: f.name.trim(), area: f.area.trim(), city, phone: f.phone.trim() });
       if (needsConsent) await api.recordConsent("partner", { items: ["genuine-offers", "categories", "licences", "number-visible", "customer-data-use"] });
       await refresh();
       toast(first ? "Business created. Next: choose your plan." : "Business details saved");
@@ -412,31 +460,26 @@ function BusinessForm({ first = false }) {
       <div className="form" style={{ paddingTop: 12 }}>
         <div className="fld"><label>Business name</label><input maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Sunrise Bakery" /></div>
         <div className="fld"><label>Main category</label>
-          <select value={f.category} onChange={(e) => setF((p) => ({ ...p, category: e.target.value, extra: p.extra.filter((x) => x !== e.target.value) }))}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}</select>
-          <span className="hint">You can post offers only in your categories. Food registered? Then you post food offers.</span></div>
-        <div className="fld"><label>Also offer (optional, up to {MAX_CATEGORIES - 1})</label>
-          <div className="gap" style={{ flexWrap: "wrap", gap: 6 }}>{CATEGORIES.filter((c) => c.id !== f.category).map((c) => (
-            <button type="button" key={c.id} className={"chip " + (f.extra.includes(c.id) ? "on" : "")} onClick={() => toggleExtra(c.id)}
-              disabled={!f.extra.includes(c.id) && f.extra.length >= MAX_CATEGORIES - 1}>{c.icon} {c.label}</button>))}</div></div>
+          <select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+          <span className="hint">You post offers only in this category (plus job openings at your shop).</span></div>
         <div className="fld"><label>Contact number for customers</label><input inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="10-digit Indian mobile or landline with STD code" />
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
-        <Toggle on={f.whatsapp} onChange={(v) => set("whatsapp", v)} title="Customers can WhatsApp this number" />
-        <div className="fld"><label>Address</label><input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Shop number, street" /></div>
-        <div className="two">
-          <div className="fld"><label>Area</label><input value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="e.g. Indiranagar" /></div>
-          <div className="fld"><label>City</label><input list="lp-cities" value={f.city} placeholder="e.g. Bengaluru"
-            onChange={(e) => { const v = e.target.value; const m = MAJOR_CITIES.find((c) => c.name.toLowerCase() === v.trim().toLowerCase()); setF((p) => ({ ...p, city: v, state: m ? m.state : p.state })); }} />
-            <datalist id="lp-cities">{MAJOR_CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></div>
-        </div>
-        <div className="fld"><label>Pincode</label><input inputMode="numeric" maxLength={6} value={f.pincode} onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))} placeholder="e.g. 560038" />
-          <span className="hint">Customers searching this pincode will see your offers.</span></div>
-        <div className="fld"><label>State</label>
-          <select value={f.state} onChange={(e) => set("state", e.target.value)}><option value="">Select state</option>{INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}</select>
-          <span className="hint">LastPick is available for businesses in India.</span></div>
         <div className="toggle">
-          <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{f.lat != null ? `Saved (${Number(f.lat).toFixed(4)}, ${Number(f.lng).toFixed(4)})` : "Do this at your shop. Customers within their chosen distance (e.g. 30 km) see your offers."}</div></div>
-          <button className="btn ghost sm" type="button" disabled={locating} onClick={locate}>{locating ? "Locating…" : "📍 Use my location"}</button>
+          <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{f.lat != null ? "Saved. Tap again at your shop to refill the address." : "Tap this at your shop. It fills your address, area, city, state and pincode."}</div></div>
+          <button className="btn ghost sm" type="button" disabled={locating} onClick={locate}>{locating ? "Finding address…" : "📍 Use my location"}</button>
         </div>
+        <div className="fld"><label>Pincode</label><input inputMode="numeric" maxLength={6} value={f.pincode} onChange={(e) => onPincode(e.target.value)} placeholder="6-digit pincode, e.g. 500090" />
+          <span className="hint">{pinState === "looking" ? "Finding your area…" : pinState === "unknown" ? "We couldn't find this pincode. Please check it." : pinState === "offline" ? "Couldn't look up the pincode right now. Fill the details below." : "Customers searching this pincode see your offers. Works for every pincode in India."}</span></div>
+        <div className="two">
+          <div className="fld"><label>State</label>
+            <select value={f.state} onChange={(e) => set("state", e.target.value)}><option value="">Select state</option>{INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
+          <div className="fld"><label>City / district</label><input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Filled from pincode" /></div>
+        </div>
+        <div className="fld"><label>Area</label>
+          {areas.length > 0
+            ? <select value={areas.includes(f.area) ? f.area : ""} onChange={(e) => set("area", e.target.value)}><option value="">Select your area</option>{areas.map((a) => <option key={a}>{a}</option>)}</select>
+            : <input value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Your locality, e.g. Nizampet" />}</div>
+        <div className="fld"><label>Address</label><input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Shop number, building, street" /></div>
         <div className="fld"><label>About (optional)</label><textarea rows="2" maxLength={500} value={f.about} onChange={(e) => set("about", e.target.value)} placeholder="What you do, opening hours…" /></div>
         {needsConsent && (
           <label className="toggle" style={{ cursor: "pointer", justifyContent: "flex-start", alignItems: "flex-start" }}>

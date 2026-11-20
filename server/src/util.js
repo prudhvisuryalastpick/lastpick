@@ -23,8 +23,11 @@ export const RETENTION = { endedOfferVisibleDays: 7, archiveDays: 365, leadsDays
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 
 // ---- Working hours (India time). Outside them only ALWAYS_OPEN categories are shown and can be contacted.
-// Hotels and travel stay open 24×7. Partners can still post other offers at night; they go live at opening time.
-export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 6), close: Number(process.env.CLOSE_HOUR ?? 23) };
+// Hotels and travel stay open 24×7 (offers till 12 midnight); everything else is shown 4 AM – 11 PM and ends by 11 PM.
+// Every partner (hotels and travel too) can post only between 4 AM and 10:30 PM. Everything is gone at 12 midnight.
+export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 4), close: Number(process.env.CLOSE_HOUR ?? 23) };
+// last post at 10:30 PM, so every offer has at least 30 minutes before 11 PM (22.5 = 10:30 PM)
+export const POSTING_HOURS = { from: Number(process.env.POST_FROM_HOUR ?? 4), till: Number(process.env.POST_TILL_HOUR ?? 22.5) };
 export const ALWAYS_OPEN = ["stay", "travel"];
 export const istHour = (now = Date.now()) => new Date(now + 5.5 * 3600000).getUTCHours();
 export const isNight = (now = Date.now()) => { const h = istHour(now); return h < BUSINESS_HOURS.open || h >= BUSINESS_HOURS.close; };
@@ -32,6 +35,9 @@ export const isNight = (now = Date.now()) => { const h = istHour(now); return h 
 // midnight today in India (UTC+05:30)
 const IST = 5.5 * 3600000;
 export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY) * DAY - IST;
+export const postingOpen = (now = Date.now()) => { const d = new Date(now + IST); const h = d.getUTCHours() + d.getUTCMinutes() / 60; return h >= POSTING_HOURS.from && h < POSTING_HOURS.till; };
+// latest end time for an offer posted today: 11 PM, or 12 midnight for hotels and travel
+export const closingTimeIST = (category, now = Date.now()) => startOfDayIST(now) + (ALWAYS_OPEN.includes(category) ? DAY : BUSINESS_HOURS.close * 3600000);
 
 export const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 export const ms = (d) => (d == null ? null : new Date(d).getTime());

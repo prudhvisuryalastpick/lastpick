@@ -53,3 +53,22 @@ export const errText = (e) => (e && (e.message || e.error_description || e.error
 
 // whole days left until a time (0 when it has passed)
 export const daysLeft = (t) => (t ? Math.max(0, Math.ceil((t - Date.now()) / 86400000)) : 0);
+
+// ---- India time helpers (same rules as the server) ----
+const IST = 5.5 * 3600000, DAY_MS = 86400000;
+export const istDayStart = (now = Date.now()) => Math.floor((now + IST) / DAY_MS) * DAY_MS - IST;
+export const istHourOf = (now = Date.now()) => new Date(now + IST).getUTCHours();
+// 9:00 PM (India time)
+export function clockIST(ts) {
+  const d = new Date(ts + IST); let h = d.getUTCHours(); const m = d.getUTCMinutes();
+  if (h === 0 && m === 0) return "12 midnight";
+  const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ap}`;
+}
+// "4 hours", "2 hours 30 min", "45 min"
+export function hoursText(ms) {
+  if (ms <= 0) return "Ended";
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  if (h === 0) return `${Math.max(1, m)} min`;
+  return `${h} hour${h > 1 ? "s" : ""}${m ? ` ${m} min` : ""}`;
+}

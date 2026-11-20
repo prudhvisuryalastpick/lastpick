@@ -6,7 +6,7 @@ import { freeMode, planActive } from "../plans.js";
 import { limit } from "../ratelimit.js";
 import { audit, mapBusiness, mapOffer, mapReview, needConsent, offerSelect } from "../shared.js";
 import {
-  MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
+  ALWAYS_OPEN, POSTING_HOURS, closingTimeIST, postingOpen, MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
 } from "../util.js";
 
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
@@ -92,14 +92,17 @@ export function partnerRoutes(r) {
     const hiring = category === "jobs";
     // a business posts only in its registered categories (plus job openings at its own shop)
     if (!hiring && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
+    if (!postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Please post again at ${POSTING_HOURS.from} AM.`);
+    const closing = closingTimeIST(category);
+    const lastTime = ALWAYS_OPEN.includes(category) ? "12 midnight" : "11 PM";
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
-      if (!(endsAt > Date.now()) || endsAt > startOfDayIST() + DAY) throw bad("Everything posted must end today (before midnight)");
     } else {
-      // offers and discounts only: the offer price must be lower than the normal price, and it must end the same day
+      // offers and discounts only: the offer price must be lower than the normal price
       if (!(origPrice > 0) || !(price >= 0) || !(price < origPrice) || origPrice > 1e9) throw bad("Offer price must be lower than the normal price");
-      if (!(endsAt > Date.now()) || endsAt > startOfDayIST() + DAY) throw bad("Offers are for the same day: they must end today (before midnight)");
     }
+    // same day only: ends by 11 PM (hotels and travel: 12 midnight)
+    if (!(endsAt > Date.now()) || endsAt > closing) throw bad(`Offers are for the same day only: they must end by ${lastTime} (India time)`);
     const photoThumb = isDataImage(d.photoThumb, 30000) ? d.photoThumb : null;
     const photo = isDataImage(d.photo, 200000) ? d.photo : null;
 
@@ -108,7 +111,7 @@ export function partnerRoutes(r) {
       // lock the business row so two posts at the same moment can't both slip under the daily limit
       await c.query("SELECT 1 FROM businesses WHERE id = $1 FOR UPDATE", [u.id]);
       const today = (await c.query("SELECT count(*)::int AS n FROM offers WHERE owner_id = $1 AND created_at >= $2", [u.id, new Date(startOfDayIST())])).rows[0].n;
-      if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again after midnight.`);
+      if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again tomorrow from 4 AM.`);
       const { rows } = await c.query(
         `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,

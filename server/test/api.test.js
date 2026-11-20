@@ -23,7 +23,7 @@ async function sh(cmd, args, env = {}) {
 }
 async function startServer(service) {
   // "night" is a customer server whose working hours are 0-0, so it is always night there
-  const hours = service === "night" ? { OPEN_HOUR: "0", CLOSE_HOUR: "0" } : { OPEN_HOUR: "0", CLOSE_HOUR: "24" };
+  const hours = service === "night" ? { OPEN_HOUR: "0", CLOSE_HOUR: "0", POST_FROM_HOUR: "0", POST_TILL_HOUR: "0" } : { OPEN_HOUR: "0", CLOSE_HOUR: "24", POST_FROM_HOUR: "0", POST_TILL_HOUR: "24" };
   const p = spawn(process.execPath, ["src/index.js"], { cwd: root, env: { ...process.env, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
   procs.push(p);
   for (let i = 0; i < 50; i++) {
@@ -341,15 +341,20 @@ test("own category only, everything ends the same day, local job openings", asyn
 });
 
 test("working hours: after 11 PM only hotels and travel", async () => {
-  const { isNight, istHour } = await import("../src/util.js");
+  const { isNight, istHour, postingOpen } = await import("../src/util.js");
   const at = (h) => Date.UTC(2026, 10, 20, h, 0) - 5.5 * 3600000; // h o'clock India time
   assert.equal(istHour(at(23)), 23);
-  // defaults when OPEN_HOUR/CLOSE_HOUR aren't set: 6 AM to 11 PM
+  // defaults when OPEN_HOUR/CLOSE_HOUR aren't set: 4 AM to 11 PM
   if (!process.env.OPEN_HOUR) {
     assert.equal(isNight(at(22)), false);
     assert.equal(isNight(at(23)), true);
     assert.equal(isNight(at(3)), true);
-    assert.equal(isNight(at(6)), false);
+    assert.equal(isNight(at(4)), false);
+    assert.equal(postingOpen(at(3)), false);
+    assert.equal(postingOpen(at(4)), true);
+    assert.equal(postingOpen(at(22) + 29 * 60000), true);
+    assert.equal(postingOpen(at(22) + 30 * 60000), false); // last post 10:30 PM
+    assert.equal(postingOpen(at(23)), false);
   }
   const cfg = await client("customer").get("/api/config");
   assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel"]);

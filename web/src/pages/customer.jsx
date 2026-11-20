@@ -6,7 +6,7 @@ import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedL
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
-import { ago, day, daysLeft, discount, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
+import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, nearestCity, useApp, useNow } from "../state.jsx";
 import { RADIUS_OPTIONS, validPincode } from "../lib/geo.js";
 
@@ -133,7 +133,7 @@ export function Home() {
   const results = useMemo(() => { const n = q.trim().toLowerCase(); return n ? live.filter((o) => `${o.title} ${o.description} ${o.business?.name} ${categoryOf(o.category).label}`.toLowerCase().includes(n)) : []; }, [live, q]);
   const open = (id) => navigate("/c/" + id);
   const noLocation = needGps && locationStatus !== "asking";
-  const hours = config?.hours || { open: 6, close: 23 };
+  const hours = config?.hours || { open: 4, close: 23 };
   const where = area.mode === "near"
     ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off")
     : areaLabel(area, city);
@@ -161,7 +161,9 @@ export function Home() {
           {results.length === 0 ? <Empty icon={<span className="emptyic"><Icon d="search" size={30} /></span>} title="Nothing matches right now">Try another word, or check back this evening.</Empty> : results.map((o) => <OfferCard key={o.id} offer={o} />)}
         </>
       ) : <>
-        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Hotels and travel are open 24×7. Other offers open again at {hourText(hours.open)}.</span></div>}
+        {config?.night
+          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels and travel are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
+          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Every offer is valid for today and is removed at 12 midnight. Hotels and travel are available 24×7; everything else from {hourText(hours.open)} to {hourText(hours.close)}.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
@@ -242,7 +244,7 @@ function Featured({ offers }) {
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 13, opacity: .95 }}><b style={{ fontSize: 16 }}>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s style={{ opacity: .7 }}>{rupee(o.origPrice)}</s>} · ends in {timeLeft(o.endsAt - Date.now())}</span>
+        <span style={{ fontSize: 13, opacity: .95 }}><b style={{ fontSize: 16 }}>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s style={{ opacity: .7 }}>{rupee(o.origPrice)}</s>} · ends in {hoursText(o.endsAt - Date.now())}</span>
         <span className="go" style={{ color: bg }}>See deal</span>
       </div>
       {offers.length > 1 && <div className="dots" onClick={(e) => e.preventDefault()}>{offers.map((x, k) => <button key={x.id} className={k === i % offers.length ? "on" : ""} aria-label={`Banner ${k + 1}`} onClick={(e) => { e.preventDefault(); setI(k); }} />)}</div>}
@@ -271,7 +273,7 @@ function MiniRail({ title, icon, color, items, action, onAction }) {
           <a key={o.id} className="mini" href={"#/offer/" + o.id}>
             <OfferImage offer={o} className="mt" size={34}>
               {offLabel(o) && <span className="b1">{offLabel(o)}</span>}
-              <span className="b2">{timeLeft(o.endsAt - Date.now())}</span>
+              <span className="b2">Ends in {hoursText(o.endsAt - Date.now())}</span>
             </OfferImage>
             <span className="mb">
               <b className="tt">{o.title}</b>
@@ -316,7 +318,7 @@ function TripList({ items }) {
           <span className="r1"><span className="tt">{o.title}</span><span className="p">{rupee(o.price)}<small> /seat</small></span></span>
           <span className="r2">
             <span className="ini" style={{ background: "#FCE9F2", color: "#9C1F5A" }}>{initialsOf(o.business?.name)}</span>
-            <span className="ellipsis">{o.business?.name} · ends in {timeLeft(o.endsAt - Date.now())}</span>
+            <span className="ellipsis">{o.business?.name} · ends in {hoursText(o.endsAt - Date.now())}</span>
             {o.quantity && <span className="seats" style={{ color: "#9C1F5A" }}>{o.quantity}</span>}
           </span>
         </a>
@@ -471,7 +473,7 @@ export function OfferPage({ id }) {
 
         <div className="box row" style={{ marginTop: 14 }}>
           <div className="price">{isJob(offer) && <span className="muted small" style={{ marginRight: 6 }}>Pay</span>}<b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{!isJob(offer) && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>
-          <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : timeLeft(rem)}</b></div>
+          <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Offer ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : hoursText(rem)}</b>{!ended && <div className="muted small">at {clockIST(offer.endsAt)} today</div>}</div>
         </div>
         {offer.quantity && <div className="row" style={{ marginTop: 10 }}><span className="muted">Available</span><b>{offer.quantity}</b></div>}
 
