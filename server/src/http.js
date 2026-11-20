@@ -51,6 +51,9 @@ const CSP = [
 export function clientIp(req) {
   // CloudFront appends the viewer's address to X-Forwarded-For and the load balancer appends CloudFront's,
   // so the viewer is PROXY_HOPS entries from the end (anything earlier is client-supplied and ignored).
+  // API Gateway sets X-Client-IP itself (overwriting anything the visitor sent); requests only reach us with the origin secret
+  const viaGateway = ORIGIN_SECRET && String(req.headers["x-client-ip"] || "").trim();
+  if (viaGateway) return viaGateway;
   const xff = String(req.headers["x-forwarded-for"] || "").split(",").map((s) => s.trim()).filter(Boolean);
   return (ORIGIN_SECRET && xff.length >= PROXY_HOPS ? xff[xff.length - PROXY_HOPS] : req.socket.remoteAddress) || "unknown";
 }
