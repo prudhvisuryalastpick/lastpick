@@ -15,7 +15,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 
 // What we collect and why: shown at sign-up, in the consent gate and in the full notice.
 export const NOTICE_ITEMS = [
-  { data: "Name, mobile number and e-mail", why: "To create your account and log you in. A business gets your name and number only when you tap \"Share my number\" on its offer." },
+  { data: "Name, mobile number and e-mail", why: "To create your account and log you in. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
   { data: "Your location", why: "Used on your phone only, to find offers near you. We don't store it on our servers." },
   { data: "Activity: offers you open or contact, numbers you share, reviews and reports", why: "For your contacts list, a business's leads, reviews, and to stop fraud and misuse." },
@@ -95,7 +95,7 @@ export function Privacy() {
         <h2>What we collect, and why</h2>
         <NoticeList />
         <h2>Who can see or receive your data</h2>
-        <p><b>Businesses</b> get your name and number only when you tap "Share my number" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
+        <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
         <p><b>Service providers</b> who process data for us: Amazon Web Services (servers, database and backups, stored in AWS's Mumbai region, ap-south-1) and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
@@ -157,8 +157,8 @@ export function Terms() {
         <h2>4. Rules for providers (business partners)</h2>
         <ul>
           <li>Post only genuine offers you can honour. The "normal price" must be the real price you usually charge; the offer price is the final price, with no hidden charges.</li>
-          <li>Only verified businesses with an active Business Pro plan can post, up to 3 posts a day. You may post only in the category you registered (a bakery posts only bakery offers). Offers must be real discounts and must end within 24 hours. Not allowed: movie tickets, hall bookings and selling personal items.</li>
-          <li>Any business may post a job opening for workers at its own shop, with the real pay. It is shown only to customers nearby (about 10 km, or the same pincode) and runs up to 7 days. No agencies, fees from job seekers or jobs at other places.</li>
+          <li>Only verified businesses with an active Business Pro plan can post, up to 3 posts a day. You may post only in the category you registered (a bakery posts only bakery offers). Offers must be real discounts and must end the same day (by midnight). Not allowed: movie tickets, hall bookings and selling personal items.</li>
+          <li>Any business may post a job opening for workers at its own shop, with the real pay. It is shown only to customers nearby (about 10 km, or the same pincode) and ends the same day. No agencies, fees from job seekers or jobs at other places.</li>
           <li>Paid features (boosted offers, sponsored banners) only make a post more visible. They don't mean {APP_NAME} checked, recommends or guarantees it.</li>
           <li>Hold the licences your work needs and follow the law: e.g. FSSAI for food; recognition or affiliation for schools and colleges, with fees and discounts stated truthfully; valid permits for bus and travel operators; labour laws (including minimum wages) for job openings.</li>
           <li>Not allowed: alcohol, tobacco, drugs, prescription medicines, weapons, explosives, gambling or lottery, adult content, wildlife, counterfeit or stolen goods, financial schemes, or anything illegal or unsafe.</li>

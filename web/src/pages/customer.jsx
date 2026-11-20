@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { SavingsCard } from "./impact.jsx";
 import { SponsoredBanner } from "./revenue.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
@@ -199,7 +198,7 @@ export function Home() {
               );
             })}
             <button className="tile" onClick={() => setAllCats(true)}>
-              <span className="ti" style={{ background: "#F0EFF4", color: "#3A3550" }}><Icon d="more" size={24} /></span><span className="tl">More</span>
+              <span className="ti" style={{ background: "#EEF1F5", color: "#3B4654" }}><Icon d="more" size={24} /></span><span className="tl">More</span>
             </button>
           </div>
         </div>
@@ -208,7 +207,7 @@ export function Home() {
           <button className="qbtn" onClick={() => { setArea({ mode: "near", radius: area.mode === "near" ? area.radius : 5 }); toList(); }}><Icon d="near" size={22} />Near me</button>
           <a className="qbtn" href="#/map"><Icon d="map" size={22} />Map</a>
           <button className="qbtn" onClick={() => setPicking(true)}><Icon d="pin" size={22} />Pincode</button>
-          <a className="qbtn" href="#/savings"><Icon d="heart" size={22} />Savings</a>
+          <a className="qbtn" href="#/contacts"><Icon d="phone" size={22} />History</a>
         </div>
 
         {!isCustomer && (session
@@ -232,7 +231,6 @@ export function Home() {
           <MiniRail title="Gym, classes & schools" icon="ball" color="#3E7A0F" items={byCat("sports", "education", "admissions")} />
           <MiniRail title="Shops & more" icon="bag" color="#8A6100" items={byCat("retail", "electronics", "other")} />
           <Shops offers={live} />
-          <SavingsCard />
         </>}
 
         <div ref={listRef} className="shead" style={{ scrollMarginTop: 12 }}>
@@ -269,7 +267,7 @@ function Featured({ offers }) {
   }, [offers.length]);
   if (!offers.length) return null;
   const o = offers[i % offers.length];
-  const bg = FEATURE_BG[o.category] || "#3A1D8F";
+  const bg = FEATURE_BG[o.category] || "#12355B";
   const st = catStyle(o.category);
   return (
     <a className="feature" href={"#/offer/" + o.id} style={{ background: bg }} key={o.id}>
@@ -488,7 +486,7 @@ export function OfferPage({ id }) {
   const share = async () => {
     if (!validPhone(profile?.phone)) { toast("Add your phone number in Account first"); navigate("/account"); return; }
     setBusy(true); setConfirmShare(false);
-    try { await api.shareNumber(offer.id); setShared(true); toast(`Your number was sent to ${offer.business?.name}`); }
+    try { await api.shareNumber(offer.id); setShared(true); toast(`${offer.business?.name} knows you are interested`); }
     catch (e) { toast(errText(e)); }
     setBusy(false);
   };
@@ -529,7 +527,7 @@ export function OfferPage({ id }) {
                 <div className="muted" style={{ marginTop: 6 }}>{session ? `Your account doesn't have an active ${PLANS.customer.name}.` : "Log in to see the owner's number."}</div>
                 {!session && <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>Log in</a>}
               </> : <>
-                <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number, call or WhatsApp them, and share your number with them.</div>
+                <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number and contact them, and share your number with them.</div>
                 <a className="btn main" style={{ marginTop: 12 }} href={session ? "#/plans" : `#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>
                   {session ? `🔓 See plans · from ${rupee(Math.round(PLANS.customer.options[3].price / 12))}/month` : "🔓 Log in to see the number"}
                 </a>
@@ -540,15 +538,10 @@ export function OfferPage({ id }) {
           ) : !contact ? <Spinner /> : (
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>
-              <div className="two" style={{ marginTop: 10 }}>
-                <a className="btn call" href={telLink(contact.phone)} onClick={() => api.logContact(offer.id, "Called")}><Icon d="phone" size={18} stroke={2.2} />Call</a>
-                {contact.whatsapp
-                  ? <a className="btn wa" href={waLink(contact.phone, contactText)} target="_blank" rel="noreferrer" onClick={() => api.logContact(offer.id, "WhatsApp")}><Icon d="whatsapp" size={18} stroke={2.2} />WhatsApp</a>
-                  : <button className="btn ghost" disabled>WhatsApp off</button>}
-              </div>
+              <div className="muted small" style={{ marginTop: 6 }}>Contact the business on this number. Businesses never see your number.</div>
               {!ended && (
                 <button className="btn ghost" style={{ marginTop: 10 }} disabled={shared || busy} onClick={askShare}>
-                  <Icon d={shared ? "check" : "share"} size={18} stroke={2.2} />{shared ? "Your number was shared with the owner" : busy ? "Sharing…" : `Share my number${profile?.phone ? ` (${prettyPhone(profile.phone)})` : ""} with the owner`}
+                  <Icon d="check" size={18} stroke={2.2} />{shared ? "The business knows you're interested" : busy ? "Sending…" : "I'm interested (sends only your name)"}
                 </button>
               )}
             </>
@@ -562,10 +555,9 @@ export function OfferPage({ id }) {
       {reporting && <ReportSheet offerId={offer.id} onClose={() => setReporting(false)} />}
       {confirmShare && (
         <Sheet onClose={() => setConfirmShare(false)}>
-          <h2 className="title" style={{ fontSize: 19 }}>Share your number?</h2>
-          <p className="muted"><b>{offer.business?.name}</b> will get your name ({profile?.name || "not set"}) and mobile number <b>{prettyPhone(profile?.phone)}</b>, so they can call or WhatsApp you about "{offer.title}".</p>
-          <p className="muted small">They may use it only for this offer. You can report misuse from this page. See the <a className="link" href="#/privacy">privacy notice</a>.</p>
-          <div className="gap"><button className="btn ghost" onClick={() => setConfirmShare(false)}>Cancel</button><button className="btn main" onClick={share}>Share my number</button></div>
+          <h2 className="title" style={{ fontSize: 19 }}>Tell the business you're interested?</h2>
+          <p className="muted"><b>{offer.business?.name}</b> will see only your name ({profile?.name || "not set"}). Your number is never shown to businesses; you contact them.</p>
+          <div className="gap"><button className="btn ghost" onClick={() => setConfirmShare(false)}>Cancel</button><button className="btn main" onClick={share}>Send my name</button></div>
         </Sheet>
       )}
     </>
@@ -612,7 +604,7 @@ function ContactsInner() {
 
   return (
     <>
-      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted. Tap call or WhatsApp to reach them again.</div></div></div>
+      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted, with their numbers.</div></div></div>
       <div style={{ height: 12 }} />
       {!isCustomer ? (
         <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={`Needs the ${PLANS.customer.name}`} action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
@@ -628,8 +620,7 @@ function ContactsInner() {
               <div className="muted small ellipsis">{c.offer.title}</div>
               <div className="muted small">{c.how} · {ago(c.at)}{p?.error ? " · can't contact now" : ""}</div>
             </a>
-            {p?.phone && <a className="icon-btn" aria-label="Call" href={telLink(p.phone)} onClick={() => api.logContact(c.offer.id, "Called")}><Icon d="phone" size={18} stroke={2} /></a>}
-            {p?.phone && p.whatsapp && <a className="icon-btn wa" aria-label="WhatsApp" target="_blank" rel="noreferrer" href={waLink(p.phone, `Hi, about your ${APP_NAME} offer: "${c.offer.title}"`)} onClick={() => api.logContact(c.offer.id, "WhatsApp")}><Icon d="whatsapp" size={18} stroke={2} /></a>}
+            {p?.phone && <span className="muted small" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{prettyPhone(p.phone)}</span>}
             {c.offer.businessId && <button className="icon-btn soft" aria-label={`Rate ${c.offer.business?.name}`} onClick={() => setRating(c.offer)}><Icon d="star" size={18} stroke={2} /></button>}
           </div>
         );
@@ -717,13 +708,11 @@ function AccountInner() {
       <div className="form panel" style={{ margin: "0 14px 6px", padding: 14 }}>
         <div className="fld"><label>Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="fld"><label>Phone number</label><input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile number" />
-          <span className="hint">Shared with an owner only when you tap "Share my number".</span></div>
+          <span className="hint">Never shown to businesses.</span></div>
         {dirty && <button className="btn dark" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>}
       </div>
 
       <MenuGroup title="Your LastPick" items={[
-        !IS_OWNER_APP && ["heart", "My savings", "#/savings", "#E3F4EA", "#0F7A43"],
-        (IS_OWNER_APP || business) && ["chart", `Business from ${APP_NAME}`, "#/owner/insights"],
         ["card", "Plans and pricing", "#/plans"],
         isStaff && ["shield", profile?.role === "moderator" ? "Moderator panel" : "Admin panel", "#/admin"],
         IS_CUSTOMER_APP ? ["store", "Own a business? Get LastPick Business", PARTNER_URL, "#FFF1E0", "#B35A00", true]

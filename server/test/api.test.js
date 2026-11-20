@@ -99,7 +99,8 @@ test("partner: business, verification, offers, daily limit", async () => {
   assert.equal(b.data.status, "pending");
   bizId = b.data.id;
 
-  const ends = Date.now() + 6 * 3600000;
+  const tonight = Math.floor((Date.now() + 19800000) / 86400000) * 86400000 - 19800000 + 86400000 - 60000; // 11:59 PM India time
+  const ends = Math.min(Date.now() + 6 * 3600000, tonight);
   // only trusted (verified) partners can post
   const early = await p.post("/api/owner/offers", { title: "Evening samosas", category: "food", origPrice: 100, price: 40, endsAt: ends });
   assert.equal(early.status, 403);
@@ -174,7 +175,7 @@ test("partner: leads, reply, end offer", async () => {
   await p.login("owner@test.lastpick.in");
   const leads = await p.get("/api/owner/leads");
   assert.equal(leads.data.length, 1);
-  assert.equal(leads.data[0].phone, "+919999900004");
+  assert.equal(leads.data[0].phone, undefined, "partners never see customer numbers"); assert.ok(leads.data[0].name);
   assert.equal((await p.patch(`/api/owner/leads/${leads.data[0].id}`, { status: "contacted" })).status, 200);
   const rv = (await p.get("/api/owner/reviews")).data[0];
   assert.equal((await p.post(`/api/reviews/${rv.id}/reply`, { text: "Thank you!" })).status, 200);
@@ -295,7 +296,7 @@ test("support conversations", async () => {
   assert.equal((await c.get(`/api/support/${t.data.id}`)).data.status, "open");
 });
 
-test("own category only, offers within 24 hours, local job openings", async () => {
+test("own category only, everything ends the same day, local job openings", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");
   // the daily limit was used earlier: lift it for this test by ageing today's posts
@@ -304,22 +305,22 @@ test("own category only, offers within 24 hours, local job openings", async () =
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'");
   await pool.end();
   // every business can post a job opening at its shop: pay instead of a discount, up to 7 days, only in the local area
-  const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: Date.now() + 3 * 86400000 });
+  const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: Date.now() + 30 * 60000 });
   assert.equal(job.status, 200, JSON.stringify(job.data));
   const cj = client("customer");
   assert.ok((await cj.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.some((o) => o.id === job.data.id), "near: shown");
   assert.ok((await cj.get("/api/offers?pincode=560001")).data.some((o) => o.id === job.data.id), "same pincode: shown");
   assert.ok(!(await cj.get("/api/offers?lat=13.10&lng=77.62&radius=30")).data.some((o) => o.id === job.data.id), "15 km away: hidden");
-  assert.equal((await p.post("/api/owner/offers", { title: "Helper", category: "jobs", price: 500, endsAt: Date.now() + 9 * 86400000 })).status, 400);
+  assert.equal((await p.post("/api/owner/offers", { title: "Helper", category: "jobs", price: 500, endsAt: Date.now() + 2 * 86400000 })).status, 400, "nothing runs past today");
   // longer than 24 hours is refused (no 120-day admission campaigns any more)
   const long = await p.post("/api/owner/offers", { title: "Cake pre-orders, 20% off", category: "food", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
   assert.equal(long.status, 400);
-  assert.match(long.data.error, /24 hours/);
+  assert.match(long.data.error, /same day/);
   // not its category (movie tickets, travel): refused for this food & stay business
-  assert.equal((await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 4 * 3600000 })).status, 403);
-  assert.equal((await p.post("/api/owner/offers", { title: "Bus seats", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 3600000 })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 20 * 60000 })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Bus seats", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 60000 })).status, 403);
   // a room for tonight (hotels stay open 24×7)
-  const room = await p.post("/api/owner/offers", { title: "Room for tonight", category: "stay", origPrice: 3000, price: 1800, endsAt: Date.now() + 20 * 3600000 });
+  const room = await p.post("/api/owner/offers", { title: "Room for tonight", category: "stay", origPrice: 3000, price: 1800, endsAt: Date.now() + 20 * 60000 });
   assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 

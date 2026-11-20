@@ -58,11 +58,11 @@ function seed() {
   const subs = ["u-own", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o10", "o11", "o12", "o14", "o15", "o16", "o17", "o18", "o19", "o20", "o21", "o22"].map((u) => ({ userId: u, plan: "owner", status: "active", currentPeriodEnd: n + 20 * D, provider: "demo" }));
   const o = (b, category, emoji, title, description, origPrice, price, quantity, endsIn, views) => ({
     id: rid(), businessId: b, title, description, category, emoji, photoUrl: null, origPrice, price, quantity,
-    endsAt: n + endsIn, status: "live", views, createdAt: n - 26 * H,
+    endsAt: Math.min(n + endsIn, tonight() - 60000), status: "live", views, createdAt: n - 26 * H,
   });
   const offers = [
     o("b1", "food", "🎂", "Fresh cakes & pastries before closing", "Today's cakes, pastries and breads at half price. Come before 10:30 PM.", 600, 299, "7 left", 95 * 60000, 142),
-    o("b1", "food", "🥐", "Croissant box of 6 for tomorrow morning", "Order tonight, collect fresh at 8 AM.", 420, 260, "10 boxes", 9 * H, 63),
+    o("b1", "food", "🥐", "Croissant box of 6, 35% off till closing", "Fresh from today's last batch.", 420, 260, "10 boxes", 9 * H, 63),
     o("b2", "stay", "🛏️", "Deluxe AC room for tonight", "Double bed, breakfast included. Check-in till midnight.", 3800, 1999, "3 rooms", 5 * H, 211),
     o("b3", "tailor", "🧵", "Blouse stitching ₹350 (normally ₹500), today's orders", "Ready in 3 days. Bring your fabric before 8 PM.", 500, 350, "15 orders", 10 * H, 188),
     o("b4", "travel", "🚌", "AC sleeper to Chennai, leaves 10:45 PM", "6 seats unsold. Board at Majestic bus stand.", 1400, 799, "6 seats", 150 * 60000, 96),
@@ -85,8 +85,8 @@ function seed() {
     o("b16", "grocery", "🥬", "Fresh vegetables 30% off till closing", "Today's stock of vegetables and fruits.", 300, 210, "Today's stock", 8 * H, 73),
     o("b16", "grocery", "🍚", "Rice + dal + oil combo, 20% off today", "5 kg rice, 1 kg toor dal, 1 L oil.", 900, 720, "25 combos", 12 * H, 58),
     // job openings at the partner's own shop (local ads, shown within 10 km)
-    o("b1", "jobs", "📣", "Bakery helper needed, 7 AM – 3 PM", "Packing and counter work at Sunrise Bakery. Food and weekly off.", 12000, 12000, "Pay per month", 3 * D, 91),
-    o("b16", "jobs", "🛵", "Delivery person with own bike", "Home delivery within 3 km of Indiranagar Kirana Stores. Fuel paid.", 15000, 15000, "Pay per month", 5 * D, 66),
+    o("b1", "jobs", "📣", "Bakery helper needed, 7 AM – 3 PM", "Packing and counter work at Sunrise Bakery. Food and weekly off.", 12000, 12000, "Pay per month", 3 * H, 91),
+    o("b16", "jobs", "🛵", "Delivery person with own bike", "Home delivery within 3 km of Indiranagar Kirana Stores. Fuel paid.", 15000, 15000, "Pay per month", 4 * H, 66),
   ];
   const leads = [
     { id: rid(), offerId: offers[0].id, businessId: "b1", customerId: "x1", name: "Ravi Kumar", phone: "9876543210", status: "new", createdAt: n - 12 * 60000 },
@@ -178,6 +178,7 @@ const emit = () => listeners.forEach((cb) => cb());
 // working hours 6 AM - 11 PM India time; hotels and travel stay open 24x7; hiring ads and local sales only within 10 km
 const ALWAYS_OPEN = ["stay", "travel"];
 const LOCAL_ONLY = ["jobs"];
+const tonight = () => Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H + D;
 const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 6 || h >= 23; };
 const openNow = (o) => !night() || ALWAYS_OPEN.includes(o.category);
 const snapOf = (db, c) => c.snap || (() => { const o = db.offers.find((x) => x.id === c.offerId); return o ? { title: o.title, category: o.category, price: o.price, origPrice: o.origPrice, businessId: o.businessId } : null; })();
@@ -350,10 +351,10 @@ export const api = {
     if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
     if (o.category === "jobs") {
       if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
-      if (o.endsAt > Date.now() + 7 * D + 60000) throw new Error("Hiring ads can run for up to 7 days");
+      if (o.endsAt > tonight()) throw new Error("Everything posted must end today (before midnight)");
     } else {
       if (!(o.price < o.origPrice)) throw new Error("Offer price must be lower than the normal price");
-      if (o.endsAt > Date.now() + D + 60000) throw new Error("Offers must end within 24 hours");
+      if (o.endsAt > tonight()) throw new Error("Offers are for the same day: they must end today (before midnight)");
     }
     if (!b.city || !b.state || !b.pincode) throw new Error("Add your city, state and pincode in Business profile first");
     const dayStart = Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H;
@@ -478,13 +479,13 @@ export const api = {
     return db.contacts.filter((c) => c.customerId === u.id).sort((a, b) => b.at - a.at)
       .map((c) => { const o = db.offers.find((x) => x.id === c.offerId); return o && { offer: withBiz(db, o), how: c.how, at: c.at }; }).filter(Boolean);
   },
-  async ownerLeads() {
+  async ownerLeads() { // names only: partners never see customer numbers
     const db = load(); const u = me(db);
     const b = db.businesses.find((x) => x.ownerId === u.id);
     if (!b || !hasPlan(db, u.id, "owner")) return [];
     return db.leads.filter((l) => l.businessId === b.id).sort((a, c) => c.createdAt - a.createdAt).map((l) => {
       const o = db.offers.find((x) => x.id === l.offerId);
-      return { ...l, offerTitle: o?.title || "", offerEmoji: o?.emoji || "📦" };
+      return { ...l, phone: undefined, offerTitle: o?.title || "", offerEmoji: o?.emoji || "📦" };
     });
   },
   async setLeadStatus(id, status) { const db = load(); const l = db.leads.find((x) => x.id === id); if (l) l.status = status; save(db); },

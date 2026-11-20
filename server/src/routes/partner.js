@@ -14,7 +14,7 @@ import {
 // own shop, shown like an advertisement only to customers in that area.
 const CATEGORY_IDS = ["food", "stay", "travel", "grocery", "beauty", "laundry", "vehicle", "sports", "admissions", "education",
   "retail", "electronics", "services", "photo", "decor", "makeup", "tailor", "pets", "other"];
-const HIRING_MAX_MS = 7 * 86400000; // job openings may run up to 7 days; offers only 24 hours
+const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
 
@@ -94,11 +94,11 @@ export function partnerRoutes(r) {
     if (!hiring && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
-      if (!(endsAt > Date.now()) || endsAt > Date.now() + HIRING_MAX_MS + 60000) throw bad("Job openings can run for up to 7 days");
+      if (!(endsAt > Date.now()) || endsAt > startOfDayIST() + DAY) throw bad("Everything posted must end today (before midnight)");
     } else {
-      // offers and discounts only: the offer price must be lower than the normal price, and it must end within 24 hours
+      // offers and discounts only: the offer price must be lower than the normal price, and it must end the same day
       if (!(origPrice > 0) || !(price >= 0) || !(price < origPrice) || origPrice > 1e9) throw bad("Offer price must be lower than the normal price");
-      if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Offers must end within 24 hours");
+      if (!(endsAt > Date.now()) || endsAt > startOfDayIST() + DAY) throw bad("Offers are for the same day: they must end today (before midnight)");
     }
     const photoThumb = isDataImage(d.photoThumb, 30000) ? d.photoThumb : null;
     const photo = isDataImage(d.photo, 200000) ? d.photo : null;
@@ -144,9 +144,9 @@ export function partnerRoutes(r) {
   // ---------- leads (customers who shared their number) ----------
   r.get("/api/owner/leads", async (ctx) => {
     const u = needUser(ctx);
-    if (!(await planActive(u.id, "owner"))) return []; // leads show only while Business Pro is active
+    if (!(await planActive(u.id, "owner"))) return []; // leads show only while Business Pro is active; partners see the customer's name, never the number
     const rows = await many("SELECT * FROM leads WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 300", [u.id]);
-    return rows.map((x) => ({ id: x.id, offerId: x.offer_id, offerTitle: x.offer_title, offerEmoji: x.offer_emoji, name: x.name, phone: x.phone, status: x.status, createdAt: ms(x.created_at) }));
+    return rows.map((x) => ({ id: x.id, offerId: x.offer_id, offerTitle: x.offer_title, offerEmoji: x.offer_emoji, name: x.name, status: x.status, createdAt: ms(x.created_at) }));
   });
   r.patch("/api/owner/leads/:id", async (ctx) => {
     const u = needUser(ctx);

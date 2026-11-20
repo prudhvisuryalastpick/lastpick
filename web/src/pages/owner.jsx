@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { BusinessCard } from "./impact.jsx";
 import { BoostSheet } from "./revenue.jsx";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, JOB_DURATIONS, categoryOf } from "../lib/config.js";
+import { APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -93,9 +92,8 @@ export function OwnerDashboard() {
         <div className="kpi"><div className="n">{business.rating?.count ? <>{Number(business.rating.avg).toFixed(1)}<span style={{ color: "#E0A800" }}>★</span></> : "–"}</div><div className="l">{business.rating?.count ? `${business.rating.count} reviews` : "No reviews yet"}</div></div>
       </div>
       <StatusBanner />
-      <BusinessCard />
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
-        <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#CFC8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
+        <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
       <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{subs.owner?.active ? `${PLANS.owner.name} active till ${day(subs.owner.currentPeriodEnd)}`
         : left > 0 ? `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then ${rupee(PLANS.owner.price)}/month, or less on longer plans.`
           : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month. There is no free version.`
@@ -112,7 +110,7 @@ export function OwnerDashboard() {
       <a className="menu-item" style={{ marginTop: 10 }} href="#/owner/reviews">⭐ Reviews {business.rating?.count ? <RatingBadge rating={business.rating} /> : <span className="muted small">none yet</span>}<span className="chev">›</span></a>
       <div className="sect"><h3>Latest interested customers</h3><a className="link small" href="#/owner/leads">See all</a></div>
       {!leads ? <Spinner /> : leads.length === 0
-        ? <div className="muted pad" style={{ paddingTop: 0 }}>When a customer taps "Share my number" on your offer, they appear here.</div>
+        ? <div className="muted pad" style={{ paddingTop: 0 }}>When a customer taps "I'm interested" on your offer, their name appears here. Customers contact you on your number.</div>
         : leads.slice(0, 4).map((l) => <LeadRow key={l.id} lead={l} onChange={load} />)}
       {!IS_OWNER_APP && <div className="pad"><button className="btn ghost" onClick={() => { setMode("customer"); navigate("/"); }}>👤 Switch to customer view</button></div>}
     </>
@@ -128,12 +126,9 @@ function LeadRow({ lead, onChange }) {
       <div className="grow">
         <div className="gap" style={{ alignItems: "center", gap: 6 }}><b style={{ fontSize: 14 }}>{lead.name}</b>
           {lead.status === "new" ? <span className="pill p-new">New</span> : lead.status === "contacted" ? <span className="pill p-mute">Contacted</span> : <span className="pill p-ok">Closed</span>}</div>
-        <div className="muted small">{prettyPhone(lead.phone)}</div>
-        <div className="muted small ellipsis">{lead.offerEmoji} {lead.offerTitle} · {ago(lead.createdAt)}</div>
+        <div className="muted small ellipsis">{lead.offerTitle} · {ago(lead.createdAt)}</div>
       </div>
-      <a className="icon-btn" aria-label="Call" href={telLink(lead.phone)} onClick={mark}>📞</a>
-      <a className="icon-btn wa" aria-label="WhatsApp" target="_blank" rel="noreferrer" onClick={mark}
-        href={waLink(lead.phone, `Hi ${lead.name}, this is ${business?.name} from ${APP_NAME}, about "${lead.offerTitle}".`)}>💬</a>
+      {lead.status === "new" && <button className="btn ghost sm" onClick={mark}>Seen</button>}
     </div>
   );
 }
@@ -147,10 +142,10 @@ export function OwnerLeads() {
   const shown = (leads || []).filter((l) => filter === "all" || l.status === filter);
   return (
     <>
-      <div className="page-h"><h1 className="title">Leads</h1><div className="muted">Customers who shared their number with you</div></div>
+      <div className="page-h"><h1 className="title">Leads</h1><div className="muted">Customers interested in your offers (names only)</div></div>
       <div className="tabs">{[["all", "All"], ["new", "New"], ["contacted", "Contacted"]].map(([id, l]) => <button key={id} className={filter === id ? "on" : ""} onClick={() => setFilter(id)}>{l}</button>)}</div>
       {!leads ? <Spinner /> : shown.length === 0
-        ? <Empty icon="📭" title="No leads here yet">When a customer taps "Share my number" on your offer, they appear here.</Empty>
+        ? <Empty icon="📭" title="No leads here yet">When a customer taps "I'm interested" on your offer, their name appears here. Customers contact you on your number.</Empty>
         : shown.map((l) => <LeadRow key={l.id} lead={l} onChange={load} />)}
     </>
   );
@@ -246,9 +241,14 @@ export function PostOffer() {
   const now = useNow(60000);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const job = f.category === "jobs";
+  // everything ends the same day: only durations that finish before midnight (India time), plus "till midnight"
+  const midnight = Math.floor((now + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000 + 86400000 - 60000;
+  const hoursLeft = (midnight - now) / 3600000;
+  const choices = [...DURATIONS.filter((h) => h < hoursLeft), "midnight"];
+  const endsAtOf = (h) => (h === "midnight" ? midnight : Math.min(Date.now() + h * 3600000, midnight));
   const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...JOB_TEMPLATES];
   const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
-  const setCategory = (c) => setF((p) => ({ ...p, category: c, hours: c === "jobs" ? (p.hours < 24 ? 72 : p.hours) : Math.min(p.hours, 24) }));
+  const setCategory = (c) => setF((p) => ({ ...p, category: c }));
 
   const price = Number(f.price);
   const orig = job ? price : Number(f.origPrice);
@@ -264,7 +264,7 @@ export function PostOffer() {
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
     title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: photo?.url || null,
-    origPrice: orig || 1, price: price || 0, quantity: f.quantity, endsAt: now + f.hours * 3600000, status: "live",
+    origPrice: orig || 1, price: price || 0, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   const onPhoto = (file) => {
@@ -282,7 +282,7 @@ export function PostOffer() {
       await api.createOffer({
         title: f.title.trim(), description: f.description.trim(), category: f.category, emoji: f.emoji,
         photoThumb: pics?.thumb || null, photo: pics?.photo || null,
-        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: Date.now() + f.hours * 3600000,
+        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours),
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
       navigate("/owner/offers");
@@ -301,10 +301,10 @@ export function PostOffer() {
   );
   return (
     <>
-      <div className="page-h"><h1 className="title">Post an offer</h1><div className="muted">A real discount that ends within 24 hours</div></div>
+      <div className="page-h"><h1 className="title">Post an offer</h1><div className="muted">A real discount for today only</div></div>
       <StatusBanner />
       {(!business.state || !business.city || !business.pincode || business.lat == null) && <a className="banner warn" href="#/owner/business">📍 Add your pincode and shop location in Business profile before posting. Customers see offers near them.</a>}
-      <div className="chips">{templates.map((t) => <button key={t.label} className="chip" onClick={() => useTemplate(t)}>{t.emoji} {t.label}</button>)}</div>
+      <div className="chips">{templates.map((t) => <button key={t.label} className="chip" onClick={() => useTemplate(t)}>{t.label}</button>)}</div>
       <div className="form">
         <div className="fld"><label>Photo (optional)</label>
           {photo
@@ -312,12 +312,11 @@ export function PostOffer() {
             : <div className="photo-drop" onClick={() => fileRef.current.click()}>📷 Add a photo of the offer</div>}
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files[0]); e.target.value = ""; }} />
         </div>
-        {!photo && <div className="fld"><label>Or pick an icon</label><div className="emoji-pick">{EMOJIS.map((e) => <button key={e} className={f.emoji === e ? "on" : ""} onClick={() => set("emoji", e)}>{e}</button>)}</div></div>}
         <div className="fld"><label>Category</label>
-          <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => { const c = categoryOf(id); return <option key={id} value={id}>{c.icon} {c.label}</option>; })}</select>
+          <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job
-            ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Runs up to 7 days."
-            : "You can post only in your registered category. Offers end within 24 hours. Hotels and travel are open 24×7; others 6 AM – 11 PM."}</span></div>
+            ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today."
+            : "You can post only in your registered category. Everything is for today and ends by midnight. Hotels and travel are open 24×7; others 6 AM – 11 PM."}</span></div>
         <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
         <div className="two">
@@ -329,8 +328,8 @@ export function PostOffer() {
         <div className="two">
           <div className="fld"><label>{job ? "Pay per" : "How many"}</label><input maxLength={60} value={f.quantity} onChange={(e) => set("quantity", e.target.value)} placeholder={job ? "e.g. Pay per month" : "e.g. 3 rooms"} /></div>
           <div className="fld"><label>{job ? "Show for" : "Offer ends in"}</label>
-            <select value={f.hours} onChange={(e) => set("hours", Number(e.target.value))}>
-              {(job ? JOB_DURATIONS : DURATIONS).map((h) => <option key={h} value={h}>{h < 24 ? `${h} hour${h > 1 ? "s" : ""}` : `${h / 24} day${h > 24 ? "s" : ""}`}</option>)}
+            <select value={choices.includes(f.hours) ? f.hours : "midnight"} onChange={(e) => set("hours", e.target.value === "midnight" ? "midnight" : Number(e.target.value))}>
+              {choices.map((h) => <option key={h} value={h}>{h === "midnight" ? "Till midnight (today)" : `${h} hour${h > 1 ? "s" : ""}`}</option>)}
             </select></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>

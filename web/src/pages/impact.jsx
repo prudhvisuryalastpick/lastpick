@@ -137,14 +137,14 @@ export function BusinessCard() {
 // ------------------------------------------------------------------ Help & support
 const FAQ = {
   customer: [
-    ["How does it work?", `Businesses near you post deals. Open one, see the owner's number, call or WhatsApp them, or share your number so they call you. You pay the business directly; ${APP_NAME} only connects you.`],
+    ["How does it work?", `Businesses near you post deals. Open one, see the business's number and contact them. Businesses never see your number. You pay the business directly; ${APP_NAME} only connects you.`],
     ["The business didn't honour the offer", "Open the offer and tap Report. We review every report and can warn, hide or suspend the business. You can also leave an honest review."],
-    ["Is my number safe?", "A business sees your number only when you tap \"Share my number\" and confirm. You can download or delete your data anytime in Account → Privacy."],
+    ["Is my number safe?", "Businesses never see your number; they see only your name if you tap \"I'm interested\". You can download or delete your data anytime in Account → Privacy."],
     ["Why was I logged out?", "Your account can be logged in on one device at a time. Logging in on a new phone logs out the old one."],
   ],
   partner: [
     ["How do I get verified?", "Fill in your business profile with your shop location and contact number. Our team checks it, usually within 1 working day."],
-    ["How many offers can I post?", "3 posts a day per business (job openings included). Every offer must end within 24 hours; a job opening can run up to 7 days."],
+    ["How many offers can I post?", "3 posts a day per business (job openings included). Everything is for the same day and ends by midnight."],
     ["What can I post?", "Only offers in the category you registered: a bakery posts bakery offers, a salon posts salon offers. Every business can also post a job opening for workers at its own shop; customers within 10 km see it like a local ad. No halls, movie tickets or selling personal items. Only verified (trusted) partners can post; we check every business first."],
     ["Is there a free version?", "No. Posting needs an active Business Pro plan, and seeing business numbers needs the Customer Pass. Longer plans cost less per month."],
     ["A customer misbehaved", "Open Leads, or contact us below. Customers who break the rules can be blocked."],
@@ -265,7 +265,7 @@ export function Rules() {
       <R icon="🤝" title={`${APP_NAME} is only a platform`}>We connect customers with local businesses and service providers. We don't sell, deliver, book, collect payment for, or guarantee any offer. Boosted and sponsored posts are paid placements, not recommendations. The deal is between you and them.</R>
       <R icon="⚖️" title="We are not responsible for the deal">Quality, safety, price, availability, refunds and anything that goes wrong in the deal are the responsibility of the business or person offering it. This doesn't take away your rights under Indian consumer law.</R>
       <R icon="⭐" title="Reviews and action on providers">Only customers who contacted a provider through {APP_NAME} can review it. If a provider fails, misleads or behaves badly, report it. We review reports and reviews and act on the provider: warning, hiding offers, suspension or removal.</R>
-      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, recognition for schools and colleges). Post only in your own registered category, up to 3 posts a day; offers end within 24 hours. Job openings for workers at your own shop are allowed. No movie tickets, halls or selling personal items. Use customers' numbers only to reply about their request.</R>
+      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, recognition for schools and colleges). Post only in your own registered category, up to 3 posts a day; everything ends the same day. Job openings for workers at your own shop are allowed. No movie tickets, halls or selling personal items. Use customers' numbers only to reply about their request.</R>
       <R icon="🙋" title="Rules for customers">Check the offer and the provider before paying. Never pay an advance to someone you haven't verified. Write honest reviews about your own experience.</R>
       <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. One account is logged in on one device at a time, to keep it safe. Download or delete your data anytime.</R>
       <R icon="🚫" title="Not allowed">Alcohol, tobacco, drugs, prescription medicines, weapons, gambling, adult content, counterfeit or stolen goods, fake reviews, spam, or anything illegal or unsafe.</R>

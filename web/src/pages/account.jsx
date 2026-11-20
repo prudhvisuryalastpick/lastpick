@@ -69,7 +69,7 @@ export function Plans({ plan: initial }) {
             : IS_NATIVE ? "Plans can't be bought inside the app yet." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
         <div className="note">{plan === "owner"
           ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category, plus job openings at your shop."
-          : "Customer Pass: see businesses' numbers and call or WhatsApp them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
+          : "Customer Pass: see businesses' numbers and contact them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
       </div>
     </>
   );

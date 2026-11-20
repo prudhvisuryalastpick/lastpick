@@ -66,7 +66,7 @@ export const savePct = (plan, o) => Math.round((1 - o.price / (PLANS[plan].price
 // Default map centre when the user doesn't share location.
 export const DEFAULT_LOCATION = { lat: 12.9716, lng: 77.5946, label: "Bengaluru" };
 
-// LastPick is built only on offers from everyday local businesses, and every offer ends within 24 hours.
+// LastPick is built only on offers from everyday local businesses, and everything ends the same day (by midnight).
 // A partner posts ONLY in its own registered category (a bakery posts only bakery offers), plus job
 // openings at its own shop. No halls, movie tickets or buy-and-sell of personal items. Keep in sync with CATEGORY_IDS in server/src/routes/partner.js.
 export const CATEGORIES = [
@@ -104,10 +104,8 @@ export const TINTS = {
 
 export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌", "🚗", "⚽", "💇", "🩺", "👕", "📱", "🎬", "🛠️", "📚", "📦", "🎁"];
 
-// Every offer must be completed within 24 hours (hours). Keep in sync with MAX_OFFER_MS on the server.
-export const DURATIONS = [1, 2, 3, 4, 6, 8, 12, 18, 24];
-// Job openings can run up to 7 days (hours).
-export const JOB_DURATIONS = [24, 48, 72, 120, 168];
+// Everything posted is for the same day and ends by midnight (India time). Keep in sync with MAX_OFFER_MS on the server.
+export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till midnight"; nothing runs past today
 // Hotels and travel stay open 24×7; everything else only during working hours (6 AM – 11 PM).
 export const ALWAYS_OPEN = ["stay", "travel"];
 
@@ -120,11 +118,11 @@ export const REPORT_REASONS = [
   "Something else",
 ];
 
-// Quick-start templates for partners. Only templates in the partner's own category are shown. Every offer ends within 24 hours.
+// Quick-start templates for partners. Only templates in the partner's own category are shown. Everything ends the same day.
 export const TEMPLATES = [
   { label: "Closing-time food", category: "food", emoji: "🍰", title: "Fresh stock before closing, half price", origPrice: 500, price: 250, quantity: "Limited stock", hours: 3 },
   { label: "Meals offer", category: "food", emoji: "🍱", title: "Today's meals at 30% off", origPrice: 200, price: 140, quantity: "40 plates", hours: 4 },
-  { label: "Tonight's rooms", category: "stay", emoji: "🛏️", title: "Rooms available for tonight", origPrice: 3000, price: 1799, quantity: "3 rooms", hours: 12 },
+  { label: "Tonight's rooms", category: "stay", emoji: "🛏️", title: "Rooms available for tonight", origPrice: 3000, price: 1799, quantity: "3 rooms", hours: 8 },
   { label: "Empty bus seats", category: "travel", emoji: "🚌", title: "Seats left on tonight's bus", origPrice: 1200, price: 700, quantity: "5 seats", hours: 6 },
   { label: "Salon slots today", category: "beauty", emoji: "💇", title: "Haircut slots free this evening, 40% off", origPrice: 400, price: 240, quantity: "5 slots", hours: 6 },
   { label: "Grocery clearance", category: "grocery", emoji: "🥬", title: "Fresh vegetables and fruits, 30% off till closing", origPrice: 300, price: 210, quantity: "Today's stock", hours: 5 },
@@ -132,20 +130,20 @@ export const TEMPLATES = [
   { label: "Bike / car service", category: "vehicle", emoji: "🔧", title: "Bike general service at 25% off today", origPrice: 800, price: 600, quantity: "6 slots", hours: 10 },
   { label: "Gym / turf slot", category: "sports", emoji: "⚽", title: "Turf slot free tonight", origPrice: 1500, price: 900, quantity: "1 slot", hours: 6 },
   { label: "School / college offer", category: "admissions", emoji: "🎓", title: "Admission form fee waived today", origPrice: 1000, price: 0, quantity: "Today only", hours: 10 },
-  { label: "Clearance sale", category: "retail", emoji: "🛍️", title: "Clearance sale, today only", origPrice: 1000, price: 499, quantity: "20 pieces", hours: 12 },
-  { label: "Photo shoot slot", category: "photo", emoji: "📷", title: "Birthday / family photo shoot, 40% off if booked today", origPrice: 5000, price: 2999, quantity: "2 slots", hours: 12 },
-  { label: "Decoration offer", category: "decor", emoji: "🎈", title: "Balloon & flower decoration, 35% off for bookings today", origPrice: 4000, price: 2600, quantity: "3 bookings", hours: 12 },
+  { label: "Clearance sale", category: "retail", emoji: "🛍️", title: "Clearance sale, today only", origPrice: 1000, price: 499, quantity: "20 pieces", hours: 8 },
+  { label: "Photo shoot slot", category: "photo", emoji: "📷", title: "Birthday / family photo shoot, 40% off if booked today", origPrice: 5000, price: 2999, quantity: "2 slots", hours: 8 },
+  { label: "Decoration offer", category: "decor", emoji: "🎈", title: "Balloon & flower decoration, 35% off for bookings today", origPrice: 4000, price: 2600, quantity: "3 bookings", hours: 8 },
   { label: "Makeup / mehendi", category: "makeup", emoji: "💄", title: "Party makeup at home, 30% off this evening", origPrice: 2500, price: 1750, quantity: "2 slots", hours: 8 },
   { label: "Tailoring", category: "tailor", emoji: "🧵", title: "Blouse stitching ₹350 (normally ₹500), today's orders", origPrice: 500, price: 350, quantity: "15 orders", hours: 10 },
   { label: "Pet grooming", category: "pets", emoji: "🐾", title: "Dog bath & grooming 40% off today", origPrice: 1000, price: 600, quantity: "6 slots", hours: 9 },
   { label: "Cake orders", category: "food", emoji: "🎂", title: "Custom cakes 25% off for orders placed today", origPrice: 1200, price: 900, quantity: "10 orders", hours: 10 },
   { label: "Event seats", category: "other", emoji: "🎟️", title: "Seats left for tonight's event, 50% off", origPrice: 400, price: 200, quantity: "30 seats", hours: 6 },
 ];
-// Job opening templates (any shop can use these). price = pay in rupees; durations up to 7 days.
+// Job opening templates (any shop can use these). price = pay in rupees; same day only.
 export const JOB_TEMPLATES = [
-  { label: "Helper needed", category: "jobs", emoji: "📣", title: "Shop helper needed, 9 AM – 6 PM", origPrice: 12000, price: 12000, quantity: "Pay per month", hours: 72 },
-  { label: "Delivery staff", category: "jobs", emoji: "🛵", title: "Delivery person with own bike", origPrice: 15000, price: 15000, quantity: "Pay per month", hours: 72 },
-  { label: "Part-time staff", category: "jobs", emoji: "🧑‍🍳", title: "Part-time staff for weekends", origPrice: 600, price: 600, quantity: "Pay per day", hours: 48 },
+  { label: "Helper needed", category: "jobs", emoji: "📣", title: "Shop helper needed, 9 AM – 6 PM", origPrice: 12000, price: 12000, quantity: "Pay per month", hours: 8 },
+  { label: "Delivery staff", category: "jobs", emoji: "🛵", title: "Delivery person with own bike", origPrice: 15000, price: 15000, quantity: "Pay per month", hours: 8 },
+  { label: "Part-time staff", category: "jobs", emoji: "🧑‍🍳", title: "Part-time staff for weekends", origPrice: 600, price: 600, quantity: "Pay per day", hours: 8 },
 ];
 
 // ---- India ----

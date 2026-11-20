@@ -43,7 +43,7 @@ export function Welcome() {
         })}
       </div>
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
-        <span className="giftpill"><Icon d="clock" size={14} stroke={2.2} />Every deal ends within 24 hours</span>
+        <span className="giftpill"><Icon d="clock" size={14} stroke={2.2} />Every deal is for today only</span>
         <h1>Deals from local businesses, near you.</h1>
         <p className="lead2">Same-day discounts from local food places, hotels, travel, salons, laundries, shops and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
         <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
@@ -260,7 +260,7 @@ export function CompleteProfile() {
         {viaPhone
           ? <div className="fld"><label htmlFor="cp-email">E-mail (optional)</label><input id="cp-email" type="email" autoComplete="email" value={other} onChange={(e) => setOther(e.target.value)} placeholder="For receipts and account help" /></div>
           : <div className="fld"><label htmlFor="cp-phone">Mobile number (India)</label><input id="cp-phone" inputMode="tel" autoComplete="tel" value={other} onChange={(e) => setOther(e.target.value)} placeholder="+91 98765 43210" />
-            <span className="hint">Shared with a business only when you tap "Share my number".</span></div>}
+            <span className="hint">Never shown to businesses.</span></div>}
         <details className="box small"><summary style={{ cursor: "pointer", fontWeight: 600 }}>What we collect and why</summary>
           {NOTICE_ITEMS.map((n) => <div key={n.data} style={{ paddingTop: 6 }}><b>{n.data}</b><div className="muted">{n.why}</div></div>)}</details>
         <ConsentBoxes value={consent} onChange={setConsent} />
