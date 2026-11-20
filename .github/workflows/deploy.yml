@@ -54,14 +54,13 @@ jobs:
 
   deploy:
     needs: test
-    # skipped until the AWS setup exists and AWS_DEPLOY_ROLE_ARN is set (see lastpick-terraform)
-    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    # AWS deploy role from lastpick-terraform (a repo variable AWS_DEPLOY_ROLE_ARN overrides it)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::983935989626:role/lastpick-github-deploy' }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Read deploy settings (written by Terraform)
