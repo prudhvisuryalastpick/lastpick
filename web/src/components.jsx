@@ -94,7 +94,7 @@ export function NeedLogin({ children, why = "Log in to continue" }) {
   if (loading) return <Spinner />;
   if (!session) {
     const next = encodeURIComponent(window.location.hash.slice(1) || "/");
-    return <Empty icon="🔐" title={why} action={<a className="btn main" href={`#/login?next=${next}`}>Log in or sign up</a>}>It takes less than a minute.</Empty>;
+    return <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={why} action={<a className="btn main" style={{ maxWidth: 320 }} href={`#/login?next=${next}`}><Icon d="user" size={18} stroke={2.2} />Log in or sign up</a>}>It takes less than a minute.</Empty>;
   }
   return children;
 }
