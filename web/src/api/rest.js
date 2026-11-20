@@ -59,14 +59,14 @@ export const api = {
   },
   onAuthChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
   async signIn(email, password) { const r = await post("/api/auth/login", { email: email.trim(), password }); clearCache(); setToken(r.token); },
-  async signUp({ email, password, name, phone, consent }) {
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, consent: consent ? { adult: !!consent.adult, items: consent.items || [] } : undefined });
+  async signUp({ email, password, name, phone, consent, otp }) {
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, consent: consent ? { adult: !!consent.adult, items: consent.items || [] } : undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },
   async sendPhoneOtp() { await post("/api/auth/otp/send", {}); },
   async verifyPhoneOtp() { await post("/api/auth/otp/verify", {}); return { isNew: false }; },
-  async sendEmailOtp() { await post("/api/auth/otp/send", {}); },
+  async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
   async verifyEmailOtp() { await post("/api/auth/otp/verify", {}); return { isNew: false }; },
   async completeProfile({ name, phone, consent }) {
     await post("/api/me/complete-profile", { name, phone, consent: { adult: !!consent.adult, items: consent.items || [] } });

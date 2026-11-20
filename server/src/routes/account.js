@@ -1,7 +1,8 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { SERVICE, SIGNUP } from "../config.js";
+import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
+import { sendEmail } from "../mail.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -66,6 +67,31 @@ export function accountRoutes(r) {
     return { token: issueToken(fresh), user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
 
+  // ---------- e-mail one-time codes (sign-up verification) ----------
+  const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
+  const checkCode = async (email, code) => {
+    const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
+    if (!row || new Date(row.expires_at) < new Date()) throw bad("The code has expired. Ask for a new one.");
+    if (row.attempts > 5) throw bad("Too many wrong tries. Ask for a new code.");
+    const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
+    if (!ok) throw bad("That code is not right. Please check the e-mail and try again.");
+    await q("DELETE FROM otp_codes WHERE email = $1", [email]);
+  };
+  r.post("/api/auth/otp/send", async ({ body, ip }) => {
+    if (!MAIL_FROM) throw precondition("E-mail codes aren't switched on yet.");
+    const email = normEmail(body.email);
+    if (!validEmail(email)) throw bad("Please enter a valid email");
+    await limit("ip:" + ip, "otp", 10, 3600);
+    await limit("email:" + email, "otp", 5, 3600, "Too many codes for this e-mail. Try again in an hour.");
+    const code = String(crypto.randomInt(100000, 1000000));
+    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
+             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
+      [email, codeHash(email, code)]);
+    await sendEmail(email, `${code} is your LastPick code`,
+      `Your LastPick verification code is ${code}\n\nIt expires in 10 minutes. If you didn't ask for it, ignore this e-mail.`);
+    return { sent: true };
+  }, { limit: "auth" });
+
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
     if (SERVICE === "admin") throw denied("Admin accounts are created by another admin");
     if (SIGNUP === "closed") throw denied("Sign-up opens soon. Please use a test account.");
@@ -77,6 +103,7 @@ export function accountRoutes(r) {
     if (name.length < 2) throw bad("Please enter your name");
     if (body.phone && !phone) throw bad("Please enter a valid Indian mobile number");
     await limit("ip:" + ip, "signup", 10, 3600);
+    if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -97,9 +124,8 @@ export function accountRoutes(r) {
     await q("UPDATE users SET token_version = token_version + 1 WHERE id = $1", [u.id]);
   });
 
-  // One-time codes (SMS / e-mail) and password reset come with the real login, later.
+  // SMS codes and password reset come later.
   const later = async () => { throw precondition("One-time codes aren't switched on yet. Please log in with e-mail and password."); };
-  r.post("/api/auth/otp/send", later, { limit: "auth" });
   r.post("/api/auth/otp/verify", later, { limit: "auth" });
   r.post("/api/auth/reset", async () => { throw precondition("Password reset isn't switched on yet. Please contact support."); }, { limit: "auth" });
 

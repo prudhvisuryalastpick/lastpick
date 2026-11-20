@@ -65,6 +65,11 @@ after(() => procs.forEach((p) => p.kill("SIGTERM")));
 const tonightIST = () => Math.floor((Date.now() + 19800000) / 86400000) * 86400000 - 19800000 + 86400000 - 1000;
 const soon = (min) => Math.min(Date.now() + min * 60000, tonightIST());
 
+test("e-mail codes: refused cleanly while e-mail isn't set up", async () => {
+  const r = await client("customer").post("/api/auth/otp/send", { email: "someone@test.lastpick.in" });
+  assert.equal(r.status, 409);
+});
+
 test("each server has only its own routes", async () => {
   const c = client("customer"), p = client("partner"), a = client("admin");
   assert.equal((await c.get("/api/admin/stats")).status, 404);

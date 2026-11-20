@@ -42,3 +42,6 @@ export const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS || "https://localhost,ca
 // Sign-up through the API. "closed" (default) = test accounts only, until the real login/registration is built.
 export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
 export const LOG_LEVEL = env.LOG_LEVEL || "info";
+// E-mail one-time codes (Amazon SES). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
+export const MAIL_FROM = env.MAIL_FROM || "";
+export const AWS_REGION = env.AWS_REGION || env.AWS_DEFAULT_REGION || "ap-south-1";

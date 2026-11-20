@@ -135,6 +135,8 @@ export function Login({ next = "/" }) {
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [consent, setConsent] = useState({ adult: false, agree: false });
+  const [otp, setOtp] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const signUp = async (e) => {
     e.preventDefault(); setErr("");
     if (name.trim().length < 2) return setErr("Enter your name");
@@ -144,7 +146,12 @@ export function Login({ next = "/" }) {
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
     setBusy(true);
     try {
-      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent) });
+      if (!codeSent) {
+        // step 1: e-mail a 6-digit code (if e-mail codes aren't switched on, the account is created straight away)
+        const sent = await api.sendEmailOtp(email).then(() => true).catch((x) => { if (/switched on/i.test(errText(x))) return false; throw x; });
+        if (sent) { setCodeSent(true); toast(`We sent a 6-digit code to ${email.trim()}`); setBusy(false); return; }
+      } else if (!/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim() });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
       await refresh();
       if (IS_OWNER_APP) navigate("/owner/business");
@@ -225,8 +232,11 @@ export function Login({ next = "/" }) {
           <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <ConsentBoxes value={consent} onChange={setConsent} />
+          {codeSent && <div className="fld"><label htmlFor="su-otp">6-digit code sent to {email.trim()}</label>
+            <input id="su-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+            <span className="hint">Didn't get it? Check spam, or <button type="button" className="link small" onClick={() => { setCodeSent(false); setOtp(""); }}>send a new code</button>.</span></div>}
           {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy}>{busy ? "Creating…" : "Create account"}</button>
+          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : "Send verification code"}</button>
           <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
         </form>
       </>}
