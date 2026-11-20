@@ -24,11 +24,11 @@ async function offerFor(ctx, id) {
   return o;
 }
 
-// After working hours only jobs and travel stay listed.
+// After working hours only hotels and travel stay listed.
 const hoursSql = () => (isNight() ? `o.category IN (${ALWAYS_OPEN.map((c) => `'${c}'`).join(", ")})` : "true");
 function needOpen(o) {
   if (isNight() && !ALWAYS_OPEN.includes(o.category)) {
-    const e = precondition(`This business is closed for the night. Contact them after ${BUSINESS_HOURS.open} AM. Jobs and travel stay open 24×7.`);
+    const e = precondition(`This business is closed for the night. Contact them after ${BUSINESS_HOURS.open} AM. Hotels and travel stay open 24×7.`);
     e.code = "closed_for_night";
     throw e;
   }
@@ -45,11 +45,6 @@ async function feed(where, params, cacheKey) {
   });
 }
 const notEnded = (list) => list.filter((o) => o.endsAt > Date.now());
-// Job openings and things locals are selling are shown only in the local area:
-// within LOCAL_KM of the customer (near me), or the same pincode. Never in the whole-city feed.
-export const LOCAL_ONLY = ["jobs", "sell"];
-export const LOCAL_KM = 10;
-const LOCAL_SQL = `o.category NOT IN ('jobs', 'sell')`;
 
 // Read-only offer pages, used by all three apps.
 export function offerViewRoutes(r) {
@@ -72,8 +67,8 @@ export function offerRoutes(r) {
       const dLat = km / 111.2, dLng = km / (111.2 * Math.max(0.1, Math.cos((lat * Math.PI) / 180)));
       const dist = "2 * 6371 * asin(sqrt(power(sin(radians(b.lat - $5) / 2), 2) + cos(radians($5)) * cos(radians(b.lat)) * power(sin(radians(b.lng - $6) / 2), 2)))";
       return notEnded(await feed(
-        `b.lat BETWEEN $1 AND $2 AND b.lng BETWEEN $3 AND $4 AND ${dist} <= $7 AND (${LOCAL_SQL} OR ${dist} <= $8)`,
-        [lat - dLat, lat + dLat, lng - dLng, lng + dLng, lat, lng, km, LOCAL_KM], `near:${lat},${lng},${km}`));
+        `b.lat BETWEEN $1 AND $2 AND b.lng BETWEEN $3 AND $4 AND ${dist} <= $7`,
+        [lat - dLat, lat + dLat, lng - dLng, lng + dLng, lat, lng, km], `near:${lat},${lng},${km}`));
     }
     if (query.pincode) {
       const pin = String(query.pincode).replace(/\D/g, "");
@@ -82,7 +77,7 @@ export function offerRoutes(r) {
     }
     const city = str(query.city, 80);
     if (!city) throw bad("Pick a city");
-    return notEnded(await feed(`b.city_key = $1 AND ${LOCAL_SQL}`, [city], `city:${city}`));
+    return notEnded(await feed(`b.city_key = $1`, [city], `city:${city}`));
   }, { cache: "public, max-age=30" });
 
   r.get("/api/cities", async () => {

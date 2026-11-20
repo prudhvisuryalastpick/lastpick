@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
 import { BackButton, Empty, NeedLogin, PlanCard, Spinner } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, TRIAL_DAYS, planLabel, savePct } from "../lib/config.js";
@@ -133,7 +134,7 @@ function AdminInner() {
   const [tab, setTab] = useState("overview");
   if (!isStaff) return <Empty icon="⛔" title="Admins only">Your account doesn't have admin access.</Empty>;
   const tabs = isAdmin
-    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["plans", "Plans"], ["team", "Team"]]
+    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"], ["plans", "Plans"], ["team", "Team"]]
     : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"]];
   return (
     <>
@@ -149,6 +150,7 @@ function AdminInner() {
       {tab === "support" && <AdminSupport toast={toast} />}
       {tab === "complaints" && isAdmin && <AdminComplaints toast={toast} />}
       {tab === "users" && isAdmin && <AdminUsers toast={toast} />}
+      {tab === "revenue" && isAdmin && <AdminRevenue toast={toast} />}
       {tab === "plans" && isAdmin && <AdminPlans toast={toast} />}
       {tab === "team" && isAdmin && <AdminTeam toast={toast} />}
     </>

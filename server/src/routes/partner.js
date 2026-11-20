@@ -9,9 +9,13 @@ import {
   MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
 } from "../util.js";
 
-// keep in sync with CATEGORIES in web/src/lib/config.js
-const CATEGORY_IDS = ["food", "grocery", "stay", "venue", "travel", "rental", "sports", "beauty", "health", "admissions", "trips", "sell", "jobs", "retail", "electronics", "events", "services", "education", "other"];
-const ADMISSIONS_MAX_MS = 120 * 86400000; // admission campaigns may run up to 120 days
+// Keep in sync with CATEGORIES in web/src/lib/config.js. LastPick is built only on offers from everyday local
+// businesses: Food, Hotels and Travel first. "other" (Others) takes anything else. No halls, movie tickets,
+// job posts or buy-and-sell of personal items.
+const CATEGORY_IDS = ["food", "stay", "travel", "trips", "rental", "grocery", "beauty", "health", "pharmacy", "laundry", "vehicle",
+  "sports", "admissions", "education", "retail", "electronics", "services",
+  "photo", "decor", "makeup", "catering", "cleaning", "tailor", "pets", "other"];
+export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
 
 async function myBusiness(uid) {
@@ -27,8 +31,8 @@ export function partnerRoutes(r) {
     const u = needUser(ctx);
     const b = ctx.body || {};
     const name = str(b.name, 100);
-    const category = CATEGORY_IDS.includes(b.category) ? b.category : "other";
-    const categories = [...new Set([category, ...(Array.isArray(b.categories) ? b.categories : [])])].filter((c) => CATEGORY_IDS.includes(c)).slice(0, MAX_CATEGORIES);
+    const category = normCategory(b.category);
+    const categories = [...new Set([category, ...(Array.isArray(b.categories) ? b.categories : []).map(normCategory)])].slice(0, MAX_CATEGORIES);
     const phone = indianPhone(b.phone);
     const pincode = String(b.pincode || "").replace(/\D/g, "");
     const lat = typeof b.lat === "number" && Math.abs(b.lat) <= 90 ? b.lat : null;
@@ -83,14 +87,10 @@ export function partnerRoutes(r) {
     const title = str(d.title, 120);
     const origPrice = Number(d.origPrice), price = Number(d.price), endsAt = Number(d.endsAt);
     if (title.length < 3) throw bad("Title is too short");
-    if (d.category === "jobs") {
-      if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
-    } else if (!(origPrice > 0) || !(price >= 0) || !(price < origPrice) || origPrice > 1e9) throw bad("Offer price must be lower than the normal price");
-    const maxMs = d.category === "admissions" ? ADMISSIONS_MAX_MS : MAX_OFFER_MS;
-    if (!(endsAt > Date.now()) || endsAt > Date.now() + maxMs + 60000) throw bad(d.category === "admissions" ? "Admission offers can run for up to 120 days" : "Offers can run for up to 30 days");
-    // verified (trusted) partners can post anything that creates business, in any category
-    // (prohibited items are covered by the Terms and removed through reports)
-    const category = CATEGORY_IDS.includes(d.category) ? d.category : (b.category || "other");
+    const category = d.category ? normCategory(d.category) : normCategory(b.category);
+    // offers and discounts only: the offer price must be lower than the normal price, and it must end within 24 hours
+    if (!(origPrice > 0) || !(price >= 0) || !(price < origPrice) || origPrice > 1e9) throw bad("Offer price must be lower than the normal price");
+    if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Offers must end within 24 hours");
     const photoThumb = isDataImage(d.photoThumb, 30000) ? d.photoThumb : null;
     const photo = isDataImage(d.photo, 200000) ? d.photo : null;
 
@@ -103,8 +103,8 @@ export function partnerRoutes(r) {
       const { rows } = await c.query(
         `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-        [u.id, title, str(d.description, 1000), category, str(d.emoji, 8) || "📦", photoThumb, !!photo, category === "jobs" ? price : origPrice, price, str(d.quantity, 60),
-          new Date(endsAt), category !== "jobs" && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : []]);
+        [u.id, title, str(d.description, 1000), category, str(d.emoji, 8) || "📦", photoThumb, !!photo, origPrice, price, str(d.quantity, 60),
+          new Date(endsAt), 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : []]);
       if (photo) await c.query("INSERT INTO offer_photos (offer_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
       return { id: rows[0].id, postsLeftToday: POSTS_PER_DAY - today - 1 };
     });

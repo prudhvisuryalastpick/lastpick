@@ -32,7 +32,7 @@ export const LEGAL = {
 };
 // Bump when the privacy notice or terms change: everyone is asked to accept again. Keep in sync with functions/index.js.
 export const CONSENT_VERSION = "2026-11-20";
-// A business picks a main category plus up to 2 more, and can post only in those.
+// A business picks a main category plus up to 2 more; verified partners can post in any category.
 export const MAX_CATEGORIES = 3;
 // Each business can post this many offers per day (India time). Keep in sync with functions/index.js.
 export const POSTS_PER_DAY = 3;
@@ -55,35 +55,49 @@ export const PLANS = {
     perks: ["Post unlimited offers", "Get customers' numbers when they're interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
   },
 };
+// Boosted offers: a partner pays to feature one offer at the top of customers' home screens. Rupees by hours.
+// Keep in sync with BOOST_PRICES in server/src/routes/revenue.js.
+export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
+// UPI ID partners pay boosts to until the payment gateway is switched on (set at build time).
+export const PAY_UPI = import.meta.env?.VITE_PAY_UPI || "";
 export const planLabel = (m) => (m === 12 ? "1 year" : `${m} month${m > 1 ? "s" : ""}`);
 export const savePct = (plan, o) => Math.round((1 - o.price / (PLANS[plan].price * o.months)) * 100);
 
 // Default map centre when the user doesn't share location.
 export const DEFAULT_LOCATION = { lat: 12.9716, lng: 77.5946, label: "Bengaluru" };
 
-// Any kind of offer can be posted; "other" covers everything not listed.
+// LastPick is built only on offers from everyday local businesses, and every offer ends within 24 hours.
+// Food, Hotels and Travel come first; Others takes anything else. No halls, movie tickets, job posts
+// or buy-and-sell of personal items. Keep in sync with CATEGORY_IDS in server/src/routes/partner.js.
 export const CATEGORIES = [
   { id: "food", label: "Food & bakery", icon: "🍰" },
-  { id: "grocery", label: "Grocery", icon: "🥬" },
   { id: "stay", label: "Hotels & stays", icon: "🛏️" },
-  { id: "venue", label: "Halls & venues", icon: "💒" },
   { id: "travel", label: "Bus & travel", icon: "🚌" },
-  { id: "rental", label: "Rentals", icon: "🚗" },
-  { id: "sports", label: "Sports & fitness", icon: "⚽" },
-  { id: "beauty", label: "Salon & spa", icon: "💇" },
-  { id: "health", label: "Doctors & health camps", icon: "🩺" },
-  { id: "admissions", label: "School & college admissions", icon: "🎓" },
   { id: "trips", label: "Trips & ride share", icon: "🧳" },
-  { id: "sell", label: "Locals selling", icon: "🏷️" },
-  { id: "jobs", label: "Jobs & part-time work", icon: "🧰" },
-  { id: "retail", label: "Shopping", icon: "🛍️" },
-  { id: "electronics", label: "Electronics", icon: "📱" },
-  { id: "events", label: "Movies & events", icon: "🎬" },
-  { id: "services", label: "Services", icon: "🛠️" },
-  { id: "education", label: "Classes", icon: "📚" },
-  { id: "other", label: "Anything else", icon: "📦" },
+  { id: "rental", label: "Cabs & rentals", icon: "🚗" },
+  { id: "grocery", label: "Grocery", icon: "🥬" },
+  { id: "beauty", label: "Salon & spa", icon: "💇" },
+  { id: "health", label: "Clinics & diagnostics", icon: "🩺" },
+  { id: "pharmacy", label: "Medical stores", icon: "💊" },
+  { id: "laundry", label: "Laundry & dry cleaning", icon: "🧺" },
+  { id: "vehicle", label: "Bike & car service", icon: "🔧" },
+  { id: "sports", label: "Gym, sports & fitness", icon: "⚽" },
+  { id: "admissions", label: "Schools & colleges", icon: "🎓" },
+  { id: "education", label: "Classes & coaching", icon: "📚" },
+  { id: "retail", label: "Shopping & clothes", icon: "🛍️" },
+  { id: "electronics", label: "Mobiles & electronics", icon: "📱" },
+  { id: "services", label: "Repairs & home services", icon: "🛠️" },
+  { id: "photo", label: "Photographers & videographers", icon: "📷" },
+  { id: "decor", label: "Decorators & flowers", icon: "🎈" },
+  { id: "makeup", label: "Makeup & mehendi artists", icon: "💄" },
+  { id: "catering", label: "Caterers & cake makers", icon: "🎂" },
+  { id: "cleaning", label: "Home cleaning & pest control", icon: "🧽" },
+  { id: "tailor", label: "Tailors & boutiques", icon: "🧵" },
+  { id: "pets", label: "Pet care & grooming", icon: "🐾" },
+  { id: "other", label: "Others", icon: "📦" },
 ];
-export const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+export const normCategory = (id) => (CATEGORIES.some((c) => c.id === id) ? id : "other");
+export const categoryOf = (id) => CATEGORIES.find((c) => c.id === normCategory(id));
 
 export const TINTS = {
   food: "#fff1e6", grocery: "#ecf8e6", stay: "#e9f0ff", venue: "#fdeaf3", travel: "#e8f7f1", rental: "#eaf4ff",
@@ -94,13 +108,10 @@ export const TINTS = {
 
 export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌", "🚗", "⚽", "💇", "🩺", "👕", "📱", "🎬", "🛠️", "📚", "📦", "🎁"];
 
-export const DURATIONS = [1, 2, 3, 6, 12, 24, 48, 72, 168, 336, 720]; // hours, max 30 days
-// Admission campaigns run longer (up to 120 days), e.g. "early-bird admissions till 31 May".
-export const ADMISSION_DURATIONS = [168, 336, 720, 1440, 2160, 2880];
-// Admissions season: school & college admission offers get a top spot on the customer home screen
-// from January to the end of June (months 1-6). Change here to move the season.
-export const ADMISSION_SEASON = { from: 1, to: 6 };
-export const inAdmissionSeason = (d = new Date()) => d.getMonth() + 1 >= ADMISSION_SEASON.from && d.getMonth() + 1 <= ADMISSION_SEASON.to;
+// Every offer must be completed within 24 hours (hours). Keep in sync with MAX_OFFER_MS on the server.
+export const DURATIONS = [1, 2, 3, 4, 6, 8, 12, 18, 24];
+// Hotels and travel (bus, trips, cabs) stay open 24×7; everything else only during working hours (6 AM – 11 PM).
+export const ALWAYS_OPEN = ["stay", "travel", "trips", "rental"];
 
 export const REPORT_REASONS = [
   "Fake or misleading offer",
@@ -112,21 +123,31 @@ export const REPORT_REASONS = [
 ];
 
 // Quick-start templates for owners. Anything can be posted; these just save typing.
+// Quick-start templates for partners. Every offer ends within 24 hours.
 export const TEMPLATES = [
-  { label: "Closing-time food", category: "food", emoji: "🍰", title: "Fresh stock before closing", origPrice: 500, price: 250, quantity: "Limited stock", hours: 3 },
-  { label: "Tonight's rooms", category: "stay", emoji: "🛏️", title: "Rooms available for tonight", origPrice: 3000, price: 1799, quantity: "3 rooms", hours: 6 },
-  { label: "Free hall date", category: "venue", emoji: "💒", title: "Function hall free on this date", origPrice: 150000, price: 90000, quantity: "1 date", hours: 72 },
-  { label: "Empty seats", category: "travel", emoji: "🚌", title: "Seats left on tonight's bus", origPrice: 1200, price: 700, quantity: "5 seats", hours: 3 },
-  { label: "Empty slot", category: "sports", emoji: "⚽", title: "Slot available today", origPrice: 1500, price: 900, quantity: "1 slot", hours: 3 },
-  { label: "Idle vehicle", category: "rental", emoji: "🚗", title: "Self-drive car free this weekend", origPrice: 5000, price: 2999, quantity: "1 car", hours: 24 },
-  { label: "Clearance stock", category: "retail", emoji: "🛍️", title: "Clearance sale, limited stock", origPrice: 1000, price: 499, quantity: "20 pieces", hours: 48 },
-  { label: "Empty movie seats", category: "events", emoji: "🎬", title: "Empty seats for tonight's show: tickets at low price", origPrice: 200, price: 80, quantity: "50 seats", hours: 4 },
-  { label: "Admissions open", category: "admissions", emoji: "🎓", title: "Early-bird admissions: 20% off first-year fees", origPrice: 50000, price: 40000, quantity: "Seats for 2027-28", hours: 1440 },
-  { label: "Free health camp", category: "health", emoji: "🩺", title: "Free eye check-up camp this Sunday", origPrice: 500, price: 0, quantity: "60 slots", hours: 72 },
-  { label: "Trip with free seats", category: "trips", emoji: "🧳", title: "Driving to Mysuru tomorrow 6 AM, 2 seats free", origPrice: 800, price: 350, quantity: "2 seats", hours: 24 },
-  { label: "Shop job opening", category: "jobs", emoji: "🧰", title: "Shop helper needed, full time", origPrice: 15000, price: 15000, quantity: "2 openings · ₹15,000/month", hours: 336 },
-  { label: "Part-time / daily work", category: "jobs", emoji: "🧰", title: "Loaders (coolies) needed tomorrow 7 AM, ₹700/day", origPrice: 700, price: 700, quantity: "5 people · ₹700/day", hours: 24 },
-  { label: "Selling my item", category: "sell", emoji: "🏷️", title: "Used cycle in good condition", origPrice: 4000, price: 1500, quantity: "1 piece", hours: 168 },
+  { label: "Closing-time food", category: "food", emoji: "🍰", title: "Fresh stock before closing, half price", origPrice: 500, price: 250, quantity: "Limited stock", hours: 3 },
+  { label: "Meals offer", category: "food", emoji: "🍱", title: "Today's meals at 30% off", origPrice: 200, price: 140, quantity: "40 plates", hours: 4 },
+  { label: "Tonight's rooms", category: "stay", emoji: "🛏️", title: "Rooms available for tonight", origPrice: 3000, price: 1799, quantity: "3 rooms", hours: 12 },
+  { label: "Empty bus seats", category: "travel", emoji: "🚌", title: "Seats left on tonight's bus", origPrice: 1200, price: 700, quantity: "5 seats", hours: 6 },
+  { label: "Trip with free seats", category: "trips", emoji: "🧳", title: "Driving to Mysuru tomorrow 6 AM, 2 seats free", origPrice: 800, price: 350, quantity: "2 seats", hours: 18 },
+  { label: "Cab / self-drive today", category: "rental", emoji: "🚗", title: "Self-drive car free today, 40% off", origPrice: 3000, price: 1800, quantity: "1 car", hours: 12 },
+  { label: "Salon slots today", category: "beauty", emoji: "💇", title: "Haircut slots free this evening, 40% off", origPrice: 400, price: 240, quantity: "5 slots", hours: 6 },
+  { label: "Grocery clearance", category: "grocery", emoji: "🥬", title: "Fresh vegetables and fruits, 30% off till closing", origPrice: 300, price: 210, quantity: "Today's stock", hours: 5 },
+  { label: "Laundry discount", category: "laundry", emoji: "🧺", title: "Laundry and ironing 30% off today", origPrice: 300, price: 210, quantity: "Today only", hours: 10 },
+  { label: "Medical store offer", category: "pharmacy", emoji: "💊", title: "15% off on health products today", origPrice: 1000, price: 850, quantity: "Today only", hours: 12 },
+  { label: "Bike / car service", category: "vehicle", emoji: "🔧", title: "Bike general service at 25% off today", origPrice: 800, price: 600, quantity: "6 slots", hours: 10 },
+  { label: "Health check-up", category: "health", emoji: "🩺", title: "Full body check-up at 40% off today", origPrice: 2500, price: 1500, quantity: "20 slots", hours: 10 },
+  { label: "Gym / turf slot", category: "sports", emoji: "⚽", title: "Turf slot free tonight", origPrice: 1500, price: 900, quantity: "1 slot", hours: 6 },
+  { label: "School / college offer", category: "admissions", emoji: "🎓", title: "Admission form fee waived today", origPrice: 1000, price: 0, quantity: "Today only", hours: 10 },
+  { label: "Clearance sale", category: "retail", emoji: "🛍️", title: "Clearance sale, today only", origPrice: 1000, price: 499, quantity: "20 pieces", hours: 12 },
+  { label: "Photo shoot slot", category: "photo", emoji: "📷", title: "Birthday / family photo shoot, 40% off if booked today", origPrice: 5000, price: 2999, quantity: "2 slots", hours: 12 },
+  { label: "Decoration offer", category: "decor", emoji: "🎈", title: "Balloon & flower decoration, 35% off for bookings today", origPrice: 4000, price: 2600, quantity: "3 bookings", hours: 12 },
+  { label: "Makeup / mehendi", category: "makeup", emoji: "💄", title: "Party makeup at home, 30% off this evening", origPrice: 2500, price: 1750, quantity: "2 slots", hours: 8 },
+  { label: "Catering / cakes", category: "catering", emoji: "🎂", title: "Custom cakes 25% off for orders placed today", origPrice: 1200, price: 900, quantity: "10 orders", hours: 10 },
+  { label: "Home cleaning", category: "cleaning", emoji: "🧽", title: "Full home deep cleaning, 30% off if booked today", origPrice: 4000, price: 2800, quantity: "4 slots", hours: 12 },
+  { label: "Tailoring", category: "tailor", emoji: "🧵", title: "Blouse stitching ₹350 (normally ₹500), today's orders", origPrice: 500, price: 350, quantity: "15 orders", hours: 10 },
+  { label: "Pet grooming", category: "pets", emoji: "🐾", title: "Dog bath & grooming 40% off today", origPrice: 1000, price: 600, quantity: "6 slots", hours: 9 },
+  { label: "Event seats", category: "other", emoji: "🎟️", title: "Seats left for tonight's event, 50% off", origPrice: 400, price: 200, quantity: "30 seats", hours: 6 },
 ];
 
 // ---- India ----

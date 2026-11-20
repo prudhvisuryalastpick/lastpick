@@ -149,7 +149,7 @@ export function Terms() {
         <p className="muted">Version {CONSENT_VERSION}. Template text: have a lawyer review it before launch.</p>
         <div className="banner warn" style={{ margin: "0 0 12px" }}>⚠️<span>{APP_NAME} is only a platform that connects customers with businesses and people. We are not a party to any deal and take no responsibility for it. We act on providers based on reviews and reports. <a className="link" href="#/rules">Short version</a></span></div>
         <h2>1. What {APP_NAME} is</h2>
-        <p>{APP_NAME} is an online platform (an intermediary under the IT Act, 2000) run by {operator}. Businesses and people ("providers") post offers, health camps, admissions, trips with free seats, items for sale and job openings; customers nearby see them and contact the provider directly. {APP_NAME} does not sell, book, deliver, employ, treat, admit, transport, collect payment for, or guarantee anything posted.</p>
+        <p>{APP_NAME} is an online platform (an intermediary under the IT Act, 2000) run by {operator}. Verified local businesses and people ("providers") post same-day offers and discounts (food, hotels, travel, salons, laundry, shops, clinics, schools and other everyday local businesses); customers nearby see them and contact the provider directly. {APP_NAME} does not sell, book, deliver, employ, treat, admit, transport, collect payment for, or guarantee anything posted.</p>
         <h2>2. The deal is between customer and provider. We take no responsibility for it</h2>
         <p>Any agreement, payment, delivery, service, treatment, admission, journey or job happens directly between the customer and the provider. {APP_NAME} is not a party to it. To the extent the law allows, {APP_NAME} is not responsible for the quality, safety, legality, accuracy or availability of anything posted, for the conduct of any user, or for any loss, injury or dispute arising from a deal. Check the provider before you pay or travel. This doesn't limit any right you have under Indian consumer law.</p>
         <h2>3. Who can use {APP_NAME}</h2>
@@ -157,10 +157,9 @@ export function Terms() {
         <h2>4. Rules for providers (business partners)</h2>
         <ul>
           <li>Post only genuine offers you can honour. The "normal price" must be the real price you usually charge; the offer price is the final price, with no hidden charges.</li>
-          <li>Post only in the categories your business registered (any business may post job openings). We verify businesses; changing categories may be reviewed again.</li>
+          <li>Only verified businesses can post. Offers must be real discounts and must end within 24 hours. Not allowed: movie tickets, hall bookings, job posts and selling personal items.</li>
+          <li>Paid features (boosted offers, sponsored banners) only make a post more visible. They don't mean {APP_NAME} checked, recommends or guarantees it.</li>
           <li>Hold the licences your work needs and follow the law: e.g. FSSAI for food; a registered medical practitioner for doctors' consultations and health camps; recognition or affiliation for schools and colleges, with fees and discounts stated truthfully; valid driving licence, insurance and permits for trips (cost-sharing only, unless you hold a commercial permit).</li>
-          <li>Job and part-time openings must be real, legal and pay at least the applicable minimum wage. No fees from job seekers, no child labour, no unsafe work.</li>
-          <li>People selling their own items must own them and describe them honestly.</li>
           <li>Not allowed: alcohol, tobacco, drugs, prescription medicines, weapons, explosives, gambling or lottery, adult content, wildlife, counterfeit or stolen goods, financial schemes, or anything illegal or unsafe.</li>
           <li>Use a customer's number only to reply about the request they shared it for. No spam, marketing lists or resale.</li>
           <li>Don't post, buy or arrange fake reviews, and don't offer rewards for reviews.</li>

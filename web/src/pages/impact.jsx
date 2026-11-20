@@ -1,11 +1,11 @@
 // Savings and business dashboards, Help & support conversations, the platform rules page,
-// and the admissions-season section on the customer home.
+// (the admissions-season section was removed: every offer now ends within 24 hours).
 import { useEffect, useState } from "react";
 import { api } from "../api/index.js";
 import { BackButton, Empty, NeedLogin, Spinner } from "../components.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
 import {
-  APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf, inAdmissionSeason,
+  APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf,
 } from "../lib/config.js";
 import { ago, errText, rupee, telLink, waLink } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -134,23 +134,6 @@ export function BusinessCard() {
   return <a className="banner sub" href="#/owner/insights">📈<span><b>{rupee(d.businessGenerated)}</b> business from {d.customers} customer{d.customers === 1 ? "" : "s"} through {APP_NAME}. See details ›</span></a>;
 }
 
-// ------------------------------------------------------------------ admissions season on the customer home
-export function AdmissionsRail({ offers }) {
-  if (!inAdmissionSeason()) return null;
-  const list = (offers || []).filter((o) => o.category === "admissions").slice(0, 6);
-  return (
-    <>
-      <div className="shead"><h2><Icon d="cap" size={18} stroke={2.2} style={{ color: "#1E4BB8" }} />Admissions open</h2><span className="muted small" style={{ fontWeight: 600 }}>Early-bird till June</span></div>
-      {list.length ? <div className="hrail">{list.map((o) => (
-        <a key={o.id} href={"#/offer/" + o.id} className="mini">
-          <span className="mt" style={{ background: "#EAF3FF", color: "#1E4BB8" }}><Icon d="cap" size={34} stroke={1.7} />{o.origPrice > o.price && <span className="b1">-{Math.round((1 - o.price / o.origPrice) * 100)}%</span>}</span>
-          <span className="mb"><b className="tt">{o.title}</b><span className="w">{o.business?.name}</span><span className="pr"><b>{rupee(o.price)}</b> <s>{rupee(o.origPrice)}</s></span></span>
-        </a>))}</div>
-        : <div className="panel small muted">Schools and colleges near you will post admission discounts here before June.</div>}
-    </>
-  );
-}
-
 // ------------------------------------------------------------------ Help & support
 const FAQ = {
   customer: [
@@ -161,8 +144,8 @@ const FAQ = {
   ],
   partner: [
     ["How do I get verified?", "Fill in your business profile with your shop location and contact number. Our team checks it, usually within 1 working day."],
-    ["How many offers can I post?", "3 posts a day. Admission campaigns can run up to 120 days; other offers up to 30 days."],
-    ["What can I post?", "Anything that brings you customers: deals, health camps, admissions, trips, movie tickets for empty seats, things to sell or job openings. Only verified (trusted) partners can post; we check every business first."],
+    ["How many offers can I post?", "3 posts a day. Every offer must end within 24 hours."],
+    ["What can I post?", "Same-day offers and discounts from everyday local businesses: food, hotels, travel, grocery, salon, laundry, clinics, medical stores, bike service, gyms, shops and more. No halls, movie tickets, job posts or selling personal items. Only verified (trusted) partners can post; we check every business first."],
     ["A customer misbehaved", "Open Leads, or contact us below. Customers who break the rules can be blocked."],
   ],
 };
@@ -278,10 +261,10 @@ export function Rules() {
   return (
     <>
       <PageHead title={<>How {APP_NAME} works & our rules</>} sub={<>The short version. Full text: <a className="link" href="#/terms">Terms</a>.</>} />
-      <R icon="🤝" title={`${APP_NAME} is only a platform`}>We connect customers with local businesses and service providers. We don't sell, deliver, book, collect payment for, or guarantee any offer, camp, trip, admission or item. The deal is between you and them.</R>
+      <R icon="🤝" title={`${APP_NAME} is only a platform`}>We connect customers with local businesses and service providers. We don't sell, deliver, book, collect payment for, or guarantee any offer. Boosted and sponsored posts are paid placements, not recommendations. The deal is between you and them.</R>
       <R icon="⚖️" title="We are not responsible for the deal">Quality, safety, price, availability, refunds and anything that goes wrong in the deal are the responsibility of the business or person offering it. This doesn't take away your rights under Indian consumer law.</R>
       <R icon="⭐" title="Reviews and action on providers">Only customers who contacted a provider through {APP_NAME} can review it. If a provider fails, misleads or behaves badly, report it. We review reports and reviews and act on the provider: warning, hiding offers, suspension or removal.</R>
-      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, medical registration for doctors' camps, permits for passenger trips, recognition for schools and colleges, a valid licence for cinemas). Use customers' numbers only to reply about their request.</R>
+      <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, medical registration for doctors' camps, permits for passenger trips, recognition for schools and colleges). Offers end within 24 hours; no movie tickets. Use customers' numbers only to reply about their request.</R>
       <R icon="🙋" title="Rules for customers">Check the offer and the provider before paying. Never pay an advance to someone you haven't verified. Write honest reviews about your own experience.</R>
       <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. One account is logged in on one device at a time, to keep it safe. Download or delete your data anytime.</R>
       <R icon="🚫" title="Not allowed">Alcohol, tobacco, drugs, prescription medicines, weapons, gambling, adult content, counterfeit or stolen goods, fake reviews, spam, or anything illegal or unsafe.</R>

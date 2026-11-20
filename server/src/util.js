@@ -12,7 +12,8 @@ export const tooMany = (m = "Too many requests. Please try again later.") => new
 export const DAY = 86400000;
 export const TRIAL_DAYS = 30;
 export const POSTS_PER_DAY = 3;
-export const MAX_OFFER_MS = 30 * DAY;
+// Every offer must be completed within 24 hours: LastPick is only for same-day offers and discounts.
+export const MAX_OFFER_MS = DAY;
 export const CONSENT_VERSION = "2026-11-20";
 export const PLANS = ["customer", "owner"];
 export const STATUSES = ["pending", "verified", "rejected", "suspended"];
@@ -21,9 +22,9 @@ export const RETENTION = { endedOfferVisibleDays: 7, archiveDays: 365, leadsDays
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 
 // ---- Working hours (India time). Outside them only ALWAYS_OPEN categories are shown and can be contacted.
-// Partners can still post at night (e.g. a sale or a camp registration); it goes live when the area opens.
+// Hotels and travel stay open 24×7. Partners can still post food or other offers at night; they go live at opening time.
 export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 6), close: Number(process.env.CLOSE_HOUR ?? 23) };
-export const ALWAYS_OPEN = ["jobs", "travel", "trips"];
+export const ALWAYS_OPEN = ["stay", "travel", "trips", "rental"];
 export const istHour = (now = Date.now()) => new Date(now + 5.5 * 3600000).getUTCHours();
 export const isNight = (now = Date.now()) => { const h = istHour(now); return h < BUSINESS_HOURS.open || h >= BUSINESS_HOURS.close; };
 

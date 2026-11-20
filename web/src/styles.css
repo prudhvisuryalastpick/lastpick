@@ -462,3 +462,11 @@ table.admin { width: 100%; border-collapse: collapse; font-size: 13px; }
 .hero .tm { background: var(--deep); color: #fff; }
 .cwel .radar { margin-bottom: 18px; }
 .custmain .map-box { margin-top: 12px; }
+.adbox { border: 1.5px dashed #E9C46A; }
+.adtag { font-size: 10px !important; font-weight: 800; letter-spacing: .4px; color: #8A5A00 !important; text-transform: uppercase; }
+.sponsor { margin: 14px 14px 0; border-radius: 16px; background: linear-gradient(120deg, #FFF3D6, #FFE3C2); color: var(--ink); padding: 12px 14px; display: flex; align-items: center; gap: 12px; border: 1px solid #F3D29A; }
+.sponsor .spi { width: 42px; height: 42px; border-radius: 12px; background: #fff; color: #B35A00; display: grid; place-items: center; flex: none; }
+.sponsor .spt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sponsor .spt b { font-size: 14px; } .sponsor .spt span { font-size: 12px; color: var(--muted); }
+.sponsor .spt .sp-tag { font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: #8A4300; }
+.featpill { display: inline-block; font-size: 10px; font-weight: 800; color: var(--hi-ink); background: var(--hi); padding: 2px 6px; border-radius: 6px; margin-right: 6px; vertical-align: 2px; letter-spacing: .3px; }

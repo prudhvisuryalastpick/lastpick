@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { AdmissionsRail, SavingsCard } from "./impact.jsx";
+import { SavingsCard } from "./impact.jsx";
+import { SponsoredBanner } from "./revenue.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
@@ -115,7 +116,7 @@ function CityPicker({ onClose, onPicked }) {
 // ------------------------------------------------------------------ Home
 const hourText = (h) => (h === 0 || h === 24 ? "12 AM" : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`);
 const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-const offLabel = (o) => (isJob(o) ? "JOB" : o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
+const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
 export function Home() {
   const { location, isCustomer, session, profile, city, area, setArea, freeMode, config } = useApp();
@@ -132,10 +133,10 @@ export function Home() {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return live
-      .filter((o) => cat === "all" || o.category === cat || (cat === "trips" && o.category === "travel"))
+      .filter((o) => cat === "all" || o.category === cat)
       .filter((o) => !needle || `${o.title} ${o.description} ${o.business?.name} ${o.business?.area} ${categoryOf(o.category).label}`.toLowerCase().includes(needle))
       .map((o) => ({ o, km: distanceKm(location, o.business) }))
-      .sort((a, b) => sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt)
+      .sort((a, b) => (b.o.featured ? 1 : 0) - (a.o.featured ? 1 : 0) || (sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt))
       .map((x) => x.o);
   }, [live, cat, q, sort, location]);
   const byCat = (...ids) => live.filter((o) => ids.includes(o.category)).sort((a, b) => a.endsAt - b.endsAt);
@@ -148,7 +149,9 @@ export function Home() {
   const where = area.mode === "near"
     ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off")
     : areaLabel(area, city);
-  const ending = live.filter((o) => !isJob(o) && o.endsAt - now < 24 * 3600000).sort((a, b) => a.endsAt - b.endsAt).slice(0, 8);
+  const ending = [...live].sort((a, b) => a.endsAt - b.endsAt).slice(0, 8);
+  // featured: boosted offers first, then the biggest discounts
+  const featured = [...live.filter((o) => o.featured), ...[...live].filter((o) => !o.featured).sort((a, b) => discount(b) - discount(a))].slice(0, 4);
 
   return (
     <>
@@ -167,13 +170,13 @@ export function Home() {
         </div>
         <div className="cstatus">
           {config?.night
-            ? <span className="live night"><i />Night · jobs &amp; travel open</span>
+            ? <span className="live night"><i />Night · hotels &amp; travel open</span>
             : <span className="live"><i />Open now{offers ? ` · ${live.length} live deal${live.length === 1 ? "" : "s"}` : ""}</span>}
           <span className="hrs"><Icon d="clock" size={14} stroke={2} />{config?.night ? `Shops open at ${hourText(hours.open)}` : `Shops close ${hourText(hours.close)}`}</span>
         </div>
         <label className="csearch">
           <Icon d="search" size={20} stroke={2} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && toList()} placeholder="Search rooms, doctors, trips, cakes" aria-label="Search offers" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && toList()} placeholder="Search food, rooms, salons, bus seats" aria-label="Search offers" />
           {q && <button type="button" className="clear" aria-label="Clear search" onClick={() => setQ("")}><Icon d="M6 6l12 12M18 6L6 18" size={14} stroke={2.4} /></button>}
         </label>
       </div>
@@ -209,17 +212,22 @@ export function Home() {
           ? !freeMode && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Your free month has ended. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
           : <a className="cbanner" href="#/login"><span className="bi"><Icon d="gift" size={20} /></span><span><b>First month free.</b> Log in to see business numbers and call them directly</span></a>)}
         {needGps && <div className="cbanner"><span className="bi"><Icon d="near" size={20} /></span>Finding offers within {area.radius} km of you…</div>}
-        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only jobs and travel are open now. Shops, doctors and other offers open again at {hourText(hours.open)}.</span></div>}
+        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Hotels and travel are open 24×7. Food, shops and other offers open again at {hourText(hours.open)}.</span></div>}
 
         {browsing && offers && <>
-          <Featured offers={[...byCat("health"), ...byCat("events"), ...byCat("trips", "travel")].slice(0, 3)} />
-          <AdmissionsRail offers={live} />
+          <SponsoredBanner />
+          <Featured offers={featured} />
           <MiniRail title="Ending soon" icon="clock" color="#B35A00" items={ending} action="See all" onAction={() => { setSort("ending"); toList(); }} />
-          <MiniRail title="Movie tickets tonight" icon="ticket" color="#B3261E" items={byCat("events")} action="See all" onAction={() => pick("events")} />
+          <MiniRail title="Food deals" icon="food" color="#B35A00" items={byCat("food")} action="See all" onAction={() => pick("food")} />
+          <MiniRail title="Hotel rooms tonight" icon="stay" color="#1E4BB8" items={byCat("stay")} action="See all" onAction={() => pick("stay")} />
+          <TripList items={byCat("travel", "trips", "rental")} />
+          <MiniRail title="Grocery & medical stores" icon="grocery" color="#0F7A43" items={byCat("grocery", "pharmacy")} />
+          <MiniRail title="Salon & makeup, less price today" icon="salon" color="#6B2FB3" items={byCat("beauty", "makeup")} action="See all" onAction={() => pick("beauty")} />
+          <MiniRail title="Photographers, decorators & caterers" icon="camera" color="#1E4BB8" items={byCat("photo", "decor", "catering")} />
+          <MiniRail title="Laundry, cleaning, tailors & bike service" icon="laundry" color="#0B5C80" items={byCat("laundry", "cleaning", "tailor", "vehicle", "services", "pets")} />
           <HealthList items={byCat("health")} onAll={() => pick("health")} />
-          <TripList items={byCat("trips", "travel")} />
-          <SellGrid items={byCat("sell")} onAll={() => pick("sell")} />
-          <JobList items={byCat("jobs")} onAll={() => pick("jobs")} />
+          <MiniRail title="Gym, classes & schools" icon="ball" color="#3E7A0F" items={byCat("sports", "education", "admissions")} />
+          <MiniRail title="Shops & more" icon="bag" color="#8A6100" items={byCat("retail", "electronics", "other")} />
           <Shops offers={live} />
           <SavingsCard />
         </>}
@@ -247,7 +255,8 @@ export function Home() {
   );
 }
 
-// Big rotating banner: health camps, movie tickets and trips with free seats.
+// Big rotating banner: boosted (paid) offers first, then the biggest discounts.
+const FEATURE_BG = { food: "#8A3B00", stay: "#1E3A8F", travel: "#0F5E52", trips: "#6B1640", rental: "#6B1640", health: "#0F5E52", beauty: "#5B2393" };
 function Featured({ offers }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -257,23 +266,21 @@ function Featured({ offers }) {
   }, [offers.length]);
   if (!offers.length) return null;
   const o = offers[i % offers.length];
-  const kind = o.category === "health" ? { bg: "#0F5E52", kick: "Health camp" + (o.price === 0 ? " · free" : ""), cta: o.price === 0 ? "Register free" : "See details" }
-    : o.category === "events" ? { bg: "#8E1F1A", kick: "Movie tonight · low price", cta: "Get tickets" }
-      : { bg: "#6B1640", kick: "Seats free · open 24×7", cta: "Book a seat" };
+  const bg = FEATURE_BG[o.category] || "#3A1D8F";
   const st = catStyle(o.category);
   return (
-    <a className="feature" href={"#/offer/" + o.id} style={{ background: kind.bg }} key={o.id}>
-      <span className="kick">{kind.kick}</span>
+    <a className="feature" href={"#/offer/" + o.id} style={{ background: bg }} key={o.id}>
+      <span className="kick">{o.featured ? "Featured · " : ""}{categoryOf(o.category).label}{offLabel(o) ? " · " + offLabel(o) : ""}</span>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <span className="fi" style={{ color: kind.bg }}><Icon d={st.icon} size={26} stroke={2} /></span>
+        <span className="fi" style={{ color: bg }}><Icon d={st.icon} size={26} stroke={2} /></span>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <b style={{ fontSize: 16, lineHeight: 1.25 }}>{o.title}</b>
           <span style={{ fontSize: 12.5, opacity: .9 }}>{o.business?.name}{o.business?.area ? " · " + o.business.area : ""}</span>
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 12, opacity: .9 }}>{o.quantity || (o.price === 0 ? "Free" : rupee(o.price))} · ends in {timeLeft(o.endsAt - Date.now())}</span>
-        <span className="go" style={{ color: kind.bg }}>{kind.cta}</span>
+        <span style={{ fontSize: 13, opacity: .95 }}><b style={{ fontSize: 16 }}>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s style={{ opacity: .7 }}>{rupee(o.origPrice)}</s>} · ends in {timeLeft(o.endsAt - Date.now())}</span>
+        <span className="go" style={{ color: bg }}>See deal</span>
       </div>
       {offers.length > 1 && <div className="dots" onClick={(e) => e.preventDefault()}>{offers.map((x, k) => <button key={x.id} className={k === i % offers.length ? "on" : ""} aria-label={`Banner ${k + 1}`} onClick={(e) => { e.preventDefault(); setI(k); }} />)}</div>}
     </a>
@@ -306,7 +313,7 @@ function MiniRail({ title, icon, color, items, action, onAction }) {
             <span className="mb">
               <b className="tt">{o.title}</b>
               <span className="w">{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""}</span>
-              <span className="pr"><b>{isJob(o) ? "Pay " + rupee(o.price) : o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s>{rupee(o.origPrice)}</s>}</span>
+              <span className="pr"><b>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s>{rupee(o.origPrice)}</s>}</span>
             </span>
           </a>
         );
@@ -320,7 +327,7 @@ function HealthList({ items, onAll }) {
   if (!items.length) return null;
   return (
     <>
-      <SectionHead title="Doctors & health camps" icon="M12 6v12M6 12h12M4 4h16v16H4z" color="#0F6E5C" action="See all" onAction={onAll} />
+      <SectionHead title="Clinics & check-ups" icon="M12 6v12M6 12h12M4 4h16v16H4z" color="#0F6E5C" action="See all" onAction={onAll} />
       <div className="listbox">{items.slice(0, 4).map((o) => {
         const km = distanceKm(location, o.business);
         return (
@@ -339,7 +346,7 @@ function TripList({ items }) {
   if (!items.length) return null;
   return (
     <>
-      <SectionHead title="Trips & seats free" icon="car" color="#9C1F5A" badge="Open 24×7" />
+      <SectionHead title="Travel, trips & cabs" icon="bus" color="#0F6E5C" badge="Open 24×7" />
       <div className="trips">{items.slice(0, 4).map((o) => (
         <a key={o.id} className="trip" href={"#/offer/" + o.id}>
           <span className="r1"><span className="tt">{o.title}</span><span className="p">{rupee(o.price)}<small> /seat</small></span></span>
@@ -354,45 +361,7 @@ function TripList({ items }) {
   );
 }
 
-function SellGrid({ items, onAll }) {
-  const { location } = useApp();
-  if (!items.length) return null;
-  return (
-    <>
-      <SectionHead title="Locals are selling" icon="tag" color="#3A1D8F" action="See all" onAction={onAll} />
-      <div className="sellgrid">{items.slice(0, 4).map((o) => {
-        const km = distanceKm(location, o.business);
-        return (
-          <a key={o.id} className="sellcard" href={"#/offer/" + o.id}>
-            <OfferImage offer={o} className="st" size={30} />
-            <b className="tt">{o.title}</b>
-            <span className="sp"><b>{rupee(o.price)}</b>{km != null && km < 100 ? kmText(km) : o.business?.area}</span>
-          </a>
-        );
-      })}</div>
-    </>
-  );
-}
 
-function JobList({ items, onAll }) {
-  const { location } = useApp();
-  if (!items.length) return null;
-  return (
-    <>
-      <SectionHead title="Jobs & part-time work nearby" icon="job" color="#0F7A43" action="See all" onAction={onAll} />
-      <div className="listbox">{items.slice(0, 4).map((o) => {
-        const km = distanceKm(location, o.business);
-        return (
-          <a key={o.id} className="lrow" href={"#/offer/" + o.id}>
-            <span className="li" style={{ background: "#EAF6EE", color: "#0F7A43" }}><Icon d="job" size={22} stroke={2} /></span>
-            <span className="lt"><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""} · Pay {rupee(o.price)}</span></span>
-            <span className="lcta" style={{ color: "#0F7A43" }}>Apply</span>
-          </a>
-        );
-      })}</div>
-    </>
-  );
-}
 
 // Local businesses with live offers, as round badges (tap = their soonest-ending offer).
 function Shops({ offers }) {
@@ -536,9 +505,7 @@ export function OfferPage({ id }) {
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
 
         <div className="box row" style={{ marginTop: 14 }}>
-          <div className="price">{offer.category === "jobs"
-            ? <><b style={{ fontSize: 26 }}>Pay {rupee(offer.price)}</b><span className="pill p-ok">Job opening</span></>
-            : <><b style={{ fontSize: 26 }}>{rupee(offer.price)}</b>{offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</>}</div>
+          <div className="price"><b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>
           <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : timeLeft(rem)}</b></div>
         </div>
         {offer.quantity && <div className="row" style={{ marginTop: 10 }}><span className="muted">Available</span><b>{offer.quantity}</b></div>}
@@ -644,7 +611,7 @@ function ContactsInner() {
 
   return (
     <>
-      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you viewed, called, messaged or shared your number with</div></div></div>
+      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted. Tap call or WhatsApp to reach them again.</div></div></div>
       <div style={{ height: 12 }} />
       {!isCustomer ? (
         <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title="Your free month has ended" action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
@@ -658,7 +625,7 @@ function ContactsInner() {
             <a className="grow" href={"#/offer/" + c.offer.id}>
               <b className="ellipsis" style={{ display: "block", fontSize: 14 }}>{c.offer.business?.name}</b>
               <div className="muted small ellipsis">{c.offer.title}</div>
-              <div className="muted small">{p?.phone ? prettyPhone(p.phone) : p?.error ? "Number unavailable" : "…"} · {c.how} · {ago(c.at)}</div>
+              <div className="muted small">{c.how} · {ago(c.at)}{p?.error ? " · can't contact now" : ""}</div>
             </a>
             {p?.phone && <a className="icon-btn" aria-label="Call" href={telLink(p.phone)} onClick={() => api.logContact(c.offer.id, "Called")}><Icon d="phone" size={18} stroke={2} /></a>}
             {p?.phone && p.whatsapp && <a className="icon-btn wa" aria-label="WhatsApp" target="_blank" rel="noreferrer" href={waLink(p.phone, `Hi, about your ${APP_NAME} offer: "${c.offer.title}"`)} onClick={() => api.logContact(c.offer.id, "WhatsApp")}><Icon d="whatsapp" size={18} stroke={2} /></a>}

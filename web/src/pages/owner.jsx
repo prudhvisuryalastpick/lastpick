@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { BusinessCard } from "./impact.jsx";
-import { Empty, NeedLogin, OfferCard, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { ADMISSION_DURATIONS, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, TINTS, categoryOf } from "../lib/config.js";
+import { BoostSheet } from "./revenue.jsx";
+import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
+import { APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -103,7 +104,7 @@ export function OwnerDashboard() {
         <div className="sect"><h3>Live now</h3><a className="link small" href="#/owner/offers">All offers</a></div>
         {live.slice(0, 3).map((o) => (
           <a className="item" key={o.id} href={"#/offer/" + o.id}>
-            <div className="ic" style={o.photoUrl ? { backgroundImage: `url("${o.photoUrl}")` } : { background: TINTS[o.category] || TINTS.other }}>{!o.photoUrl && o.emoji}</div>
+            <OfferImage offer={o} className="ic" />
             <div className="grow"><b className="ellipsis" style={{ display: "block", fontSize: 14 }}>{o.title}</b><div className="muted small">{o.views} views · ends in {timeLeft(o.endsAt - now)}</div></div>
             <span className={"tm " + (o.endsAt - now < 3600000 ? "hot" : "")}>{timeLeft(o.endsAt - now)}</span>
           </a>))}
@@ -162,6 +163,9 @@ export function OwnerOffers() {
   const [history, setHistory] = useState(null);
   const [tab, setTab] = useState("current");
   const [ending, setEnding] = useState(null);
+  const [boosting, setBoosting] = useState(null);
+  const [boosts, setBoosts] = useState([]);
+  useEffect(() => { api.myBoosts().then(setBoosts).catch(() => {}); }, [offers]);
   const now = useNow(30000);
   const load = () => api.myOffers().then(setOffers).catch(() => setOffers([]));
   useEffect(() => { load(); }, []);
@@ -180,7 +184,7 @@ export function OwnerOffers() {
           <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here {RETENTION.endedOfferVisibleDays} days after they end and are kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
           {!history ? <Spinner /> : history.length === 0 ? <Empty icon="🗄️" title="No history yet">Ended offers appear here.</Empty> : history.map((h) => (
             <div className="item" key={h.id}>
-              <div className="ic" style={{ background: TINTS[h.category] || TINTS.other }}>{h.emoji}</div>
+              <OfferImage offer={{ ...h, photoUrl: null }} className="ic" />
               <div className="grow"><b style={{ fontSize: 14 }}>{h.title}</b>
                 <div className="muted small">{rupee(h.price)} <s>{rupee(h.origPrice)}</s> · {h.views} views · {h.leads} leads</div>
                 <div className="muted small">Ended {day(h.endsAt)}</div></div>
@@ -193,17 +197,24 @@ export function OwnerOffers() {
           const label = live ? (o.visible === false ? "Waiting" : "Live") : o.status === "removed" ? "Removed" : "Ended";
           return (
             <div className="item" key={o.id} style={{ alignItems: "flex-start" }}>
-              <div className="ic" style={o.photoUrl ? { backgroundImage: `url("${o.photoUrl}")` } : { background: TINTS[o.category] || TINTS.other }}>{!o.photoUrl && o.emoji}</div>
+              <OfferImage offer={o} className="ic" />
               <div className="grow">
                 <b style={{ fontSize: 14 }}>{o.title}</b>
                 <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s> · {o.views} views</div>
                 <div className="muted small">{live ? "Ends in " + timeLeft(o.endsAt - now) : o.status === "removed" ? "Removed by LastPick for breaking the rules" : "Ended"}</div>
-                {live && <div className="gap" style={{ marginTop: 8 }}><a className="chip" href={"#/offer/" + o.id}>View</a><button className="chip" onClick={() => setEnding(o)}>End now</button></div>}
+                {live && (() => {
+                  const bo = boosts.find((x) => x.offerId === o.id && (x.status === "pending" || x.live));
+                  return <div className="gap" style={{ marginTop: 8, flexWrap: "wrap" }}><a className="chip" href={"#/offer/" + o.id}>View</a>
+                    {bo ? <span className="chip" style={{ background: "var(--hi)", borderColor: "var(--hi)", color: "var(--hi-ink)" }}>{bo.status === "pending" ? "Boost: waiting for payment" : `Featured · ${timeLeft(bo.endsAt - now)}`}</span>
+                      : <button className="chip" style={{ background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" }} onClick={() => setBoosting(o)}>🚀 Boost</button>}
+                    <button className="chip" onClick={() => setEnding(o)}>End now</button></div>;
+                })()}
               </div>
               <span className={"pill " + (label === "Live" ? "p-ok" : label === "Waiting" ? "p-warn" : label === "Removed" ? "p-bad" : "p-mute")}>{label}</span>
             </div>
           );
         })}
+      {boosting && <BoostSheet offer={boosting} onClose={() => setBoosting(null)} onDone={() => api.myBoosts().then(setBoosts).catch(() => {})} />}
       {ending && (
         <Sheet onClose={() => setEnding(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>End this offer?</h2>
@@ -241,9 +252,8 @@ export function PostOffer() {
   const problems = [];
   if (f.title.trim().length < 3) problems.push("a title");
   if (!(orig > 0)) problems.push("the normal price");
-  const job = f.category === "jobs";
-  if (!(price >= 0) || f.price === "") problems.push(job ? "the pay" : "the offer price");
-  else if (!job && orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
+  if (!(price >= 0) || f.price === "") problems.push("the offer price");
+  else if (orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
@@ -278,14 +288,14 @@ export function PostOffer() {
       <div className="card" style={{ textAlign: "center", padding: 24 }}>
         <div style={{ fontSize: 40 }}>🛡️</div>
         <h2>Posting is for trusted partners</h2>
-        <p className="muted">Once our team verifies your business you can post anything that brings you customers: deals, health camps, admissions, trips, things to sell or job openings.</p>
+        <p className="muted">Once our team verifies your business you can post same-day offers and discounts in any category.</p>
         <a className="btn" href="#/owner/business">Check business profile</a>
       </div>
     </div>
   );
   return (
     <>
-      <div className="page-h"><h1 className="title">Post an offer</h1><div className="muted">Anything you need to move before it becomes a loss</div></div>
+      <div className="page-h"><h1 className="title">Post an offer</h1><div className="muted">A real discount that ends within 24 hours</div></div>
       <StatusBanner />
       {(!business.state || !business.city || !business.pincode || business.lat == null) && <a className="banner warn" href="#/owner/business">📍 Add your pincode and shop location in Business profile before posting. Customers see offers near them.</a>}
       <div className="chips">{templates.map((t) => <button key={t.label} className="chip" onClick={() => useTemplate(t)}>{t.emoji} {t.label}</button>)}</div>
@@ -299,20 +309,18 @@ export function PostOffer() {
         {!photo && <div className="fld"><label>Or pick an icon</label><div className="emoji-pick">{EMOJIS.map((e) => <button key={e} className={f.emoji === e ? "on" : ""} onClick={() => set("emoji", e)}>{e}</button>)}</div></div>}
         <div className="fld"><label>Category</label>
           <select value={f.category} onChange={(e) => set("category", e.target.value)}>{allowed.map((id) => { const c = categoryOf(id); return <option key={id} value={id}>{c.icon} {c.label}</option>; })}</select>
-          <span className="hint">Verified partners can post anything that brings business: deals, camps, admissions, trips, sales or jobs.</span></div>
+          <span className="hint">Offers must end within 24 hours. Hotels and travel are open 24×7; others 6 AM – 11 PM.</span></div>
         <div className="fld"><label>What are you offering?</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Marriage hall free on 24 Nov" /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
         <div className="two">
-          {f.category === "jobs"
-            ? <div className="fld" style={{ gridColumn: "1 / -1" }}><label>Pay ₹ (per day or per month; say which in the title)</label><input type="number" min="1" inputMode="numeric" value={f.price} onChange={(e) => setF((p) => ({ ...p, price: e.target.value, origPrice: e.target.value }))} /></div>
-            : <><div className="fld"><label>Normal price ₹</label><input type="number" min="1" inputMode="numeric" value={f.origPrice} onChange={(e) => set("origPrice", e.target.value)} /></div>
-              <div className="fld"><label>Offer price ₹</label><input type="number" min="0" inputMode="numeric" value={f.price} onChange={(e) => set("price", e.target.value)} /></div></>}
+          <><div className="fld"><label>Normal price ₹</label><input type="number" min="1" inputMode="numeric" value={f.origPrice} onChange={(e) => set("origPrice", e.target.value)} /></div>
+              <div className="fld"><label>Offer price ₹</label><input type="number" min="0" inputMode="numeric" value={f.price} onChange={(e) => set("price", e.target.value)} /></div></>
         </div>
         <div className="two">
           <div className="fld"><label>How many</label><input maxLength={60} value={f.quantity} onChange={(e) => set("quantity", e.target.value)} placeholder="e.g. 3 rooms" /></div>
           <div className="fld"><label>Offer ends in</label>
             <select value={f.hours} onChange={(e) => set("hours", Number(e.target.value))}>
-              {(f.category === "admissions" ? ADMISSION_DURATIONS : DURATIONS).map((h) => <option key={h} value={h}>{h < 24 ? `${h} hour${h > 1 ? "s" : ""}` : `${h / 24} day${h > 24 ? "s" : ""}`}</option>)}
+              {DURATIONS.map((h) => <option key={h} value={h}>{h < 24 ? `${h} hour${h > 1 ? "s" : ""}` : `${h / 24} day${h > 24 ? "s" : ""}`}</option>)}
             </select></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
@@ -326,7 +334,7 @@ export function PostOffer() {
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again after midnight.`}</div>
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0} onClick={submit}>{busy ? "Posting…" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
-        {config?.night && !(config.alwaysOpen || []).includes(f.category) && <div className="banner warn" style={{ margin: "0 0 10px" }}>🌙<span>It's after working hours, so this goes live at {config.hours?.open ?? 6} AM. Good time to post a sale or a camp registration.</span></div>}
+        {config?.night && !(config.alwaysOpen || []).includes(f.category) && <div className="banner warn" style={{ margin: "0 0 10px" }}>🌙<span>It's after working hours, so this goes live at {config.hours?.open ?? 6} AM. Hotels and travel offers go live straight away.</span></div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>
       </div>
     </>

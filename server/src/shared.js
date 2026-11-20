@@ -31,7 +31,8 @@ export const offerSelect = (free) => `
   o.orig_price::float8 AS orig_price, o.price::float8 AS price, o.quantity, o.ends_at, o.status, o.views, o.created_at,
   b.name AS b_name, b.area AS b_area, b.city AS b_city, b.state AS b_state, b.city_key AS b_city_key, b.pincode AS b_pincode,
   b.lat AS b_lat, b.lng AS b_lng, b.rating_avg::float8 AS b_rating_avg, b.rating_count AS b_rating_count,
-  ${visibleSql(free)} AS visible`;
+  ${visibleSql(free)} AS visible,
+  EXISTS (SELECT 1 FROM offer_boosts x WHERE x.offer_id = o.id AND x.status = 'active' AND x.ends_at > now()) AS featured`;
 
 export const mapOffer = (r) => ({
   id: r.id, businessId: r.owner_id, ownerId: r.owner_id,
@@ -41,7 +42,7 @@ export const mapOffer = (r) => ({
   },
   title: r.title, description: r.description, category: r.category, emoji: r.emoji, photoUrl: r.photo_thumb || null, hasPhoto: r.has_photo,
   origPrice: num(r.orig_price), price: num(r.price), quantity: r.quantity, endsAt: ms(r.ends_at), status: r.status,
-  visible: !!r.visible, views: r.views, createdAt: ms(r.created_at),
+  visible: !!r.visible, views: r.views, createdAt: ms(r.created_at), featured: !!r.featured,
 });
 
 // Small copy of an offer kept with a customer's contact history (survives the offer being archived).

@@ -17,17 +17,17 @@ const FLOAT = [
   { e: "🛏️", t: "Room for tonight", s: "Ends in 5 h 12 m", o: "-47%", style: { left: 0, top: 10 } },
   { e: "🎂", t: "Cakes at closing", s: "1.2 km · 7 left", o: "-50%", style: { right: 0, top: 56, animationDelay: ".8s" } },
   { e: "🚌", t: "6 bus seats left", s: "Leaves 10:45 PM", o: "-43%", style: { left: 24, bottom: 0, animationDelay: "1.6s" } },
-  { e: "🎬", t: IS_OWNER_APP ? "42 movie seats filled" : "Movie tonight, ₹80", s: IS_OWNER_APP ? "6:30 PM show" : "Empty seats · 6:30 PM", o: "-60%", style: { right: 10, bottom: 26, animationDelay: ".4s" } },
+  { e: "💇", t: IS_OWNER_APP ? "6 salon slots filled" : "Salon slots today", s: IS_OWNER_APP ? "This evening" : "4 – 8 PM", o: "-50%", style: { right: 10, bottom: 26, animationDelay: ".4s" } },
 ];
 
 // Opening animation for the customer app: radar rings, deal cards floating in, the categories locals post in.
 const CFLOAT = [
   { cat: "stay", t: "Room for tonight", s: "Ends in 5 h · 3.4 km", o: "-47%", style: { left: 0, top: 10 } },
   { cat: "food", t: "Cakes at closing", s: "1.2 km · 7 left", o: "-50%", style: { right: 0, top: 36, animationDelay: ".8s" } },
-  { cat: "health", t: "Free eye camp", s: "Sunday · register", o: "FREE", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
-  { cat: "events", t: "Movie tonight, ₹80", s: "Empty seats · 6:30 PM", o: "-60%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
+  { cat: "beauty", t: "Salon slots today", s: "4 – 8 PM · 0.8 km", o: "-50%", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
+  { cat: "travel", t: "Bus seats tonight", s: "Leaves 10:45 PM", o: "-43%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
 ];
-const TRAIL = ["food", "stay", "health", "events", "trips", "sell", "jobs", "admissions"];
+const TRAIL = ["food", "stay", "travel", "beauty", "laundry", "grocery", "health", "other"];
 
 export function Welcome() {
   const go = (to) => { markWelcomed(); navigate(to, { replace: true }); };
@@ -45,7 +45,7 @@ export function Welcome() {
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
         <span className="giftpill"><Icon d="gift" size={14} stroke={2.2} />Your first month is free</span>
         <h1>Deals from local businesses, near you.</h1>
-        <p className="lead2">Empty rooms and seats, food at closing time, doctors' camps, trips, movie tickets, jobs and things locals sell. Call the owner directly. Every rupee stays local.</p>
+        <p className="lead2">Same-day discounts from local food places, hotels, travel, salons, laundries, shops and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
         <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
         <p className="fine">After {TRIAL_DAYS} days: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
       </div>

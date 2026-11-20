@@ -95,7 +95,7 @@ test("partner: business, verification, offers, daily limit", async () => {
   assert.equal((await p.post("/api/owner/offers", { title: "x" })).status, 409); // no business yet
   const b = await p.put("/api/business", { name: "Chai Point", category: "food", categories: ["stay", "nonsense"], phone: "9988776655", city: "Bengaluru", state: "Karnataka", pincode: "560001", area: "MG Road", lat: 12.975, lng: 77.605, whatsapp: true });
   assert.equal(b.status, 200, JSON.stringify(b.data));
-  assert.deepEqual(b.data.categories, ["food", "stay"]);
+  assert.deepEqual(b.data.categories, ["food", "stay", "other"]); // unknown categories go under Others
   assert.equal(b.data.status, "pending");
   bizId = b.data.id;
 
@@ -120,8 +120,10 @@ test("partner: business, verification, offers, daily limit", async () => {
   const c = client("customer");
   assert.equal((await c.get(`/api/offers/${offerId}`)).status, 200);
 
-  // trusted partners can post in any category, within 3 posts a day
-  assert.equal((await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "electronics", origPrice: 100, price: 50, endsAt: ends })).status, 200);
+  // trusted partners can post in any category, within 3 posts a day; unknown categories go under Others
+  const other = await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "gadgets", origPrice: 100, price: 50, endsAt: ends });
+  assert.equal(other.status, 200);
+  assert.equal((await c.get(`/api/offers/${other.data.id}`)).data.category, "other");
   assert.equal((await p.post("/api/owner/offers", { title: "Third", category: "stay", origPrice: 100, price: 50, endsAt: ends })).status, 200);
   const fourth = await p.post("/api/owner/offers", { title: "Fourth", category: "food", origPrice: 100, price: 50, endsAt: ends });
   assert.equal(fourth.status, 409);
@@ -287,7 +289,7 @@ test("support conversations", async () => {
   assert.equal((await c.get(`/api/support/${t.data.id}`)).data.status, "open");
 });
 
-test("jobs: any business can post; shown only in the local area", async () => {
+test("offers only: discounts within 24 hours, no jobs, halls, movies or buy-and-sell", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");
   // the daily limit was used earlier: lift it for this test by ageing today's posts
@@ -295,20 +297,24 @@ test("jobs: any business can post; shown only in the local area", async () => {
   const pool = new Pool({ connectionString: DB });
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'");
   await pool.end();
-  const j = await p.post("/api/owner/offers", { title: "Loaders needed tomorrow 7 AM, ₹700/day", category: "jobs", origPrice: 0, price: 700, quantity: "5 people", endsAt: Date.now() + 86400000 });
-  assert.equal(j.status, 200, JSON.stringify(j.data));
+  // no job posts or buy-and-sell: every post must be a discount (offer price below the normal price)
+  const job = await p.post("/api/owner/offers", { title: "Loaders needed tomorrow, ₹700/day", category: "jobs", origPrice: 0, price: 700, endsAt: Date.now() + 6 * 3600000 });
+  assert.equal(job.status, 400);
+  // longer than 24 hours is refused (no 120-day admission campaigns any more)
+  const long = await p.post("/api/owner/offers", { title: "Admissions open, 20% off", category: "admissions", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
+  assert.equal(long.status, 400);
+  assert.match(long.data.error, /24 hours/);
+  // movie tickets / events and halls go under Others
+  const movie = await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 4 * 3600000 });
+  assert.equal(movie.status, 200);
   const c = client("customer");
-  // business is at 12.975, 77.605: 5 km search sees it, the whole-city feed doesn't
-  assert.ok((await c.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.some((o) => o.id === j.data.id), "near: shown");
-  assert.ok(!(await c.get("/api/offers?city=bengaluru")).data.some((o) => o.id === j.data.id), "city: hidden");
-  assert.ok((await c.get("/api/offers?pincode=560001")).data.some((o) => o.id === j.data.id), "same pincode: shown");
-  // ~15 km away with a 30 km range: still hidden (jobs only within 10 km)
-  assert.ok(!(await c.get("/api/offers?lat=13.10&lng=77.62&radius=30")).data.some((o) => o.id === j.data.id), "15 km: hidden");
-  const adm = await p.post("/api/owner/offers", { title: "Admissions open, 20% off", category: "admissions", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
-  assert.equal(adm.status, 200, "trusted partners can post admissions too, up to 120 days");
+  assert.equal((await c.get(`/api/offers/${movie.data.id}`)).data.category, "other");
+  // travel stays open 24×7
+  const bus = await p.post("/api/owner/offers", { title: "Seats on tonight's bus to Chennai", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 3600000 });
+  assert.equal(bus.status, 200, JSON.stringify(bus.data));
 });
 
-test("working hours: after 11 PM only jobs and travel", async () => {
+test("working hours: after 11 PM only hotels and travel", async () => {
   const { isNight, istHour } = await import("../src/util.js");
   const at = (h) => Date.UTC(2026, 10, 20, h, 0) - 5.5 * 3600000; // h o'clock India time
   assert.equal(istHour(at(23)), 23);
@@ -320,19 +326,66 @@ test("working hours: after 11 PM only jobs and travel", async () => {
     assert.equal(isNight(at(6)), false);
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["jobs", "travel", "trips"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel", "trips", "rental"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
-  // the night server: jobs still listed, the bakery's offers hidden, and their numbers can't be revealed
+  // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["jobs", "travel", "trips"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel", "trips", "rental"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
-  const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.find((o) => o.category !== "jobs");
+  const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.find((o) => o.category === "food");
   if (day) {
     const r = await n.post(`/api/offers/${day.id}/reveal`);
     assert.equal(r.data.code, "closed_for_night");
   }
+});
+
+test("revenue: boosted offers, sponsored banners, revenue page", async () => {
+  const p = client("partner");
+  await p.login("owner@test.lastpick.in");
+  const a = client("admin");
+  await a.login("admin@test.lastpick.in");
+  const mine = (await p.get("/api/owner/offers")).data.find((o) => o.status === "live" && o.endsAt > Date.now() && o.category !== "jobs");
+  assert.ok(mine, "the partner has a live offer");
+  // only 6, 12 or 24 hours
+  assert.equal((await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 5 })).status, 400);
+  // during free launch a boost switches on at once and is recorded as waived
+  const free = await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 6 });
+  assert.equal(free.status, 200, JSON.stringify(free.data));
+  assert.equal(free.data.status, "active");
+  assert.equal(free.data.paidBy, "launch_free");
+  assert.equal((await p.post(`/api/owner/offers/${mine.id}/boost`, { hours: 6 })).status, 409, "one boost at a time");
+  // once payments are on, a boost waits until an admin confirms the payment (made here directly in the database)
+  const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+  const pool = new Pool({ connectionString: DB });
+  await pool.query("UPDATE offer_boosts SET status = 'rejected' WHERE id = $1", [free.data.id]);
+  const req = { data: (await pool.query("INSERT INTO offer_boosts (offer_id, owner_id, hours, price) SELECT id, owner_id, 12, 79 FROM offers WHERE id = $1 RETURNING id", [mine.id])).rows[0] };
+  await pool.end();
+  // moderators can't touch money
+  const m = client("admin");
+  await m.login("moderator@test.lastpick.in");
+  assert.equal((await m.get("/api/admin/boosts")).status, 403);
+  const pending = (await a.get("/api/admin/boosts?status=pending")).data;
+  assert.ok(pending.some((b) => b.id === req.data.id));
+  const ok = await a.post(`/api/admin/boosts/${req.data.id}`, { action: "approve", note: "UPI ref 123" });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  assert.equal(ok.data.live, true);
+  // customers see it as featured
+  const c = client("customer");
+  assert.equal((await c.get(`/api/offers/${mine.id}`)).data.featured, true);
+  // a sponsored banner for Bengaluru
+  const ban = await a.post("/api/admin/banners", { title: "Grand opening: 30% off all week", advertiser: "Chai Point", city: "Bengaluru", days: 7, price: 2000, offerId: mine.id });
+  assert.equal(ban.status, 200, JSON.stringify(ban.data));
+  assert.ok((await c.get("/api/banners?city=bengaluru")).data.some((b) => b.id === ban.data.id));
+  assert.ok(!(await c.get("/api/banners?city=mumbai")).data.some((b) => b.id === ban.data.id));
+  // revenue this month: the paid boost and the banner
+  const rev = (await a.get("/api/admin/revenue")).data;
+  assert.equal(rev.boosts.paid, 79);
+  assert.equal(rev.banners.sold, 2000);
+  assert.ok(rev.totalThisMonth >= 2079);
+  assert.equal((await a.post(`/api/admin/banners/${ban.data.id}/stop`)).status, 200);
+  assert.ok(!(await c.get("/api/banners?city=bengaluru")).data.some((b) => b.id === ban.data.id));
 });
 
 test("privacy: export and delete account", async () => {

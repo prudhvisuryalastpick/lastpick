@@ -18,7 +18,7 @@ export const P = {
   ball: "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10",
   bag: "M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2",
   phoneDevice: "M7 2h10v20H7zM11 18h2",
-  tools: "M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z",
+  tools: "M14 4l6 6-3 3-6-6zM11 7L3 15l3 3 8-8",
   box: "M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10",
   near: "M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 3v3M12 18v3M3 12h3M18 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10",
   map: "M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
@@ -55,6 +55,18 @@ export const P = {
   moon: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z",
   gift: "M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-2-3-6-3-6 0M12 7c2-3 6-3 6 0",
   plus: "M12 5v14M5 12h14",
+  camera: "M3 8h4l2-3h6l2 3h4v12H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  balloon: "M12 3a6 6 0 0 0-6 6c0 3.5 3 6.5 6 7 3-.5 6-3.5 6-7a6 6 0 0 0-6-6zM12 16l-1 2h2zM12 18c0 2-2 2-2 3",
+  brush: "M18 3l3 3-9 9-3-3zM9 12l-4 4a2 2 0 0 0 0 3 2 2 0 0 0 3 0l4-4",
+  pot: "M4 10h16v3a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7zM2 10h20M9 6c0-1 1-1 1-2M14 6c0-1 1-1 1-2",
+  spray: "M9 9h6v12H9zM10 9V5h3l2 2M17 4h.01M19 6h.01M19 2h.01",
+  needle: "M20 4L8 16M6 18l-2 2M16 4h4v4M9 9c-3-1-5 1-5 3s3 3 5 2",
+  paw: "M12 13c-3 0-5 3-5 5 0 1.5 1.5 2 3 1.5 1-.3 1.4-.5 2-.5s1 .2 2 .5c1.5.5 3 0 3-1.5 0-2-2-5-5-5zM6 11a1.5 2 0 1 0 0-.01M18 11a1.5 2 0 1 0 0-.01M9.5 7a1.5 2 0 1 0 0-.01M14.5 7a1.5 2 0 1 0 0-.01",
+  pill: "M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7zM7 10l7 7",
+  wrench: "M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z",
+  laundry: "M4 3h16v18H4zM4 7h16M7 5h.01M10 5h.01M12 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  rocket: "M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-2-2c1-4 4-8 10-10 0 6-4 9-10 12zM14 9h.01",
+  megaphone: "M3 10v4h3l7 4V6L6 10zM16 9a3 3 0 0 1 0 6M19 7a6 6 0 0 1 0 10",
 };
 
 export function Icon({ d, size = 22, stroke = 1.9, className, style }) {
@@ -68,32 +80,40 @@ export function Icon({ d, size = 22, stroke = 1.9, className, style }) {
 export const CAT_STYLE = {
   food: { icon: "food", tint: "#FFF1E0", ink: "#B35A00", short: "Food" },
   grocery: { icon: "grocery", tint: "#E8F6EC", ink: "#0F7A43", short: "Grocery" },
-  stay: { icon: "stay", tint: "#E9EEFF", ink: "#1E4BB8", short: "Stays" },
-  venue: { icon: "venue", tint: "#FCE9F2", ink: "#9C1F5A", short: "Halls" },
-  travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Bus seats" },
-  rental: { icon: "car", tint: "#EAF3FF", ink: "#1E4BB8", short: "Rentals" },
-  sports: { icon: "ball", tint: "#EEF8E3", ink: "#3E7A0F", short: "Sports" },
+  stay: { icon: "stay", tint: "#E9EEFF", ink: "#1E4BB8", short: "Hotels" },
+  travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Bus & travel" },
+  rental: { icon: "car", tint: "#FDEAF0", ink: "#9C1F5A", short: "Cabs" },
+  sports: { icon: "ball", tint: "#EEF8E3", ink: "#3E7A0F", short: "Gym & sports" },
   beauty: { icon: "salon", tint: "#F2ECFF", ink: "#6B2FB3", short: "Salon" },
-  health: { icon: "doctor", tint: "#E4F5F2", ink: "#0F6E5C", short: "Doctors" },
-  admissions: { icon: "cap", tint: "#EAF3FF", ink: "#1E4BB8", short: "Admissions" },
+  health: { icon: "doctor", tint: "#E4F5F2", ink: "#0F6E5C", short: "Clinics" },
+  admissions: { icon: "cap", tint: "#EAF3FF", ink: "#1E4BB8", short: "Schools" },
+  laundry: { icon: "laundry", tint: "#E6F3FA", ink: "#0B5C80", short: "Laundry" },
   trips: { icon: "car", tint: "#FDEAF0", ink: "#9C1F5A", short: "Trips" },
   sell: { icon: "tag", tint: "#F2ECFF", ink: "#3A1D8F", short: "Sell & buy" },
-  jobs: { icon: "job", tint: "#EAF6EE", ink: "#0F7A43", short: "Jobs" },
   retail: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Shopping" },
   electronics: { icon: "phoneDevice", tint: "#EEF0F6", ink: "#3A3550", short: "Electronics" },
-  events: { icon: "ticket", tint: "#FFE9E6", ink: "#B3261E", short: "Movies" },
-  services: { icon: "tools", tint: "#F1EFE8", ink: "#5C4A1E", short: "Services" },
+  jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
+  photo: { icon: "camera", tint: "#EAF3FF", ink: "#1E4BB8", short: "Photographers" },
+  decor: { icon: "balloon", tint: "#FCE9F2", ink: "#9C1F5A", short: "Decorators" },
+  makeup: { icon: "brush", tint: "#FDEAF3", ink: "#A3245E", short: "Makeup" },
+  catering: { icon: "pot", tint: "#FFF1E0", ink: "#B35A00", short: "Caterers" },
+  cleaning: { icon: "spray", tint: "#E6F3FA", ink: "#0B5C80", short: "Cleaning" },
+  tailor: { icon: "needle", tint: "#F2ECFF", ink: "#5B2393", short: "Tailors" },
+  pets: { icon: "paw", tint: "#FFF6D6", ink: "#8A6100", short: "Pet care" },
+  pharmacy: { icon: "pill", tint: "#E8F6EC", ink: "#0F7A43", short: "Medicals" },
+  vehicle: { icon: "wrench", tint: "#EEF0F6", ink: "#3A3550", short: "Bike & car" },
+  services: { icon: "tools", tint: "#F1EFE8", ink: "#5C4A1E", short: "Repairs" },
   education: { icon: "book", tint: "#E9EDFF", ink: "#3A1D8F", short: "Classes" },
-  other: { icon: "box", tint: "#F0EFF4", ink: "#3A3550", short: "More" },
+  other: { icon: "more", tint: "#F2ECFF", ink: "#3A1D8F", short: "Others" },
 };
+// older categories (trips, laundry, schools…) show as Travel or Others
 export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 
-// Category tiles on the customer home, in this order, with small tags.
+// Category tiles on the customer home (Food, Hotels, Travel first), with small tags.
 export const HOME_TILES = [
-  { id: "food" }, { id: "grocery" }, { id: "stay" }, { id: "venue" },
-  { id: "health", tag: "CAMP", tagBg: "#0F6E5C" }, { id: "trips", tag: "24×7", tagBg: "#24105E" },
-  { id: "events", tag: "LOW ₹", tagBg: "#B3261E" }, { id: "sell", tag: "NEW", tagBg: "#B35A00" },
-  { id: "jobs", tag: "24×7", tagBg: "#0F7A43" }, { id: "travel" }, { id: "admissions", tag: "JAN–JUN", tagBg: "#1E4BB8" },
+  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "rental", tag: "24×7", tagBg: "#24105E" },
+  { id: "grocery" }, { id: "beauty", tag: "LOW ₹", tagBg: "#6B2FB3" }, { id: "photo", tag: "NEW", tagBg: "#B35A00" }, { id: "decor", tag: "NEW", tagBg: "#B35A00" },
+  { id: "health" }, { id: "laundry" }, { id: "makeup" },
 ];
 
 // Category icon tile (used instead of emoji when an offer has no photo)

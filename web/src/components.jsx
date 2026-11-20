@@ -32,7 +32,7 @@ export function OfferCard({ offer, preview = false }) {
     <>
       <OfferImage offer={offer}>{isJob(offer) ? <span className="off">JOB</span> : discount(offer) > 0 && <span className="off">-{discount(offer)}%</span>}</OfferImage>
       <div className="body">
-        <div className="t">{offer.title}</div>
+        <div className="t">{offer.featured && <span className="featpill">Featured</span>}{offer.title}</div>
         <div className="s">{offer.business?.name}{r?.count ? <> · <span className="star">★ {Number(r.avg).toFixed(1)}</span></> : null} · {offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</div>
         <div className="foot">
           <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{rupee(offer.price)}</b>{offer.origPrice > offer.price && <s>{rupee(offer.origPrice)}</s>}</>}</div>

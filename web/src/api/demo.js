@@ -4,7 +4,7 @@ import { compressPhoto } from "../lib/image.js";
 import { CONSENT_VERSION, cityKey } from "../lib/config.js";
 import { distanceKm, indianPhone } from "../lib/format.js";
 
-const KEY = "lastpick-demo-v7";
+const KEY = "lastpick-demo-v9";
 const H = 3600000, D = 86400000;
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const wait = (ms = 150) => new Promise((r) => setTimeout(r, ms));
@@ -30,21 +30,24 @@ function seed() {
   const biz = [
     ["u-own", "Sunrise Bakery", "food", "Indiranagar", 12.9784, 77.6408, "9845011223"],
     ["o2", "Hotel Grand Residency", "stay", "MG Road", 12.9756, 77.6066, "8041255667"],
-    ["o3", "Shubh Mangal Function Hall", "venue", "Jayanagar", 12.925, 77.5938, "9900123456"],
+    ["o3", "City Diagnostics", "health", "Jayanagar", 12.925, 77.5938, "9900123456"],
     ["o4", "Royal Travels", "travel", "Majestic", 12.9767, 77.5713, "9740088990"],
     ["o5", "KickOff Turf", "sports", "HSR Layout", 12.9116, 77.6474, "9008044556"],
     ["o6", "ZoomCars Point", "rental", "Koramangala", 12.9352, 77.6245, "9632077889"],
     ["o7", "Trendz Fashion", "retail", "Commercial Street", 12.9822, 77.6083, "9886133445"],
     ["o8", "Glow Salon", "beauty", "Whitefield", 12.9698, 77.75, "9812345670"],
-    ["o10", "Paradise Banquets", "venue", "Banjara Hills", 17.4156, 78.4347, "9849012345", "Hyderabad", "Telangana"],
+    ["o10", "Paradise Fitness", "sports", "Banjara Hills", 17.4156, 78.4347, "9849012345", "Hyderabad", "Telangana"],
     ["o11", "Hotel Sea Breeze", "stay", "Andheri East", 19.1136, 72.8697, "9820012345", "Mumbai", "Maharashtra"],
     ["o12", "Chennai Sweets", "food", "T. Nagar", 13.0418, 80.2341, "9840012345", "Chennai", "Tamil Nadu"],
     ["o14", "Dr. Rao Eye Clinic", "health", "Indiranagar", 12.9731, 77.6385, "9845022334"],
     ["o15", "Greenwood Public School", "admissions", "Indiranagar", 12.9705, 77.6455, "8041234567"],
     ["o16", "Ravi K (driving to Mysuru)", "trips", "Indiranagar", 12.9762, 77.6399, "9900011122"],
-    ["o17", "Meena (selling at home)", "sell", "Indiranagar", 12.9748, 77.6421, "9900033344"],
+    ["o17", "Speedy Bike Care", "vehicle", "Indiranagar", 12.9748, 77.6421, "9900033344"],
     ["o18", "Indiranagar Kirana Stores", "grocery", "Indiranagar", 12.9779, 77.6436, "9845055667"],
-    ["o19", "Lakshmi Talkies", "events", "Indiranagar", 12.9718, 77.6412, "8041122334"],
+    ["o19", "Clean & Fresh Laundry", "laundry", "Indiranagar", 12.9718, 77.6412, "8041122334"],
+    ["o20", "Frame Story Photography", "photo", "Indiranagar", 12.9765, 77.6390, "9845066778"],
+    ["o21", "Balloon Bliss Decorators", "decor", "Domlur", 12.9609, 77.6387, "9900077889"],
+    ["o22", "Glam by Divya (makeup)", "makeup", "Indiranagar", 12.9741, 77.6428, "9845099001"],
   ].map(([owner, name, category, area, lat, lng, phone, city = "Bengaluru", state = "Karnataka"], i) => ({
     id: "b" + (i + 1), ownerId: owner, name, category, categories: [category], about: "", address: `${area}, ${city}`, area, city, state, cityKey: cityKey(city), lat, lng,
     pincode: PINS[area] || "",
@@ -52,7 +55,7 @@ function seed() {
   }));
   biz.push({ id: "b99", ownerId: "o9", name: "New Mobile World", category: "electronics", about: "", address: "SP Road", area: "SP Road", city: "Bengaluru", state: "Karnataka", cityKey: "bengaluru", pincode: "560002", lat: 12.968, lng: 77.58, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 2 * H, phone: indianPhone("9988776655"), whatsapp: true });
   biz.push({ id: "b98", ownerId: "o13", name: "Quick Deals Hyd", category: "electronics", about: "", address: "Ameerpet", area: "Ameerpet", city: "Hyderabad", state: "Telangana", cityKey: "hyderabad", pincode: "500016", lat: 17.4375, lng: 78.4482, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 5 * H, phone: indianPhone("9849012345"), whatsapp: true });
-  const subs = ["u-own", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o10", "o11", "o12", "o14", "o15", "o16", "o17", "o18", "o19"].map((u) => ({ userId: u, plan: "owner", status: "active", currentPeriodEnd: n + 20 * D, provider: "demo" }));
+  const subs = ["u-own", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o10", "o11", "o12", "o14", "o15", "o16", "o17", "o18", "o19", "o20", "o21", "o22"].map((u) => ({ userId: u, plan: "owner", status: "active", currentPeriodEnd: n + 20 * D, provider: "demo" }));
   const o = (b, category, emoji, title, description, origPrice, price, quantity, endsIn, views) => ({
     id: rid(), businessId: b, title, description, category, emoji, photoUrl: null, origPrice, price, quantity,
     endsAt: n + endsIn, status: "live", views, createdAt: n - 2 * H,
@@ -61,22 +64,26 @@ function seed() {
     o("b1", "food", "🎂", "Fresh cakes & pastries before closing", "Today's cakes, pastries and breads at half price. Come before 10:30 PM.", 600, 299, "7 left", 95 * 60000, 142),
     o("b1", "food", "🥐", "Croissant box of 6 for tomorrow morning", "Order tonight, collect fresh at 8 AM.", 420, 260, "10 boxes", 9 * H, 63),
     o("b2", "stay", "🛏️", "Deluxe AC room for tonight", "Double bed, breakfast included. Check-in till midnight.", 3800, 1999, "3 rooms", 5 * H, 211),
-    o("b3", "venue", "💒", "Marriage hall for 300 guests, free this Sunday", "Hall, dining area and 6 rooms for one day. Cancelled booking, so heavily discounted.", 180000, 95000, "1 date", 2 * D, 388),
+    o("b3", "health", "🩺", "Full body check-up at 40% off today", "70+ tests, reports by evening. Walk in before 11 AM, fasting.", 2500, 1499, "20 slots", 10 * H, 388),
     o("b4", "travel", "🚌", "AC sleeper to Chennai, leaves 10:45 PM", "6 seats unsold. Board at Majestic bus stand.", 1400, 799, "6 seats", 150 * 60000, 96),
     o("b5", "sports", "⚽", "5-a-side turf, 10 to 11 PM tonight", "Floodlights, bibs and ball included.", 1800, 900, "1 slot", 55 * 60000, 54),
     o("b6", "rental", "🚗", "Swift self-drive, free for the weekend", "Unlimited km within Karnataka. Licence and ID needed.", 5200, 2999, "1 car", 20 * H, 120),
-    o("b7", "retail", "👕", "Last-season shirts, 3 for the price of 1", "Sizes M to XL.", 2400, 799, "18 left", 26 * H, 77),
-    o("b8", "beauty", "💇", "Haircut + head massage, weekday afternoons", "Senior stylists, 2 to 5 PM slots.", 900, 449, "8 slots", 3 * D, 40),
-    o("b9", "venue", "💒", "Banquet hall for 500, free on Saturday", "AC hall with parking. Cancelled booking.", 250000, 140000, "1 date", 3 * D, 210),
+    o("b7", "retail", "👕", "Last-season shirts, 3 for the price of 1, today only", "Sizes M to XL.", 2400, 799, "18 left", 20 * H, 77),
+    o("b8", "beauty", "💇", "Haircut + head massage, 50% off this evening", "Senior stylists, 4 to 8 PM slots.", 900, 449, "8 slots", 7 * H, 40),
+    o("b9", "sports", "⚽", "Gym day pass ₹99 today", "All equipment, steam bath included. Valid till 10 PM.", 300, 99, "30 passes", 14 * H, 210),
     o("b10", "stay", "🛏️", "Business rooms near the airport tonight", "Free airport pickup after 10 PM.", 4500, 2499, "5 rooms", 6 * H, 133),
     o("b11", "food", "🍬", "Sweets and savouries at closing time", "Mixed boxes, 40% off after 8 PM.", 800, 480, "20 boxes", 3 * H, 88),
-    o("b12", "health", "🩺", "Free eye check-up camp this Sunday", "9 AM to 1 PM. Register by sharing your number; 60 slots.", 500, 0, "42 of 60 slots", 3 * D, 230),
-    o("b13", "admissions", "🎓", "Early-bird admissions 2027-28: 20% off first-year fees", "Nursery to Class 9. Offer valid for admissions confirmed before 31 May.", 60000, 48000, "Limited seats", 60 * D, 512),
+    o("b12", "health", "🩺", "Free eye check-up today, 4 to 8 PM", "Register by sharing your number; 60 slots.", 500, 0, "42 of 60 slots", 9 * H, 230),
+    o("b13", "admissions", "🎓", "Admission form fee waived today", "Nursery to Class 9, 2027-28. Visit the school office before 5 PM.", 1000, 0, "Today only", 8 * H, 512),
     o("b14", "trips", "🧳", "Driving to Mysuru tomorrow 6 AM, 2 seats free", "Swift, AC. Share fuel cost. Pickup at Indiranagar metro.", 800, 350, "2 seats", 14 * H, 64),
-    o("b15", "sell", "🏷️", "Used cycle in good condition", "Hero 26-inch, 2 years old, new tyres.", 4000, 1500, "1 piece", 6 * D, 41),
-    o("b17", "events", "🎬", "Empty seats for today's 6:30 PM show: tickets ₹80", "Hall is half empty. Normal price ₹200. Show this offer at the counter.", 200, 80, "60 seats", 4 * H, 187),
-    o("b16", "jobs", "🧰", "Loaders (coolies) needed tomorrow 7 AM, ₹700/day", "Unloading a rice truck, 4-5 hours. Lunch provided.", 700, 700, "5 people", 20 * H, 73),
-    o("b16", "jobs", "🧰", "Shop helper needed, full time", "Billing and stocking. 9 AM to 8 PM, Sundays off.", 15000, 15000, "1 opening · ₹15,000/month", 12 * D, 58),
+    o("b15", "vehicle", "🔧", "Bike general service at 25% off today", "Oil change, wash and check-up. Drop by 1 PM, ready by 6 PM.", 800, 600, "6 slots", 9 * H, 41),
+    o("b18", "photo", "📷", "Birthday / family photo shoot, 40% off if booked today", "1 hour, 50 edited photos, at your home or a park.", 5000, 2999, "2 slots", 11 * H, 96),
+    o("b19", "decor", "🎈", "Balloon & flower decoration, 35% off for bookings today", "Birthday or anniversary setup at home, done in 2 hours.", 4000, 2600, "3 bookings", 12 * H, 72),
+    o("b20", "makeup", "💄", "Party makeup at home, 30% off this evening", "HD makeup and hairstyle. 5 to 9 PM slots.", 2500, 1750, "2 slots", 7 * H, 58),
+    o("b8", "beauty", "💅", "Manicure + pedicure combo at ₹499 today", "Normally ₹899. Walk in before 7 PM.", 899, 499, "10 slots", 9 * H, 64),
+    o("b17", "laundry", "🧺", "Laundry and ironing 30% off today", "Drop before 6 PM, ready tomorrow morning. Free pickup within 2 km.", 300, 210, "Today only", 8 * H, 87),
+    o("b16", "grocery", "🥬", "Fresh vegetables 30% off till closing", "Today's stock of vegetables and fruits.", 300, 210, "Today's stock", 8 * H, 73),
+    o("b16", "grocery", "🍚", "Rice + dal + oil combo, 20% off today", "5 kg rice, 1 kg toor dal, 1 L oil.", 900, 720, "25 combos", 12 * H, 58),
   ];
   const leads = [
     { id: rid(), offerId: offers[0].id, businessId: "b1", customerId: "x1", name: "Ravi Kumar", phone: "9876543210", status: "new", createdAt: n - 12 * 60000 },
@@ -97,14 +104,21 @@ function seed() {
     .map(([i, how, ago]) => ({ customerId: "u-cust", offerId: offers[i].id, how, at: n - ago, snap: { title: offers[i].title, category: offers[i].category, price: offers[i].price, origPrice: offers[i].origPrice, businessId: offers[i].businessId } }));
   const support = [{ id: "s1", userId: "u-cust", role: "customer", topic: "Using the app", status: "answered", createdAt: n - 2 * D, updatedAt: n - D,
     messages: [{ fromStaff: false, body: "How do I share my number with a business?", at: n - 2 * D }, { fromStaff: true, body: "Open the offer and tap \"Share my number\". You'll see exactly who gets it before it's sent.", at: n - D }] }];
-  return { v: 6, config: { freeMode: true }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support };
+  // revenue samples: one paid boost (live), one waiting for payment confirmation, one sponsored banner
+  const bo = (i, hours, price, status, paidBy) => ({ id: rid(), offerId: offers[i].id, ownerId: biz.find((x) => x.id === offers[i].businessId).ownerId, hours, price, status, paidBy,
+    startsAt: status === "active" ? n - H : null, endsAt: status === "active" ? Math.min(n + (hours - 1) * H, offers[i].endsAt) : null, createdAt: n - H, note: status === "active" ? "UPI ref 4471" : "",
+    offerTitle: offers[i].title, businessName: biz.find((x) => x.id === offers[i].businessId).name, city: "Bengaluru" });
+  const boosts = [bo(2, 6, 49, "active", "manual"), bo(6, 12, 79, "pending", null)];
+  const banners = [{ id: rid(), title: "Weekend at Hotel Grand Residency: 40% off", subtitle: "Book tonight's rooms on LastPick", advertiser: "Hotel Grand Residency", cityKey: "bengaluru",
+    offerId: offers[9].id, price: 1500, startsAt: n - D, endsAt: n + 6 * D, active: true, createdAt: n - D }];
+  return { v: 9, config: { freeMode: true }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
 }
 
 function load() {
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { db = null; }
   // reseed when empty or when every demo offer has expired
-  if (!db || db.v !== 6 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
+  if (!db || db.v !== 9 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
     const fresh = seed();
     if (db?.session) fresh.session = db.session;
     db = fresh;
@@ -133,10 +147,11 @@ function staff(db, superOnly = false) {
 }
 const bizVisible = (db, b) => b && b.status === "verified" && hasPlan(db, b.ownerId, "owner");
 const pub = (b) => b && ({ id: b.id, name: b.name, category: b.category, rating: b.rating?.count ? b.rating : null, about: b.about, area: b.area, city: b.city, state: b.state, cityKey: b.cityKey, pincode: b.pincode, address: b.address, lat: b.lat, lng: b.lng, status: b.status });
-const withBiz = (db, o) => ({ ...o, business: pub(db.businesses.find((b) => b.id === o.businessId)) });
+const boostLive = (db, id) => (db.boosts || []).some((x) => x.offerId === id && x.status === "active" && x.endsAt > Date.now());
+const withBiz = (db, o) => ({ ...o, featured: boostLive(db, o.id), business: pub(db.businesses.find((b) => b.id === o.businessId)) });
 const emit = () => listeners.forEach((cb) => cb());
-// working hours 6 AM - 11 PM India time; jobs and travel stay open 24x7; jobs and local sales only within 10 km
-const ALWAYS_OPEN = ["jobs", "travel", "trips"];
+// working hours 6 AM - 11 PM India time; hotels and travel stay open 24x7; hiring ads and local sales only within 10 km
+const ALWAYS_OPEN = ["stay", "travel", "trips", "rental"];
 const LOCAL_ONLY = ["jobs", "sell"];
 const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 6 || h >= 23; };
 const openNow = (o) => !night() || ALWAYS_OPEN.includes(o.category);
@@ -306,18 +321,84 @@ export const api = {
     if (!b) throw new Error("Set up your business first");
     if (b.status !== "verified") throw new Error("Only verified partners can post. Our team checks every business, usually within 1 working day.");
     if (!hasPlan(db, u.id, "owner")) throw new Error("Your free month has ended. Pick a Business Pro plan to post offers.");
-    if (!(o.price < o.origPrice)) throw new Error("Offer price must be lower than the normal price");
+    if (o.category === "jobs") {
+      if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
+      if (o.endsAt > Date.now() + 7 * D + 60000) throw new Error("Hiring ads can run for up to 7 days");
+    } else {
+      if (!(o.price < o.origPrice)) throw new Error("Offer price must be lower than the normal price");
+      if (o.endsAt > Date.now() + D + 60000) throw new Error("Offers must end within 24 hours");
+    }
     if (!b.city || !b.state || !b.pincode) throw new Error("Add your city, state and pincode in Business profile first");
     const dayStart = Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H;
     if (db.offers.filter((x) => x.businessId === b.id && x.createdAt >= dayStart).length >= 3) throw new Error("You can post 3 offers a day. You can post again after midnight.");
     const id = rid();
     db.offers.push({ id, businessId: b.id, title: o.title, description: o.description, category: o.category, emoji: o.emoji, photoUrl: o.photoThumb || null,
       hasPhoto: !!o.photo, origPrice: o.origPrice, price: o.price, quantity: o.quantity, endsAt: o.endsAt, status: "live", views: 0, createdAt: Date.now(),
-      flags: 1 - o.price / o.origPrice >= 0.9 ? ["very-high-discount"] : [] });
+      flags: o.category !== "jobs" && 1 - o.price / o.origPrice >= 0.9 ? ["very-high-discount"] : [] });
     if (o.photo) { db.photos = db.photos || {}; db.photos[id] = o.photo; }
     save(db);
   },
   async endOffer(id) { const db = load(); const o = db.offers.find((x) => x.id === id); if (o && o.status === "live") o.status = "ended"; save(db); },
+  // ---- revenue: boosted offers, sponsored banners, admin revenue page
+  async boostOffer(id, hours) {
+    await wait(); const db = load(); const u = me(db);
+    const price = { 6: 49, 12: 79, 24: 99 }[hours];
+    if (!price) throw new Error("Choose 6, 12 or 24 hours");
+    const o = db.offers.find((x) => x.id === id);
+    const b = db.businesses.find((x) => x.id === o?.businessId);
+    if (!o || b?.ownerId !== u.id) throw new Error("Offer not found");
+    if (o.status !== "live" || o.endsAt <= Date.now()) throw new Error("This offer has ended");
+    db.boosts = db.boosts || [];
+    if (db.boosts.some((x) => x.offerId === id && (x.status === "pending" || (x.status === "active" && x.endsAt > Date.now())))) throw new Error("This offer is already boosted (or waiting for payment confirmation)");
+    const free = db.config?.freeMode !== false;
+    const row = { id: rid(), offerId: id, ownerId: u.id, hours, price, status: free ? "active" : "pending", paidBy: free ? "launch_free" : null,
+      startsAt: free ? Date.now() : null, endsAt: free ? Math.min(Date.now() + hours * H, o.endsAt) : null, createdAt: Date.now(), offerTitle: o.title, businessName: b.name, city: b.city, note: "" };
+    row.live = row.status === "active";
+    db.boosts.push(row); save(db); emit();
+    return row;
+  },
+  async myBoosts() { const db = load(); const u = me(db); return (db.boosts || []).filter((x) => x.ownerId === u.id).map((x) => ({ ...x, live: x.status === "active" && x.endsAt > Date.now() })).reverse(); },
+  async banners(city) {
+    const db = load(), now = Date.now();
+    return (db.banners || []).filter((x) => x.active && x.startsAt <= now && x.endsAt > now && (!x.cityKey || x.cityKey === city)).reverse();
+  },
+  async adminBoosts(status = "pending") { const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue"); return (db.boosts || []).filter((x) => x.status === status).map((x) => ({ ...x, live: x.status === "active" && x.endsAt > Date.now() })).reverse(); },
+  async decideBoost(id, action, note = "") {
+    const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue");
+    const x = (db.boosts || []).find((b) => b.id === id); if (!x || x.status !== "pending") throw new Error("This boost was already decided");
+    const o = db.offers.find((y) => y.id === x.offerId);
+    if (action === "approve") { if (!o || o.endsAt <= Date.now()) throw new Error("The offer has ended; reject this boost instead"); Object.assign(x, { status: "active", paidBy: "manual", startsAt: Date.now(), endsAt: Math.min(Date.now() + x.hours * H, o.endsAt), note }); }
+    else Object.assign(x, { status: "rejected", note });
+    save(db); emit(); return x;
+  },
+  async adminBanners() { const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue"); return (db.banners || []).map((x) => ({ ...x, live: x.active && x.endsAt > Date.now() })).reverse(); },
+  async createBanner(d) {
+    const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue");
+    if (!d.title || d.title.trim().length < 3) throw new Error("Add a banner title");
+    if (!d.advertiser || d.advertiser.trim().length < 2) throw new Error("Who is paying for this banner?");
+    const days = Number(d.days); if (!(days >= 1 && days <= 90)) throw new Error("A banner runs 1 to 90 days");
+    const row = { id: rid(), title: d.title.trim(), subtitle: (d.subtitle || "").trim(), advertiser: d.advertiser.trim(), cityKey: d.city ? cityKey(d.city) : null,
+      offerId: d.offerId || null, price: Math.round(Number(d.price) || 0), startsAt: Date.now(), endsAt: Date.now() + days * D, active: true, createdAt: Date.now() };
+    db.banners = db.banners || []; db.banners.push(row); save(db); emit(); return row;
+  },
+  async stopBanner(id) { const db = load(); const x = (db.banners || []).find((b) => b.id === id); if (x) x.active = false; save(db); emit(); return x; },
+  async revenue() {
+    const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue");
+    const m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); const month = m0.getTime(), now = Date.now();
+    const active = (plan) => db.subs.filter((s) => s.plan === plan && ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > now).length;
+    const bs = db.boosts || [], bn = db.banners || [];
+    const paid = bs.filter((x) => ["manual", "gateway"].includes(x.paidBy) && x.startsAt >= month), waived = bs.filter((x) => x.paidBy === "launch_free" && x.createdAt >= month);
+    const sold = bn.filter((x) => x.createdAt >= month);
+    const cp = active("customer") * 149, bp = active("owner") * 499;
+    const sum = (l, f) => l.reduce((t, x) => t + x[f], 0);
+    return {
+      freeMode: db.config?.freeMode !== false,
+      subscriptions: { customerPass: { active: active("customer"), monthly: cp }, businessPro: { active: active("owner"), monthly: bp } },
+      boosts: { paid: sum(paid, "price"), paidCount: paid.length, waived: sum(waived, "price"), waivedCount: waived.length, pending: bs.filter((x) => x.status === "pending").length, live: bs.filter((x) => x.status === "active" && x.endsAt > now).length, prices: { 6: 49, 12: 79, 24: 99 } },
+      banners: { sold: sum(sold, "price"), soldCount: sold.length, live: bn.filter((x) => x.active && x.endsAt > now).length },
+      totalThisMonth: cp + bp + sum(paid, "price") + sum(sold, "price"),
+    };
+  },
   async addView(id) { const db = load(); const o = db.offers.find((x) => x.id === id); if (o) { o.views += 1; save(db); } },
   async uploadPhoto(file) {
     const [thumb, photo] = await Promise.all([compressPhoto(file, 360, 28000), compressPhoto(file, 1000, 190000)]);

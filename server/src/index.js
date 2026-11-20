@@ -17,15 +17,16 @@ import { partnerRoutes } from "./routes/partner.js";
 import { reviewReadRoutes, reviewRoutes } from "./routes/reviews.js";
 import { insightRoutes } from "./routes/insights.js";
 import { supportRoutes } from "./routes/support.js";
+import { bannerRoutes, boostPartnerRoutes, revenueAdminRoutes } from "./routes/revenue.js";
 
 const has = (s) => SERVICE === "all" || SERVICE === s;
 const router = createRouter();
 accountRoutes(router);
 offerViewRoutes(router);
 reviewReadRoutes(router);
-if (has("customer")) { offerRoutes(router); reviewRoutes(router); }
-if (has("partner")) partnerRoutes(router);
-if (has("admin")) adminRoutes(router);
+if (has("customer")) { offerRoutes(router); reviewRoutes(router); bannerRoutes(router); }
+if (has("partner")) { partnerRoutes(router); boostPartnerRoutes(router); }
+if (has("admin")) { adminRoutes(router); revenueAdminRoutes(router); }
 insightRoutes(router, { customer: has("customer"), partner: has("partner") });
 supportRoutes(router, { admin: has("admin") });
 

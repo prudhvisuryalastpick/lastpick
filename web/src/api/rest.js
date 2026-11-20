@@ -163,5 +163,16 @@ export const api = {
   async adminSupportThread(id) { return get(`/api/admin/support/${enc(id)}`); },
   async adminSupportReply(id, message, close = false) { await post(`/api/admin/support/${enc(id)}/reply`, { message, close }); },
 
+  // revenue: boosted offers, sponsored banners, admin revenue page
+  async boostOffer(id, hours) { return post(`/api/owner/offers/${enc(id)}/boost`, { hours }); },
+  async myBoosts() { return get("/api/owner/boosts"); },
+  async banners(city) { return get(`/api/banners?city=${enc(city || "")}`); },
+  async adminBoosts(status) { return get(`/api/admin/boosts?status=${enc(status || "pending")}`); },
+  async decideBoost(id, action, note = "") { return post(`/api/admin/boosts/${enc(id)}`, { action, note }); },
+  async adminBanners() { return get("/api/admin/banners"); },
+  async createBanner(b) { return post("/api/admin/banners", b); },
+  async stopBanner(id) { return post(`/api/admin/banners/${enc(id)}/stop`); },
+  async revenue() { return get("/api/admin/revenue"); },
+
   async logClientError(e) { try { await post("/api/client-error", e); } catch { /* never let error reporting break the app */ } },
 };
