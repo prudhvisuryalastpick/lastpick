@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
-import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel } from "../components.jsx";
+import { StickerHero, IconSticker } from "./hero.jsx";
+import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel, OfferQuote } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -118,146 +119,107 @@ const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w
 const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
 export function Home() {
-  const { location, isCustomer, session, profile, city, area, setArea, config } = useApp();
+  const { location, isCustomer, session, profile, city, area, config } = useApp();
   const { offers, error, needGps, locationStatus } = useAreaOffers();
   const [picking, setPicking] = useState(false);
   const [allCats, setAllCats] = useState(false);
-  const now = useNow(30000);
-  const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState("ending");
-  const listRef = useRef(null);
-
+  const now = useNow(30000);
   const all = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
-  // job openings are local ads, kept apart from the offers list unless "Hiring" is picked
   const live = useMemo(() => all.filter((o) => !isJob(o)), [all]);
   const jobs = useMemo(() => all.filter(isJob).sort((a, b) => a.endsAt - b.endsAt), [all]);
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (cat === "jobs" ? jobs : live)
-      .filter((o) => cat === "all" || o.category === cat)
-      .filter((o) => !needle || `${o.title} ${o.description} ${o.business?.name} ${o.business?.area} ${categoryOf(o.category).label}`.toLowerCase().includes(needle))
-      .map((o) => ({ o, km: distanceKm(location, o.business) }))
-      .sort((a, b) => (b.o.featured ? 1 : 0) - (a.o.featured ? 1 : 0) || (sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt))
-      .map((x) => x.o);
-  }, [live, jobs, cat, q, sort, location]);
-  const byCat = (...ids) => live.filter((o) => ids.includes(o.category)).sort((a, b) => a.endsAt - b.endsAt);
-
-  const browsing = !q.trim() && cat === "all";
-  const toList = () => setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  const pick = (id) => { setCat(cat === id ? "all" : id); setAllCats(false); toList(); };
+  const ending = useMemo(() => [...live].sort((a, b) => a.endsAt - b.endsAt).slice(0, 8), [live]);
+  const featured = useMemo(() => live.filter((o) => o.featured).slice(0, 4), [live]);
+  const results = useMemo(() => { const n = q.trim().toLowerCase(); return n ? live.filter((o) => `${o.title} ${o.description} ${o.business?.name} ${categoryOf(o.category).label}`.toLowerCase().includes(n)) : []; }, [live, q]);
+  const open = (id) => navigate("/c/" + id);
   const noLocation = needGps && locationStatus !== "asking";
   const hours = config?.hours || { open: 6, close: 23 };
   const where = area.mode === "near"
     ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off")
     : areaLabel(area, city);
-  const ending = [...live].sort((a, b) => a.endsAt - b.endsAt).slice(0, 8);
-  // featured: boosted offers first, then the biggest discounts
-  const featured = [...live.filter((o) => o.featured), ...[...live].filter((o) => !o.featured).sort((a, b) => discount(b) - discount(a))].slice(0, 4);
-
+  const top = (
+    <div className="shero-top">
+      <button className="cwho glassy" onClick={() => setPicking(true)} aria-label="Change area">
+        <Icon d="place" size={16} stroke={2} /><span>{where}</span><Icon d="chevDown" size={14} stroke={2.2} />
+      </button>
+      {session
+        ? <a className="cround glassy" href="#/account" aria-label="Your account">{initialsOf(profile?.name) || <Icon d="user" size={18} stroke={2} />}</a>
+        : <a className="pill light sm" href="#/login">Log in</a>}
+    </div>
+  );
   return (
     <>
-      <div className="chead">
-        <div className="chead-top">
-          <button className="cwho" onClick={() => setPicking(true)} aria-label="Change area">
-            <span className="cavatar">{initialsOf(profile?.name) || <Icon d="place" size={20} stroke={2} />}</span>
-            <span style={{ minWidth: 0 }}>
-              <span className="k">{area.mode === "near" ? `Deals within ${area.radius} km` : "Deals in"}</span>
-              <span className="v"><Icon d="place" size={16} stroke={2} />{where}<Icon d="chevDown" size={14} stroke={2.2} /></span>
-            </span>
-          </button>
-          {session
-            ? <a className="cround" href="#/support" aria-label="Help and support"><Icon d="help" size={20} stroke={2} /></a>
-            : <a className="cround" href="#/login" aria-label="Log in"><Icon d="user" size={20} stroke={2} /><span className="pip" /></a>}
-        </div>
-        <div className="cstatus">
-          {config?.night
-            ? <span className="live night"><i />Night · hotels &amp; travel open</span>
-            : <span className="live"><i />Open now{offers ? ` · ${live.length} live deal${live.length === 1 ? "" : "s"}` : ""}</span>}
-          <span className="hrs"><Icon d="clock" size={14} stroke={2} />{config?.night ? `Shops open at ${hourText(hours.open)}` : `Shops close ${hourText(hours.close)}`}</span>
-        </div>
-        <label className="csearch">
-          <Icon d="search" size={20} stroke={2} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && toList()} placeholder="Search food, rooms, salons, bus seats" aria-label="Search offers" />
-          {q && <button type="button" className="clear" aria-label="Clear search" onClick={() => setQ("")}><Icon d="M6 6l12 12M18 6L6 18" size={14} stroke={2.4} /></button>}
-        </label>
-      </div>
-
-      {noLocation ? <PinScreen onCity={() => setPicking(true)} /> : <>
-        <div className="tilecard">
-          <div className="th"><span>What do you need today?</span><button onClick={() => setAllCats(true)}>All</button></div>
-          <div className="tilegrid">
-            {HOME_TILES.map((t) => {
-              const st = catStyle(t.id);
-              return (
-                <button key={t.id} className={"tile" + (cat === t.id ? " on" : "")} aria-pressed={cat === t.id} onClick={() => pick(t.id)}>
-                  <span className="ti" style={{ background: st.tint, color: st.ink }}><Icon d={st.icon} size={24} /></span>
-                  {t.tag && <span className="tag" style={{ background: t.tagBg }}>{t.tag}</span>}
-                  <span className="tl">{st.short}</span>
-                </button>
-              );
-            })}
-            <button className="tile" onClick={() => setAllCats(true)}>
-              <span className="ti" style={{ background: "#EEF1F5", color: "#3B4654" }}><Icon d="more" size={24} /></span><span className="tl">More</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="quick">
-          <button className="qbtn" onClick={() => { setArea({ mode: "near", radius: area.mode === "near" ? area.radius : 5 }); toList(); }}><Icon d="near" size={22} />Near me</button>
-          <a className="qbtn" href="#/map"><Icon d="map" size={22} />Map</a>
-          <button className="qbtn" onClick={() => setPicking(true)}><Icon d="pin" size={22} />Pincode</button>
-          <a className="qbtn" href="#/contacts"><Icon d="phone" size={22} />History</a>
-        </div>
-
-        {!isCustomer && (session
-          ? <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see businesses' numbers. Plans from <b>{rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</b> to see businesses' numbers</span></a>
-          : <a className="cbanner" href="#/login"><span className="bi"><Icon d="gift" size={20} /></span><span><b>Log in</b> to see business numbers and call them directly · {PLANS.customer.name} from {rupee(PLANS.customer.price)}/month</span></a>)}
-        {needGps && <div className="cbanner"><span className="bi"><Icon d="near" size={20} /></span>Finding offers within {area.radius} km of you…</div>}
-        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Hotels and travel are open 24×7. Food, shops and other offers open again at {hourText(hours.open)}.</span></div>}
-
-        {browsing && offers && <>
-          <SponsoredBanner />
-          <Featured offers={featured} />
-          <MiniRail title="Ending soon" icon="clock" color="#B35A00" items={ending} action="See all" onAction={() => { setSort("ending"); toList(); }} />
-          <MiniRail title="Food deals" icon="food" color="#B35A00" items={byCat("food")} action="See all" onAction={() => pick("food")} />
-          <MiniRail title="Hotel rooms tonight" icon="stay" color="#1E4BB8" items={byCat("stay")} action="See all" onAction={() => pick("stay")} />
-          <TripList items={byCat("travel")} />
-          <HiringAds items={jobs} onAll={() => pick("jobs")} />
-          <MiniRail title="Grocery deals" icon="grocery" color="#0F7A43" items={byCat("grocery")} />
-          <MiniRail title="Salon & makeup, less price today" icon="salon" color="#6B2FB3" items={byCat("beauty", "makeup")} action="See all" onAction={() => pick("beauty")} />
-          <MiniRail title="Photographers & decorators" icon="camera" color="#1E4BB8" items={byCat("photo", "decor")} />
-          <MiniRail title="Laundry, tailors, pet care & bike service" icon="laundry" color="#0B5C80" items={byCat("laundry", "tailor", "vehicle", "services", "pets")} />
-          <MiniRail title="Gym, classes & schools" icon="ball" color="#3E7A0F" items={byCat("sports", "education", "admissions")} />
-          <MiniRail title="Shops & more" icon="bag" color="#8A6100" items={byCat("retail", "electronics", "other")} />
-          <Shops offers={live} />
-        </>}
-
-        <div ref={listRef} className="shead" style={{ scrollMarginTop: 12 }}>
-          <h2>{q.trim() ? `Results for "${q.trim()}"` : cat !== "all" ? <><Icon d={catStyle(cat).icon} size={18} stroke={2.2} style={{ color: catStyle(cat).ink }} />{categoryOf(cat).label}</> : area.mode === "near" ? "All deals near you" : `All deals · ${areaLabel(area, city)}`}</h2>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort" style={{ border: 0, background: "none", fontWeight: 700, color: "var(--muted)", fontSize: 12.5 }}>
-            <option value="ending">Ending soon</option><option value="near">Nearest</option><option value="off">Biggest discount</option>
-          </select>
-        </div>
-        {(cat !== "all" || q.trim()) && <div className="filterbar">
-          {cat !== "all" && <button className="fchip" onClick={() => setCat("all")}>{catStyle(cat).short}<Icon d="M6 6l12 12M18 6L6 18" size={12} stroke={2.6} /></button>}
-          <span className="muted small" style={{ fontWeight: 600 }}>{shown.length} deal{shown.length === 1 ? "" : "s"}</span>
-        </div>}
-        <div style={{ height: 10 }} />
+      <StickerHero top={top} liveCount={offers ? live.length : null} onOpen={open} />
+      <label className="csearch glassbar">
+        <Icon d="search" size={20} stroke={2} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cakes, rooms, salons, bus seats" aria-label="Search offers" />
+        {q && <button type="button" className="clear" aria-label="Clear search" onClick={() => setQ("")}><Icon d="M6 6l12 12M18 6L6 18" size={14} stroke={2.4} /></button>}
+      </label>
+      {noLocation ? <PinScreen onCity={() => setPicking(true)} /> : q.trim() ? (
+        <>
+          <div className="shead"><h2>Results for "{q.trim()}"</h2></div>
+          {results.length === 0 ? <Empty icon={<span className="emptyic"><Icon d="search" size={30} /></span>} title="Nothing matches right now">Try another word, or check back this evening.</Empty> : results.map((o) => <OfferCard key={o.id} offer={o} />)}
+        </>
+      ) : <>
+        {config?.night && <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Hotels and travel are open 24×7. Other offers open again at {hourText(hours.open)}.</span></div>}
+        {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
+        <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
+        <div className="catgrid">
+          {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = (t.id === "jobs" ? jobs : live).filter((o) => o.category === t.id).length; return (
+            <button key={t.id} className="cattile" onClick={() => open(t.id)}>
+              <IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={50} rot={[-6, 4, -3, 6][k % 4]} />
+              <b>{st.short}</b><span>{offers ? (n ? `${n} live` : "None yet") : " "}</span>
+            </button>); })}
+        </div>
+        <SponsoredBanner />
+        {featured.length > 0 && <Featured offers={featured} />}
         {!offers && !error && !needGps && <Spinner />}
-        {offers && shown.length === 0 && <Empty icon={<span className="emptyic"><Icon d="search" size={30} /></span>} title={q.trim() || cat !== "all" ? "Nothing here right now" : area.mode === "near" ? `No live offers within ${area.radius} km yet` : area.mode === "pincode" ? `No live offers in ${area.pincode} yet` : `No live offers in ${city.name} yet`}
-          action={<button className="btn ghost" onClick={() => (cat !== "all" || q ? (setCat("all"), setQ("")) : setPicking(true))}>{cat !== "all" || q ? "Show all deals" : area.mode === "near" && area.radius < 30 ? "Search a wider area" : "Enter a pincode"}</button>}>Try another category, or check back this evening.</Empty>}
-        {shown.map((o) => <OfferCard key={o.id} offer={o} />)}
+        <MiniRail title="Ending in the next hour" icon="clock" color="#B35A00" items={ending} />
+        <HiringAds items={jobs} onAll={() => open("jobs")} />
+        <div className="bigbanners">
+          <button className="bigban dark" onClick={() => open("stay")}><span><small>OPEN 24×7</small><b>Rooms for tonight</b><em>Hotels drop prices for empty rooms</em></span><IconSticker icon="bed" bg="#DBEAFE" fg="#1D4ED8" size={70} rot={8} /></button>
+          <button className="bigban light" onClick={() => open("travel")}><span><small>LEAVING TODAY</small><b>Last-minute bus seats</b><em>Operators fill their final seats</em></span><IconSticker icon="bus" bg="#DCFCE7" fg="#15803D" size={70} rot={-6} /></button>
+        </div>
+        <SectionHead title="How LastPick works" />
+        <div className="howgrid">
+          {[["1", "Find a deal", "Open a category or the map to see what's live near you."], ["2", "Contact the shop", "See the number and call, or tap I'm interested. Shops never see your number."], ["3", "Pay at the shop", "You pay the shop directly. LastPick never takes money for the deal."]].map(([n, t, d]) => (
+            <div key={n} className="howcard"><span className="num">{n}</span><b>{t}</b><span>{d}</span></div>))}
+        </div>
       </>}
       {picking && <AreaSheet onClose={() => setPicking(false)} />}
-      {allCats && <AllCategories value={cat} onPick={pick} onClose={() => setAllCats(false)} />}
+      {allCats && <AllCategories value="all" onPick={(id) => { setAllCats(false); open(id); }} onClose={() => setAllCats(false)} />}
+    </>
+  );
+}
+
+// One category's offers only (Home tiles and the hero open this page).
+export function CategoryPage({ id }) {
+  const { offers, error, needGps } = useAreaOffers();
+  const { location } = useApp();
+  const [sort, setSort] = useState("ending");
+  const now = useNow(30000);
+  const st = catStyle(id);
+  const list = useMemo(() => (offers || []).filter((o) => o.endsAt > now && o.category === id)
+    .map((o) => ({ o, km: distanceKm(location, o.business) }))
+    .sort((a, b) => (b.o.featured ? 1 : 0) - (a.o.featured ? 1 : 0) || (sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt))
+    .map((x) => x.o), [offers, id, sort, location, now]);
+  return (
+    <>
+      <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id).label}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div></div>
+      <div className="chips" style={{ padding: "4px 14px 10px" }}>
+        {[["ending", "Ending soon"], ["near", "Nearest"], ["off", "Biggest discount"]].map(([k, l]) => <button key={k} className={"chip " + (sort === k ? "on" : "")} onClick={() => setSort(k)}>{l}</button>)}
+      </div>
+      {error && <div className="pad"><div className="error">{error}</div></div>}
+      {!offers && !error && !needGps && <Spinner />}
+      {offers && list.length === 0 && <Empty icon={<span className="emptyic"><Icon d={st.icon} size={30} /></span>} title="Nothing here right now" action={<a className="btn ghost" href="#/">Back to all categories</a>}>New deals appear through the day. Check back this evening.</Empty>}
+      {list.map((o) => <OfferCard key={o.id} offer={o} />)}
     </>
   );
 }
 
 // Big rotating banner: boosted (paid) offers first, then the biggest discounts.
-const FEATURE_BG = { food: "#8A3B00", stay: "#1E3A8F", travel: "#0F5E52", beauty: "#5B2393" };
+const FEATURE_BG = { food: "#7A3410", stay: "#06373A", travel: "#0B4F4A", beauty: "#6B2350" };
 function Featured({ offers }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -267,7 +229,7 @@ function Featured({ offers }) {
   }, [offers.length]);
   if (!offers.length) return null;
   const o = offers[i % offers.length];
-  const bg = FEATURE_BG[o.category] || "#12355B";
+  const bg = FEATURE_BG[o.category] || "#06373A";
   const st = catStyle(o.category);
   return (
     <a className="feature" href={"#/offer/" + o.id} style={{ background: bg }} key={o.id}>
@@ -291,7 +253,7 @@ function Featured({ offers }) {
 function SectionHead({ title, icon, color, action, onAction, badge }) {
   return (
     <div className="shead">
-      <h2><Icon d={icon} size={18} stroke={2.2} style={{ color }} />{title}</h2>
+      <h2>{icon && <Icon d={icon} size={18} stroke={2.2} style={{ color }} />}{title}</h2>
       {badge ? <span className="badge">{badge}</span> : action && <button onClick={onAction}>{action}</button>}
     </div>
   );
@@ -505,6 +467,7 @@ export function OfferPage({ id }) {
         <div className="catline"><span className="catpill" style={{ background: catStyle(offer.category).tint, color: catStyle(offer.category).ink }}><Icon d={catStyle(offer.category).icon} size={14} stroke={2.2} />{categoryOf(offer.category).label}</span><span className="muted small">{offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</span></div>
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
+        <OfferQuote offer={offer} big />
 
         <div className="box row" style={{ marginTop: 14 }}>
           <div className="price">{isJob(offer) && <span className="muted small" style={{ marginRight: 6 }}>Pay</span>}<b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{!isJob(offer) && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>

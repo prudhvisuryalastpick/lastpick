@@ -45,6 +45,8 @@ async function cached(key, ttlMs, fn) {
   return v;
 }
 const clearCache = () => memo.clear();
+// every page change loads fresh data (a cached feed made pages look like they hadn't changed)
+if (typeof window !== "undefined") window.addEventListener("hashchange", () => { for (const k of memo.keys()) if (k !== "cities") memo.delete(k); });
 const live = (list) => list.filter((o) => o.endsAt > Date.now());
 const enc = encodeURIComponent;
 

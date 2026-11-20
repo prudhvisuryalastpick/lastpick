@@ -97,6 +97,11 @@ export function Login({ next = "/" }) {
   useEffect(() => { if (wait <= 0) return; const t = setTimeout(() => setWait(wait - 1), 1000); return () => clearTimeout(t); }, [wait]);
   useEffect(() => { if (step === "code") setTimeout(() => codeRef.current?.focus(), 50); }, [step]);
 
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [consent, setConsent] = useState({ adult: false, agree: false });
+  const [otp, setOtp] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   if (session && profile && !profile.needsProfile) { setTimeout(() => navigate(next || "/", { replace: true }), 0); return <Spinner />; }
 
   const target = method === "phone" ? prettyPhone(indianPhone(phone) || phone) : email.trim();
@@ -132,11 +137,6 @@ export function Login({ next = "/" }) {
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [consent, setConsent] = useState({ adult: false, agree: false });
-  const [otp, setOtp] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const signUp = async (e) => {
     e.preventDefault(); setErr("");
     if (name.trim().length < 2) return setErr("Enter your name");

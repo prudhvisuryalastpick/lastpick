@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, isLive } from "./api/index.js";
-import { Empty, Spinner } from "./components.jsx";
-import { Account, Contacts, Home, MapPage, OfferPage } from "./pages/customer.jsx";
+import { Empty, QuoteStrip, Spinner } from "./components.jsx";
+import { Account, Contacts, Home, MapPage, OfferPage, CategoryPage } from "./pages/customer.jsx";
 import { BusinessPage, OwnerDashboard, OwnerGate, OwnerLeads, OwnerOffers, PostOffer } from "./pages/owner.jsx";
 import { Admin, Help, Login, Plans, Refund, Subscribe } from "./pages/account.jsx";
 import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
@@ -37,6 +37,7 @@ function Page({ path, query }) {
   if (path === "/") return IS_ADMIN_APP ? <Admin /> : IS_OWNER_APP ? <OwnerGate><OwnerDashboard /></OwnerGate> : <Home />;
   if (path === "/map") return <MapPage />;
   if ((m = match("/offer/:id", path))) return <OfferPage id={m.id} />;
+  if ((m = match("/c/:id", path))) return <CategoryPage id={m.id} />;
   if (path === "/contacts") return <Contacts />;
   if (path === "/account") return <Account />;
   if ((m = match("/subscribe/:plan", path))) return <Subscribe plan={m.plan} />;
@@ -86,7 +87,7 @@ function LoadError() {
 }
 
 export default function App() {
-  const { path, query } = useRoute();
+  const { path, query, at } = useRoute();
   const { loading, mode, setMode, session, profile, area, setArea } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
@@ -112,7 +113,8 @@ export default function App() {
   return (
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
-      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page path={path} query={query} />}</main>
+      {!IS_ADMIN_APP && !fullScreen && !loading && <QuoteStrip partner={biz} />}
+      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "")} path={path} query={query} />}</main>
       {showNav && !needsConsent && !biz && (
         <nav className="nav cust" aria-label="Main">
           {CUSTOMER_NAV.map(([to, icon, label]) => to === "near"

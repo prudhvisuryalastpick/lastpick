@@ -108,6 +108,10 @@ export function accountRoutes(r) {
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
       if (dup.rows.length) throw precondition("An account with this email already exists");
+      if (phone) {
+        const dupPhone = await c.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
+        if (dupPhone.rows.length) throw precondition("This mobile number is already registered. Log in instead.");
+      }
       const { rows } = await c.query(
         `INSERT INTO users (email, password_hash, name, phone, trial_ends_at) VALUES ($1, $2, $3, $4, now() + make_interval(days => $5))
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);

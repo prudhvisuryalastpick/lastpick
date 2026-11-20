@@ -1,0 +1,84 @@
+// Sticker-style hero for the customer home (approved design): teal glow, light rays, floating bubbles,
+// a frosted card, white-outlined stickers, a rotating badge and a category switcher.
+import { useState } from "react";
+import { Icon } from "../lib/icons.jsx";
+
+export const Cupcake = ({ top = "#F9A8D4", swirl = "#EC4899", wrap = "#F59E0B" }) => (
+  <svg viewBox="0 0 120 130" width="100%" height="100%" aria-hidden="true">
+    <path d="M22 70 L98 70 L88 124 L32 124 Z" fill={wrap} />
+    <path d="M38 70 L42 124 M54 70 L55 124 M66 70 L65 124 M82 70 L78 124" stroke="rgba(0,0,0,.15)" strokeWidth="4" />
+    <circle cx="35" cy="62" r="20" fill={top} /><circle cx="60" cy="52" r="26" fill={top} /><circle cx="85" cy="62" r="20" fill={top} /><circle cx="60" cy="34" r="16" fill={top} />
+    <path d="M30 60 Q45 50 60 58 Q75 50 90 60" stroke={swirl} strokeWidth="5" fill="none" strokeLinecap="round" />
+    <circle cx="62" cy="16" r="9" fill="#DC2626" /><path d="M62 8 Q66 0 74 2" stroke="#166534" strokeWidth="3" fill="none" />
+  </svg>
+);
+export const Donut = () => (
+  <svg viewBox="0 0 120 120" width="100%" height="100%" aria-hidden="true">
+    <circle cx="60" cy="60" r="54" fill="#E0A458" />
+    <path d="M60 12 C88 10 110 32 108 58 C110 74 100 96 78 104 C60 112 30 106 18 86 C8 70 10 40 26 26 C36 16 48 12 60 12Z" fill="#7C3F1D" />
+    {[["#FDE047", 0], ["#60A5FA", 0.7], ["#F472B6", 1.4], ["#34D399", 2.1], ["#fff", 2.8], ["#FDE047", 3.5], ["#60A5FA", 4.2], ["#F472B6", 4.9], ["#34D399", 5.6]].map(([c, a], i) => (
+      <rect key={i} x={60 + 34 * Math.cos(a)} y={60 + 34 * Math.sin(a)} width="9" height="3.5" rx="1.7" fill={c} transform={`rotate(${i * 37} ${60 + 34 * Math.cos(a)} ${60 + 34 * Math.sin(a)})`} />
+    ))}
+    <circle cx="60" cy="60" r="17" fill="#F5E6D3" />
+  </svg>
+);
+export const CakeSlice = () => (
+  <svg viewBox="0 0 130 110" width="100%" height="100%" aria-hidden="true">
+    <path d="M10 40 L120 18 L120 96 L10 100 Z" fill="#3B1D16" /><path d="M10 58 L120 44 L120 56 L10 70 Z" fill="#F9E3C2" />
+    <path d="M10 82 L120 72 L120 82 L10 90 Z" fill="#F9E3C2" /><path d="M10 40 L120 18 L120 26 L10 48 Z" fill="#5B2A1E" />
+    <circle cx="104" cy="14" r="10" fill="#DC2626" />
+  </svg>
+);
+// icon sticker for categories without a drawing
+export const IconSticker = ({ icon, bg, fg, size = 64, rot = -6 }) => (
+  <span className="istk" style={{ width: size, height: size, background: bg, color: fg, transform: `rotate(${rot}deg)` }}><Icon d={icon} size={Math.round(size * 0.48)} stroke={2} /></span>
+);
+
+const SLIDES = {
+  food: { tag: "Fresh today, half price", title: <>Sweet deals,<br />before closing</>, sub: "Cakes, pastries and meals from shops near you, at closing-time prices.", cta: "See food deals",
+    art: [[<Cupcake key="a" />, "s1"], [<Cupcake key="b" top="#BFDBFE" swirl="#3B82F6" wrap="#F472B6" />, "s2"], [<Donut key="c" />, "s3"], [<CakeSlice key="d" />, "s4"]] },
+  stay: { tag: "Open 24×7", title: <>Rooms for<br />tonight</>, sub: "Hotels near you drop prices on rooms still empty tonight.", cta: "See tonight's rooms",
+    art: [["bed", "#DBEAFE", "#1D4ED8"], ["stay", "#E0E7FF", "#4338CA"], ["clock", "#FEF3C7", "#92400E"]] },
+  beauty: { tag: "Free slots this evening", title: <>Look good,<br />pay less</>, sub: "Salons and spas fill their empty slots with today-only prices.", cta: "See salon deals",
+    art: [["scissors", "#FCE7F3", "#BE185D"], ["brush", "#FDE7F3", "#A3245E"], ["spark", "#FFE4E6", "#BE123C"]] },
+  travel: { tag: "Leaving today", title: <>Last-minute<br />bus seats</>, sub: "Operators fill their final seats for less. Open 24×7.", cta: "See bus seats",
+    art: [["bus", "#DCFCE7", "#15803D"], ["pin", "#CCFBF1", "#0F766E"], ["clock", "#FEF9C3", "#A16207"]] },
+};
+const SWITCH = [["food", "food", "Food"], ["stay", "bed", "Hotels"], ["beauty", "scissors", "Salon"], ["travel", "bus", "Bus"]];
+
+export function StickerHero({ top, liveCount, onOpen }) {
+  const [cat, setCat] = useState("food");
+  const s = SLIDES[cat];
+  return (
+    <section className="shero" aria-label="Today's deals">
+      <div className="rays" aria-hidden="true">{[18, 28, 40, 55, 66].map((x, i) => <span key={i} style={{ left: x + "%", width: [60, 26, 90, 30, 70][i] }} />)}</div>
+      <div className="bubbles" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <span key={i} style={{ left: (i * 37) % 100 + "%", top: 40 + ((i * 53) % 60) + "%", width: [8, 12, 18, 10, 24, 14][i % 6], height: [8, 12, 18, 10, 24, 14][i % 6], animationDelay: (i * 0.8) % 9 + "s" }} />)}</div>
+      {top}
+      <div className="shero-badge" aria-hidden="true">
+        <svg viewBox="0 0 100 100"><defs><path id="hb" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0" /></defs><text><textPath href="#hb">DEALS · BEFORE · MIDNIGHT · </textPath></text></svg>
+        <Icon d="clock" size={26} stroke={2.4} />
+      </div>
+      <div className="shero-art" key={cat}>
+        {cat === "food"
+          ? s.art.map(([el, cls]) => <span key={cls} className={"stk " + cls}>{el}</span>)
+          : s.art.map(([i, bg, fg], k) => <span key={k} className={"stk s" + (k + 1)}><IconSticker icon={i} bg={bg} fg={fg} size={[110, 84, 70][k]} rot={[-8, 10, -4][k]} /></span>)}
+      </div>
+      <div className="shero-card" key={"c" + cat}>
+        <span className="tag"><Icon d="spark" size={13} stroke={2.2} />{s.tag}</span>
+        <h1>{s.title}</h1>
+        <p>{s.sub}</p>
+        <div className="row2">
+          <button className="pill dark" onClick={() => onOpen(cat)}>{s.cta}</button>
+          <span className="pill light">{liveCount != null ? `${liveCount} live near you` : "Live near you"}</span>
+        </div>
+      </div>
+      <div className="shero-switch" role="tablist" aria-label="Show deals for">
+        {SWITCH.map(([id, icon, label]) => (
+          <button key={id} role="tab" aria-selected={cat === id} className={cat === id ? "on" : ""} onClick={() => setCat(id)}>
+            <span className="ic"><Icon d={icon} size={16} stroke={2} /></span>{label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}

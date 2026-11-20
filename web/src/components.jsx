@@ -3,6 +3,7 @@ import { APP_NAME, PLANS, categoryOf } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { discount, distanceKm, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
+import { msToNextSlot, quoteForOffer, stripQuotes } from "./lib/quotes.js";
 
 export const Spinner = () => <div className="spinner" aria-label="Loading" />;
 
@@ -38,12 +39,35 @@ export function OfferCard({ offer, preview = false }) {
           <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{rupee(offer.price)}</b>{offer.origPrice > offer.price && <s>{rupee(offer.origPrice)}</s>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
-        {!(isCustomer || preview) && <div className="lock">🔒 Number locked</div>}
+        <OfferQuote offer={offer} />
+        {!(isCustomer || preview) && <div className="lock">Number locked · get the Customer Pass</div>}
       </div>
     </>
   );
   if (preview) return <div className="card" style={{ pointerEvents: "none" }}>{body}</div>;
   return <a className="card" href={"#/offer/" + offer.id}>{body}</a>;
+}
+
+// Re-renders exactly when the quotes change (every 30 minutes).
+export function useQuoteTick() {
+  const [, set] = useState(0);
+  useEffect(() => { let t; const arm = () => { t = setTimeout(() => { set((n) => n + 1); arm(); }, msToNextSlot()); }; arm(); return () => clearTimeout(t); }, []);
+}
+// The short moral quote shown on every post. Picked automatically; changes every 30 minutes.
+export function OfferQuote({ offer, big = false }) {
+  useQuoteTick();
+  return <div className={"oquote" + (big ? " big" : "")}><span aria-hidden="true">“</span>{quoteForOffer(offer)}</div>;
+}
+// Quotes scrolling from right to left. A fresh set every 30 minutes.
+export function QuoteStrip({ partner = false }) {
+  useQuoteTick();
+  const q = stripQuotes(partner);
+  const row = q.map((t, i) => <span key={i} className="qitem"><i aria-hidden="true">✦</i>{t}</span>);
+  return (
+    <div className="qstrip" role="marquee" aria-label={q.join(". ")}>
+      <div className="qtrack" aria-hidden="true">{row}{row}</div>
+    </div>
+  );
 }
 
 export function CategoryChips({ value, onChange, categories }) {

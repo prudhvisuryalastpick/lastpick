@@ -11,15 +11,21 @@ const readHash = () => {
   return { path: path || "/", query: Object.fromEntries(new URLSearchParams(qs || "")) };
 };
 export function navigate(to, { replace = false } = {}) {
+  const same = window.location.hash.slice(1) === to;
   if (replace) window.location.replace("#" + to);
   else window.location.hash = to;
+  // going to the page you're already on: no hashchange fires, so re-render it anyway
+  if (same) window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
+const routeListeners = new Set();
+export const onRouteChange = (cb) => { routeListeners.add(cb); return () => routeListeners.delete(cb); };
 export function useRoute() {
   const [r, setR] = useState(readHash);
   useEffect(() => {
-    const on = () => { setR(readHash()); window.scrollTo(0, 0); };
+    const on = () => { routeListeners.forEach((cb) => cb()); setR({ ...readHash(), at: Date.now() }); window.scrollTo(0, 0); };
     window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    window.addEventListener("popstate", on);
+    return () => { window.removeEventListener("hashchange", on); window.removeEventListener("popstate", on); };
   }, []);
   return r;
 }
