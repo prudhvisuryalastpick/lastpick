@@ -62,6 +62,9 @@ before(async () => {
 });
 after(() => procs.forEach((p) => p.kill("SIGTERM")));
 
+const tonightIST = () => Math.floor((Date.now() + 19800000) / 86400000) * 86400000 - 19800000 + 86400000 - 1000;
+const soon = (min) => Math.min(Date.now() + min * 60000, tonightIST());
+
 test("each server has only its own routes", async () => {
   const c = client("customer"), p = client("partner"), a = client("admin");
   assert.equal((await c.get("/api/admin/stats")).status, 404);
@@ -99,8 +102,7 @@ test("partner: business, verification, offers, daily limit", async () => {
   assert.equal(b.data.status, "pending");
   bizId = b.data.id;
 
-  const tonight = Math.floor((Date.now() + 19800000) / 86400000) * 86400000 - 19800000 + 86400000 - 60000; // 11:59 PM India time
-  const ends = Math.min(Date.now() + 6 * 3600000, tonight);
+  const ends = soon(360);
   // only trusted (verified) partners can post
   const early = await p.post("/api/owner/offers", { title: "Evening samosas", category: "food", origPrice: 100, price: 40, endsAt: ends });
   assert.equal(early.status, 403);
@@ -305,7 +307,7 @@ test("own category only, everything ends the same day, local job openings", asyn
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'");
   await pool.end();
   // every business can post a job opening at its shop: pay instead of a discount, up to 7 days, only in the local area
-  const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: Date.now() + 30 * 60000 });
+  const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: soon(30) });
   assert.equal(job.status, 200, JSON.stringify(job.data));
   const cj = client("customer");
   assert.ok((await cj.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.some((o) => o.id === job.data.id), "near: shown");
@@ -317,10 +319,10 @@ test("own category only, everything ends the same day, local job openings", asyn
   assert.equal(long.status, 400);
   assert.match(long.data.error, /same day/);
   // not its category (movie tickets, travel): refused for this food & stay business
-  assert.equal((await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: Date.now() + 20 * 60000 })).status, 403);
-  assert.equal((await p.post("/api/owner/offers", { title: "Bus seats", category: "travel", origPrice: 1200, price: 700, endsAt: Date.now() + 20 * 60000 })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Empty seats tonight", category: "events", origPrice: 200, price: 80, endsAt: soon(20) })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Bus seats", category: "travel", origPrice: 1200, price: 700, endsAt: soon(20) })).status, 403);
   // a room for tonight (hotels stay open 24×7)
-  const room = await p.post("/api/owner/offers", { title: "Room for tonight", category: "stay", origPrice: 3000, price: 1800, endsAt: Date.now() + 20 * 60000 });
+  const room = await p.post("/api/owner/offers", { title: "Room for tonight", category: "stay", origPrice: 3000, price: 1800, endsAt: soon(20) });
   assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 
