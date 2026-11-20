@@ -132,6 +132,25 @@ export function Login({ next = "/" }) {
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [consent, setConsent] = useState({ adult: false, agree: false });
+  const signUp = async (e) => {
+    e.preventDefault(); setErr("");
+    if (name.trim().length < 2) return setErr("Enter your name");
+    if (!/^(\+?91)?[6-9]\d{9}$/.test(mobile.replace(/[\s-]/g, ""))) return setErr("Enter a valid Indian mobile number");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr("Enter a valid e-mail");
+    if (password.length < 8) return setErr("Password must be at least 8 characters");
+    if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
+    setBusy(true);
+    try {
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent) });
+      markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
+      await refresh();
+      if (IS_OWNER_APP) navigate("/owner/business");
+    } catch (x) { setErr(errText(x)); }
+    setBusy(false);
+  };
   const demoLogin = async (a) => { setBusy(true); try { await api.signIn(a.email, a.password); markWelcomed(); } catch (x) { setErr(errText(x)); } setBusy(false); };
 
   return (
@@ -139,7 +158,7 @@ export function Login({ next = "/" }) {
       <div id="otp-captcha" />
       <div className="row">
         <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !OTP_LOGIN ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
-        {!IS_ADMIN_APP && <span className="trialpill">🛡️ Verified partners only</span>}
+        {!IS_ADMIN_APP && <span className="trialpill">{IS_OWNER_APP ? "🛡️ Verified partners only" : "⏱️ Deals for today only"}</span>}
       </div>
 
       {step === "enter" && <>
@@ -196,6 +215,21 @@ export function Login({ next = "/" }) {
       </>}
 
       {reason && <div className="banner warn" role="status" style={{ margin: "16px 0 0" }}>🔒<span>{reason}</span></div>}
+      {step === "signup" && <>
+        <h1>{IS_OWNER_APP ? "Register your business" : "Create your account"}</h1>
+        <p className="lead">{IS_OWNER_APP ? "Step 1: your account. Next you add your shop details; our team verifies them before you can post." : "See today's deals near you."}</p>
+        <form className="form" style={{ padding: "20px 0 0" }} onSubmit={signUp}>
+          <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+            <span className="hint">{IS_OWNER_APP ? "Customers contact you on your shop's number (added next)." : "Never shown to businesses."}</span></div>
+          <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          <ConsentBoxes value={consent} onChange={setConsent} />
+          {err && <div className="error">{err}</div>}
+          <button className="btn main" disabled={busy}>{busy ? "Creating…" : "Create account"}</button>
+          <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
+        </form>
+      </>}
       {(step === "password" || step === "reset") && <>
         <h1>{step === "reset" ? "Reset password" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Business" : `Welcome to ${APP_NAME}`}</h1>
         <p className="lead">{step === "reset" ? "We'll e-mail you a link to set a new password." : IS_ADMIN_APP ? "For admins and moderators only." : OTP_LOGIN ? "For accounts made with an e-mail and password." : "Log in with your e-mail and password."}</p>
@@ -208,6 +242,8 @@ export function Login({ next = "/" }) {
             : <button type="button" className="link" onClick={() => setStep("password")}>Back to log in</button>}
           {OTP_LOGIN && <button type="button" className="link" style={{ color: "var(--muted)" }} onClick={() => setStep("enter")}>Use a one-time code instead</button>}
         </form>
+        {step === "password" && !IS_ADMIN_APP && <button className="btn ghost" style={{ marginTop: 14 }} onClick={() => { setStep("signup"); setErr(""); }}>
+          {IS_OWNER_APP ? "New business? Create an account" : "New here? Create an account"}</button>}
         {!isLive && !OTP_LOGIN && <div style={{ marginTop: 18 }}>
           <div className="label-up" style={{ padding: "0 0 8px" }}>Demo accounts (one tap)</div>
           {DEMO_ACCOUNTS.filter((a) => (IS_ADMIN_APP ? /admin|moderator/i.test(a.email) : true)).map((a) => <button key={a.email} className="btn ghost" style={{ marginBottom: 8, justifyContent: "space-between" }} disabled={busy} onClick={() => demoLogin(a)}><span>{a.label}</span><span className="muted small">{a.email}</span></button>)}
