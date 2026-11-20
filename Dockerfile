@@ -24,6 +24,8 @@ FROM node:22-alpine
 RUN apk upgrade --no-cache
 ENV NODE_ENV=production PORT=8080 DB_SSL=verify DB_CA_FILE=/app/rds-ca.pem
 # certificate bundle used to verify the database's TLS certificate
+# create the folders first: ADD --chmod would otherwise create /app with mode 644 (not enterable by the node user)
+RUN mkdir -p /app/server && chmod 755 /app /app/server
 ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-ca.pem
 WORKDIR /app/server
 COPY --from=deps /server/node_modules ./node_modules
