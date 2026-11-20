@@ -59,13 +59,20 @@ export function OfferQuote({ offer, big = false }) {
   return <div className={"oquote" + (big ? " big" : "")}><span aria-hidden="true">“</span>{quoteForOffer(offer)}</div>;
 }
 // Quotes scrolling from right to left. A fresh set every 30 minutes.
+export const QUOTE_SHOW_MS = 7000;
+
 export function QuoteStrip({ partner = false }) {
   useQuoteTick();
   const q = stripQuotes(partner);
-  const row = q.map((t, i) => <span key={i} className="qitem"><i aria-hidden="true">✦</i>{t}</span>);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => n + 1), QUOTE_SHOW_MS);
+    return () => clearInterval(t);
+  }, []);
+  const text = q[i % q.length];
   return (
-    <div className="qstrip" role="marquee" aria-label={q.join(". ")}>
-      <div className="qtrack" aria-hidden="true">{row}{row}</div>
+    <div className="qstrip" aria-live="polite">
+      <span key={i + text} className="qitem qone"><i aria-hidden="true">✦</i>{text}</span>
     </div>
   );
 }
