@@ -140,7 +140,7 @@ function AdminInner() {
     <>
       <div className="page-h">
         <h1 className="title">{isAdmin ? "Admin" : "Moderator"}</h1>
-        <div className="muted">{isAdmin ? "All of India" : `Your regions: ${(profile?.regions || []).join(", ") || "none assigned yet"}`}</div>
+        <div className="muted">{isAdmin ? "All of India" : `Your area: ${[(profile?.regions || []).join(", "), (profile?.areaCities || []).join(", "), (profile?.areaPincodes || []).join(", ")].filter(Boolean).join(" · ") || "none assigned yet"}`}</div>
         {IS_ADMIN_APP && <div className="muted small" style={{ marginTop: 6 }}>{profile?.email} · <button className="link" onClick={async () => { await api.signOut(); navigate("/login"); }}>Log out</button></div>}
       </div>
       <div className="chips" style={{ paddingTop: 4 }}>{tabs.map(([id, l]) => <button key={id} className={"chip " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{l}</button>)}</div>
@@ -283,11 +283,10 @@ function AdminBusinesses({ toast }) {
         <div className="panel" key={b.id}>
           <div className="row"><b>{b.name}</b><span className={"pill " + (b.status === "verified" ? "p-ok" : b.status === "pending" ? "p-warn" : "p-bad")}>{b.status}</span></div>
           <div className="muted small">{(b.categories || [b.category]).join(", ")}{b.rating?.count ? ` · ★ ${b.rating.avg} (${b.rating.count})` : ""} · {b.address || "-"}, {b.area}, {b.city}, {b.state || "state missing"}</div>
-          <div className="muted small">📞 {b.phone ? prettyPhone(b.phone) : "no number"} · {b.lat != null ? "📍 location set" : "no map location"}{b.createdAt ? " · joined " + ago(b.createdAt) : ""}</div>
+          <div className="muted small">📞 {b.phone ? <Reveal masked={b.phone} load={() => api.revealBusiness(b.id)} render={(c) => <span>{prettyPhone(c.phone)} <a className="link" href={"tel:" + c.phone}>Call to verify</a></span>} /> : "no number"} · {b.lat != null ? "📍 location set" : "no map location"}{b.createdAt ? " · joined " + ago(b.createdAt) : ""}</div>
           {b.flags?.length > 0 && <div className="gap" style={{ flexWrap: "wrap", marginTop: 6 }}>{b.flags.map((f) => <span key={f} className="pill p-bad">⚠️ {f}</span>)}</div>}
           {b.statusNote && <div className="muted small">Note: {b.statusNote}</div>}
           <div className="gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
-            {b.phone && <a className="btn ghost sm" href={"tel:" + b.phone}>📞 Call to verify</a>}
             {b.status !== "verified" && <button className="btn main sm" onClick={() => act(b, "verified")}>Verify</button>}
             {["pending", "verified", "suspended"].includes(b.status) && <button className="btn ghost sm" onClick={() => act(b, "rejected")}>Reject</button>}
             {b.status === "verified" && <button className="btn danger sm" onClick={() => act(b, "suspended")}>Suspend</button>}
@@ -369,12 +368,14 @@ function AdminUsers({ toast }) {
       <form className="form" style={{ paddingBottom: 8 }} onSubmit={(e) => { e.preventDefault(); search(q.trim()); }}>
         <div className="gap"><input style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 12, padding: "11px 12px" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Email, phone number or name" aria-label="Search users" />
           <button className="btn dark sm">Search</button></div>
-        <div className="muted small">Leave empty to see the newest 50 sign-ups.</div>
+        <div className="muted small">Leave empty to see the newest 50 sign-ups. Phone numbers and e-mails are hidden; tapping Show is recorded in the audit log.</div>
       </form>
       {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🔍" title="No users found" /> : list.map((u) => (
         <div className="panel" key={u.id}>
           <div className="row"><b>{u.name || "(no name)"}</b>{u.role !== "user" && <span className="pill p-new">{u.role}</span>}</div>
-          <div className="muted small">{u.email} · {u.phone ? prettyPhone(u.phone) : "no phone"}{u.createdAt ? " · joined " + day(u.createdAt) : ""}</div>
+          <div className="muted small">{u.phone || u.email
+            ? <Reveal masked={`${u.email || "no e-mail"} · ${u.phone || "no phone"}`} load={() => api.revealUser(u.id)} render={(c) => <span>{c.email || "no e-mail"} · {c.phone ? prettyPhone(c.phone) : "no phone"}</span>} />
+            : "no contact details"}{u.createdAt ? " · joined " + day(u.createdAt) : ""}</div>
           <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span className="small">Customer Pass:</span> {plan(u.customer)}
             <span className="small">Business Pro:</span> {plan(u.owner)}
@@ -409,30 +410,62 @@ function AdminPlans({ toast }) {
   );
 }
 
-function AdminTeam({ toast }) {
-  const [f, setF] = useState({ email: "", role: "moderator", regions: [] });
+// Masked personal data with a "Show" button. Showing it is logged (who looked at whose details, and when).
+function Reveal({ masked, load, render }) {
+  const [full, setFull] = useState(null);
   const [busy, setBusy] = useState(false);
+  if (full) return render ? render(full) : <span>{full}</span>;
+  return <span>{masked} <button className="link small" disabled={busy} onClick={async () => { setBusy(true); try { setFull(await load()); } catch { setBusy(false); } }}>{busy ? "…" : "Show"}</button></span>;
+}
+
+function AdminTeam({ toast }) {
+  const empty = { email: "", role: "moderator", regions: [], cities: "", pincodes: "" };
+  const [f, setF] = useState(empty);
+  const [busy, setBusy] = useState(false);
+  const [team, setTeam] = useState(null);
+  const loadTeam = () => api.adminTeam().then(setTeam).catch(() => setTeam([]));
+  useEffect(() => { loadTeam(); }, []);
   const toggle = (st) => setF((p) => ({ ...p, regions: p.regions.includes(st) ? p.regions.filter((x) => x !== st) : [...p.regions, st] }));
+  const split = (v) => v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
+  const pinsOk = split(f.pincodes).every((x) => /^[1-9]\d{5}$/.test(x));
   const submit = async () => {
-    if (f.role === "moderator" && f.regions.length === 0) return toast("Pick at least one state for the moderator");
+    if (f.role === "moderator" && f.regions.length === 0) return toast("Pick at least one state for the area agent");
+    if (!pinsOk) return toast("Pincodes must be 6 digits, separated by commas");
     setBusy(true);
-    try { await api.adminSetRole(f.email.trim(), f.role, f.regions); toast(`Saved: ${f.email} is now ${f.role}`); setF({ email: "", role: "moderator", regions: [] }); }
-    catch (e) { toast(errText(e)); }
+    try {
+      await api.adminSetRole(f.email.trim(), f.role, f.regions, split(f.cities), split(f.pincodes));
+      toast(`Saved: ${f.email} is now ${f.role === "moderator" ? "an area agent" : f.role}`); setF(empty); loadTeam();
+    } catch (e) { toast(errText(e)); }
     setBusy(false);
   };
+  const areaText = (u) => [u.regions?.join(", "), u.areaCities?.length ? "cities: " + u.areaCities.join(", ") : "", u.areaPincodes?.length ? "pincodes: " + u.areaPincodes.join(", ") : ""].filter(Boolean).join(" · ");
   return (
-    <div className="form">
-      <div className="muted">Moderators can verify businesses and handle reports only in the states you give them. Admins see all of India. The person must have signed up first.</div>
-      <div className="fld"><label>Email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
-      <div className="fld"><label>Role</label>
-        <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
-          <option value="moderator">Moderator (selected states)</option><option value="admin">Admin (all of India)</option><option value="user">Normal user (remove access)</option>
-        </select></div>
-      {f.role === "moderator" && (
-        <div className="fld"><label>States ({f.regions.length} selected)</label>
-          <div className="emoji-pick" style={{ gap: 6 }}>{INDIAN_STATES.map((st) => <button type="button" key={st} className={"chip " + (f.regions.includes(st) ? "on" : "")} onClick={() => toggle(st)}>{st}</button>)}</div></div>
-      )}
-      <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Save role"}</button>
-    </div>
+    <>
+      <div className="form">
+        <div className="muted">An <b>area agent</b> (moderator) verifies businesses and handles reports only in their area: the states you pick, optionally narrowed to some cities or pincodes. Admins see all of India. The person must have signed up first.</div>
+        <div className="fld"><label>Email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="agent@example.com" /></div>
+        <div className="fld"><label>Role</label>
+          <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+            <option value="moderator">Area agent (moderator)</option><option value="admin">Admin (all of India)</option><option value="user">Normal user (remove access)</option>
+          </select></div>
+        {f.role === "moderator" && <>
+          <div className="fld"><label>States ({f.regions.length} selected)</label>
+            <div className="statepick">{INDIAN_STATES.map((st) => <button type="button" key={st} className={"chip " + (f.regions.includes(st) ? "on" : "")} onClick={() => toggle(st)}>{st}</button>)}</div></div>
+          <div className="fld"><label>Only these cities (optional)</label><input value={f.cities} onChange={(e) => setF({ ...f, cities: e.target.value })} placeholder="e.g. Hyderabad, Secunderabad" />
+            <span className="hint">Leave empty for the whole state.</span></div>
+          <div className="fld"><label>Only these pincodes (optional)</label><input inputMode="numeric" value={f.pincodes} onChange={(e) => setF({ ...f, pincodes: e.target.value })} placeholder="e.g. 500081, 500032" />
+            <span className="hint" style={{ color: pinsOk ? undefined : "var(--bad)" }}>{pinsOk ? "Leave empty for the whole city or state." : "Each pincode must be 6 digits."}</span></div>
+        </>}
+        <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Save"}</button>
+      </div>
+      <div className="sect"><h3>Your team</h3></div>
+      {!team ? <Spinner /> : team.length === 0 ? <div className="panel small muted">No admins or area agents yet.</div> : team.map((u) => (
+        <div className="item" key={u.id}>
+          <div className="grow"><b style={{ fontSize: 14 }}>{u.name || u.email}</b> <span className="pill p-new">{u.role === "moderator" ? "area agent" : u.role}</span>
+            <div className="muted small">{u.role === "admin" ? "All of India" : areaText(u) || "No area yet"}</div></div>
+          <button className="btn ghost sm" onClick={() => setF({ email: u.email, role: u.role, regions: u.regions || [], cities: (u.areaCities || []).join(", "), pincodes: (u.areaPincodes || []).join(", ") })}>Edit</button>
+        </div>
+      ))}
+    </>
   );
 }

@@ -35,6 +35,9 @@ export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY)
 export const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 export const ms = (d) => (d == null ? null : new Date(d).getTime());
 export const num = (v) => (v == null ? null : Number(v));
+// Personal data is masked in the admin panel; showing it in full is a separate, logged request.
+export const maskPhone = (p) => { const d = String(p || "").replace(/\D/g, "").slice(-10); return d.length === 10 ? `+91 ${d.slice(0, 2)}•••••${d.slice(-3)}` : (p ? "•••" : ""); };
+export const maskEmail = (e) => { const [u, dom] = String(e || "").split("@"); return dom ? `${u.slice(0, 2)}•••@${dom}` : (e ? "•••" : ""); };
 export const cityKey = (name) => String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const isUuid = (v) => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 export function needUuid(v, what = "item") { if (!isUuid(v)) throw notFound(`${what[0].toUpperCase() + what.slice(1)} not found`); return v; }

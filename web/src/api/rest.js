@@ -122,7 +122,10 @@ export const api = {
   // ---------- admin & moderators (admin server) ----------
   async adminStats() { return get("/api/admin/stats"); },
   async adminFindUsers(q) { return get(`/api/admin/users?q=${enc(q || "")}`); },
-  async adminSetRole(email, role, regions) { await post("/api/admin/role", { email, role, regions }); },
+  async revealUser(id) { return post(`/api/admin/users/${enc(id)}/reveal`); },
+  async revealBusiness(id) { return post(`/api/admin/businesses/${enc(id)}/reveal`); },
+  async adminTeam() { return get("/api/admin/team"); },
+  async adminSetRole(email, role, regions, cities = [], pincodes = []) { await post("/api/admin/role", { email, role, regions, cities, pincodes }); },
   async adminBusinesses(filter = {}) {
     const qs = new URLSearchParams(Object.entries(filter).filter(([, v]) => v)).toString();
     return get("/api/admin/businesses" + (qs ? "?" + qs : ""));

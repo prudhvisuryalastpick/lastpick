@@ -95,16 +95,23 @@ export function AdminRevenue({ toast }) {
       <div className="plan" style={{ margin: "8px 16px 12px", padding: 18 }}>
         <div style={{ opacity: .8, fontSize: 13 }}>Revenue this month</div>
         <div className="amt" style={{ fontSize: 36 }}>{rupee(rev.totalThisMonth)}</div>
-        <div style={{ opacity: .85, fontSize: 12.5 }}>Plans {rupee(s.customerPass.monthly + s.businessPro.monthly)} · boosts {rupee(rev.boosts.paid)} · banners {rupee(rev.banners.sold)}</div>
+        <div style={{ opacity: .85, fontSize: 12.5 }}>Plan sales {rupee(s.customerPass.soldThisMonth + s.businessPro.soldThisMonth)} · boosts {rupee(rev.boosts.paid)} · banners {rupee(rev.banners.sold)}</div>
+        <div style={{ opacity: .85, fontSize: 12.5, marginTop: 4 }}>Monthly recurring from active plans: <b>{rupee(s.mrr)}</b>/month</div>
       </div>
       {rev.freeMode && <div className="banner warn">Free launch mode is on: plans and boosts are free, so most revenue is still zero. Boosts given free this month would have earned {rupee(rev.boosts.waived)} ({rev.boosts.waivedCount}).</div>}
       <div className="kpis" style={{ marginTop: 12 }}>
-        <div className="kpi"><div className="n">{s.customerPass.active}</div><div className="l">Customer Pass active · ≈ {rupee(s.customerPass.monthly)}/month</div></div>
-        <div className="kpi"><div className="n">{s.businessPro.active}</div><div className="l">Business Pro active · ≈ {rupee(s.businessPro.monthly)}/month</div></div>
+        <div className="kpi"><div className="n">{rupee(s.customerPass.soldThisMonth)}</div><div className="l">Customer Pass: {s.customerPass.soldCount} sold this month · {s.customerPass.active} active · {rupee(s.customerPass.mrr)}/month</div></div>
+        <div className="kpi"><div className="n">{rupee(s.businessPro.soldThisMonth)}</div><div className="l">Business Pro: {s.businessPro.soldCount} sold this month · {s.businessPro.active} active · {rupee(s.businessPro.mrr)}/month</div></div>
         <div className="kpi"><div className="n">{rupee(rev.boosts.paid)}</div><div className="l">{rev.boosts.paidCount} paid boosts · {rev.boosts.live} live now</div></div>
         <div className="kpi"><div className="n">{rupee(rev.banners.sold)}</div><div className="l">{rev.banners.soldCount} banners sold · {rev.banners.live} live now</div></div>
       </div>
 
+      <div className="panel" style={{ marginTop: 12 }}><b>Active paid plans by length</b>
+        <table className="admin" style={{ marginTop: 8 }}><thead><tr><th style={{ textAlign: "left" }}>Plan</th>{[1, 3, 6, 12].map((m) => <th key={m}>{m} mo</th>)}</tr></thead>
+          <tbody>{[["Customer Pass", "customerPass", "customer"], ["Business Pro", "businessPro", "owner"]].map(([label, k, p]) => (
+            <tr key={k}><td>{label}</td>{[1, 3, 6, 12].map((m) => <td key={m} style={{ textAlign: "center" }}>{s[k].byMonths[m]}<div className="muted small">{rupee(s.prices[p][m])}</div></td>)}</tr>))}</tbody></table>
+        <div className="muted small" style={{ marginTop: 6 }}>Sales are recorded when you activate a plan (Plans tab, or a business's plan) after the customer pays. Monthly recurring = each active plan's price ÷ its months.</div>
+      </div>
       <div className="sect"><h3>Boosts waiting for payment</h3><span className="muted small">{Object.entries(rev.boosts.prices).map(([h, p]) => `${h} h ${rupee(p)}`).join(" · ")}</span></div>
       {!pending ? <Spinner /> : pending.length === 0 ? <div className="panel small muted">Nothing waiting. When a partner requests a boost, confirm their payment (e.g. UPI) here to switch it on.</div>
         : pending.map((b) => (
@@ -144,7 +151,7 @@ export function AdminRevenue({ toast }) {
         <div className="fld"><label>Open this offer when tapped (offer id, optional)</label><input value={form.offerId} onChange={(e) => setForm({ ...form, offerId: e.target.value })} /></div>
         <button className="btn main" disabled={busy}>{busy ? "Saving…" : "Put banner live"}</button>
       </form>
-      <div className="note pad" style={{ paddingTop: 0 }}>Plans are estimated from active subscriptions × monthly price until the payment gateway is live. Boosts and banners count once you confirm the payment.</div>
+      <div className="note pad" style={{ paddingTop: 0 }}>Everything here comes from records: plan sales, paid boosts and sold banners. Once the payment gateway is live, its payments are added automatically.</div>
     </>
   );
 }

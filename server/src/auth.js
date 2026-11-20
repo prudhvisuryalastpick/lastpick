@@ -52,7 +52,7 @@ export async function userFromRequest(req) {
   if (!h.startsWith("Bearer ")) return {};
   const p = verifyToken(h.slice(7));
   if (!p) return { reason: "expired" };
-  const u = await one("SELECT id, email, name, phone, role, regions, token_version, consent, partner_consent FROM users WHERE id = $1", [p.sub]);
+  const u = await one("SELECT id, email, name, phone, role, regions, area_cities, area_pincodes, token_version, consent, partner_consent FROM users WHERE id = $1", [p.sub]);
   if (!u) return { reason: "expired" };
   if (u.token_version !== p.tv) return { reason: "signed_in_elsewhere" };
   return { user: u };

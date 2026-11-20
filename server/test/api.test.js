@@ -379,13 +379,49 @@ test("revenue: boosted offers, sponsored banners, revenue page", async () => {
   assert.equal(ban.status, 200, JSON.stringify(ban.data));
   assert.ok((await c.get("/api/banners?city=bengaluru")).data.some((b) => b.id === ban.data.id));
   assert.ok(!(await c.get("/api/banners?city=mumbai")).data.some((b) => b.id === ban.data.id));
-  // revenue this month: the paid boost and the banner
+  // a Customer Pass for 3 months, paid by UPI and activated by the admin: ₹399
+  const before = (await a.get("/api/admin/revenue")).data.subscriptions.customerPass.soldThisMonth;
+  assert.equal((await a.post("/api/admin/plans", { email: "customer@test.lastpick.in", plan: "customer", months: 3 })).status, 200);
+  // revenue this month: plan sales, the paid boost and the banner
   const rev = (await a.get("/api/admin/revenue")).data;
+  assert.equal(rev.subscriptions.customerPass.soldThisMonth - before, 399);
+  assert.ok(rev.subscriptions.customerPass.byMonths[3] >= 1);
+  assert.ok(rev.subscriptions.mrr >= 133, "399 / 3 months = 133 a month");
   assert.equal(rev.boosts.paid, 79);
   assert.equal(rev.banners.sold, 2000);
-  assert.ok(rev.totalThisMonth >= 2079);
+  assert.equal(rev.totalThisMonth, rev.subscriptions.customerPass.soldThisMonth + rev.subscriptions.businessPro.soldThisMonth + 79 + 2000);
   assert.equal((await a.post(`/api/admin/banners/${ban.data.id}/stop`)).status, 200);
   assert.ok(!(await c.get("/api/banners?city=bengaluru")).data.some((b) => b.id === ban.data.id));
+});
+
+test("area agents: a moderator sees only their states, cities or pincodes", async () => {
+  const a = client("admin");
+  await a.login("admin@test.lastpick.in");
+  // Karnataka, but only Mysuru: the Bengaluru businesses disappear for this agent
+  assert.equal((await a.post("/api/admin/role", { email: "moderator@test.lastpick.in", role: "moderator", regions: ["Karnataka"], cities: ["Mysuru"] })).status, 200);
+  const m = client("admin");
+  await m.login("moderator@test.lastpick.in");
+  const list = (await m.get("/api/admin/businesses")).data;
+  assert.ok(Array.isArray(list) && !list.some((b) => b.city === "Bengaluru"), JSON.stringify(list.map((b) => b.city)));
+  const blr = (await a.get("/api/admin/businesses?state=Karnataka")).data.find((b) => b.city === "Bengaluru");
+  assert.equal((await m.post(`/api/admin/businesses/${blr.id}/status`, { status: "suspended" })).status, 403);
+  // a pincode area: 560001 (MG Road) is in, the rest of Bengaluru is out
+  await a.post("/api/admin/role", { email: "moderator@test.lastpick.in", role: "moderator", regions: ["Karnataka"], cities: ["Bengaluru"], pincodes: ["560001"] });
+  await m.login("moderator@test.lastpick.in");
+  const pins = (await m.get("/api/admin/businesses")).data;
+  assert.ok(pins.length > 0 && pins.every((b) => b.city === "Bengaluru"));
+  const users = (await a.get("/api/admin/users?q=moderator@test.lastpick.in")).data;
+  assert.deepEqual(users[0].areaPincodes, ["560001"]);
+  // personal data is masked in admin lists; the full value needs a separate, logged reveal
+  assert.match(users[0].email, /^mo•••@test\.lastpick\.in$/);
+  assert.match(users[0].phone, /•••/);
+  const full = await a.post(`/api/admin/users/${users[0].id}/reveal`);
+  assert.equal(full.data.email, "moderator@test.lastpick.in");
+  assert.equal((await m.post(`/api/admin/users/${users[0].id}/reveal`)).status, 403, "area agents can't reveal users");
+  const team = (await a.get("/api/admin/team")).data;
+  assert.ok(team.some((t) => t.email === "moderator@test.lastpick.in" && t.areaPincodes.includes("560001")));
+  // back to all of Karnataka for the other tests
+  await a.post("/api/admin/role", { email: "moderator@test.lastpick.in", role: "moderator", regions: ["Karnataka"] });
 });
 
 test("privacy: export and delete account", async () => {

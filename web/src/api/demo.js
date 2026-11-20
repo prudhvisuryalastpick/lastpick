@@ -4,7 +4,7 @@ import { compressPhoto } from "../lib/image.js";
 import { CONSENT_VERSION, cityKey } from "../lib/config.js";
 import { distanceKm, indianPhone } from "../lib/format.js";
 
-const KEY = "lastpick-demo-v9";
+const KEY = "lastpick-demo-v10";
 const H = 3600000, D = 86400000;
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const wait = (ms = 150) => new Promise((r) => setTimeout(r, ms));
@@ -111,14 +111,21 @@ function seed() {
   const boosts = [bo(2, 6, 49, "active", "manual"), bo(6, 12, 79, "pending", null)];
   const banners = [{ id: rid(), title: "Weekend at Hotel Grand Residency: 40% off", subtitle: "Book tonight's rooms on LastPick", advertiser: "Hotel Grand Residency", cityKey: "bengaluru",
     offerId: offers[9].id, price: 1500, startsAt: n - D, endsAt: n + 6 * D, active: true, createdAt: n - D }];
-  return { v: 9, config: { freeMode: true }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
+  // sample paid plans (activated by the admin after UPI) so the Revenue page has real numbers
+  subs.find((x) => x.userId === "o2").provider = "manual"; subs.find((x) => x.userId === "o2").months = 3;
+  subs.find((x) => x.userId === "o5").provider = "manual"; subs.find((x) => x.userId === "o5").months = 1;
+  subs.push({ userId: "x1", plan: "customer", status: "active", months: 12, currentPeriodEnd: n + 300 * D, provider: "manual" },
+    { userId: "x2", plan: "customer", status: "active", months: 1, currentPeriodEnd: n + 25 * D, provider: "manual" });
+  const sales = [["o2", "owner", 3, 1349], ["o5", "owner", 1, 499], ["x1", "customer", 12, 1399], ["x2", "customer", 1, 149]]
+    .map(([userId, plan, months, amount], i) => ({ userId, plan, months, amount, createdAt: n - (i + 1) * H }));
+  return { v: 10, sales, config: { freeMode: true }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
 }
 
 function load() {
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { db = null; }
   // reseed when empty or when every demo offer has expired
-  if (!db || db.v !== 9 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
+  if (!db || db.v !== 10 || !db.offers.some((o) => o.status === "live" && o.endsAt > Date.now())) {
     const fresh = seed();
     if (db?.session) fresh.session = db.session;
     db = fresh;
@@ -126,6 +133,13 @@ function load() {
   }
   return db;
 }
+// plan prices by months (same as the server) and the record of every plan sale
+const PLAN_PRICES = { customer: { 1: 149, 3: 399, 6: 749, 12: 1399 }, owner: { 1: 499, 3: 1349, 6: 2499, 12: 4499 } };
+const planPrice = (plan, m) => PLAN_PRICES[plan][m] || Math.floor(m / 12) * PLAN_PRICES[plan][12] + (m % 12 ? m % 12 * PLAN_PRICES[plan][1] : 0);
+const recordSale = (db, userId, plan, months) => { db.sales = db.sales || []; db.sales.push({ userId, plan, months, amount: planPrice(plan, months), createdAt: Date.now() }); };
+// personal data is masked in admin lists, like the real server
+const maskPhone = (p) => { const d = String(p || "").replace(/\D/g, "").slice(-10); return d.length === 10 ? `+91 ${d.slice(0, 2)}•••••${d.slice(-3)}` : (p ? "•••" : ""); };
+const maskEmail = (e) => { const [u, dom] = String(e || "").split("@"); return dom ? `${u.slice(0, 2)}•••@${dom}` : (e ? "•••" : ""); };
 function save(db) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage full or blocked */ } }
 function me(db) {
   const u = db.users.find((x) => x.id === db.session);
@@ -142,7 +156,13 @@ const isAdmin = (db) => { const u = db.users.find((x) => x.id === db.session); r
 function staff(db, superOnly = false) {
   const u = db.users.find((x) => x.id === db.session);
   if (u?.role === "admin") return { role: "admin", regions: null, canSee: () => true };
-  if (u?.role === "moderator" && !superOnly) return { role: "moderator", regions: u.regions || [], canSee: (st) => (u.regions || []).includes(st) };
+  if (u?.role === "moderator" && !superOnly) {
+    // area agent: states, optionally narrowed to cities and/or pincodes
+    const cities = u.areaCities || [], pins = u.areaPincodes || [];
+    const canSee = (p) => { p = typeof p === "string" ? { state: p } : p || {};
+      return (u.regions || []).includes(p.state) && (!cities.length || p.city == null || cities.includes(cityKey(p.city))) && (!pins.length || p.pincode == null || pins.includes(String(p.pincode))); };
+    return { role: "moderator", regions: u.regions || [], areaCities: cities, areaPincodes: pins, canSee };
+  }
   throw new Error(superOnly ? "Super admins only" : "Admins only");
 }
 const bizVisible = (db, b) => b && b.status === "verified" && hasPlan(db, b.ownerId, "owner");
@@ -225,7 +245,7 @@ export const api = {
   async getProfile() {
     const u = me(load());
     if (u.needsProfile) return { id: u.id, needsProfile: true, name: "", phone: u.phone || "", email: u.email || "", role: "user", regions: [] };
-    return { trialEndsAt: u.trialEndsAt || (u.createdAt || Date.now()) + 30 * D, id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, regions: u.regions || [], consentVersion: u.consent || null, partnerConsentVersion: u.partnerConsent || null };
+    return { trialEndsAt: u.trialEndsAt || (u.createdAt || Date.now()) + 30 * D, id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role, regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [], consentVersion: u.consent || null, partnerConsentVersion: u.partnerConsent || null };
   },
   async updateProfile({ name, phone }) { const db = load(); const u = me(db); u.name = name; u.phone = indianPhone(phone) || phone; save(db); },
 
@@ -385,18 +405,23 @@ export const api = {
   async revenue() {
     const db = load(); if (!isAdmin(db)) throw new Error("Only super admins can manage revenue");
     const m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); const month = m0.getTime(), now = Date.now();
-    const active = (plan) => db.subs.filter((s) => s.plan === plan && ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > now).length;
     const bs = db.boosts || [], bn = db.banners || [];
     const paid = bs.filter((x) => ["manual", "gateway"].includes(x.paidBy) && x.startsAt >= month), waived = bs.filter((x) => x.paidBy === "launch_free" && x.createdAt >= month);
     const sold = bn.filter((x) => x.createdAt >= month);
-    const cp = active("customer") * 149, bp = active("owner") * 499;
     const sum = (l, f) => l.reduce((t, x) => t + x[f], 0);
+    const plan = (p) => {
+      const act = db.subs.filter((s) => s.plan === p && ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > now && s.provider !== "demo");
+      const sl = (db.sales || []).filter((x) => x.plan === p && x.createdAt >= month);
+      return { active: act.length, mrr: Math.round(act.reduce((t, s) => t + planPrice(p, s.months || 1) / (s.months || 1), 0)), soldThisMonth: sum(sl, "amount"), soldCount: sl.length,
+        byMonths: Object.fromEntries([1, 3, 6, 12].map((m) => [m, act.filter((s) => (s.months || 1) === m).length])) };
+    };
+    const cp = plan("customer"), bp = plan("owner");
     return {
       freeMode: db.config?.freeMode !== false,
-      subscriptions: { customerPass: { active: active("customer"), monthly: cp }, businessPro: { active: active("owner"), monthly: bp } },
+      subscriptions: { customerPass: cp, businessPro: bp, prices: PLAN_PRICES, mrr: cp.mrr + bp.mrr },
       boosts: { paid: sum(paid, "price"), paidCount: paid.length, waived: sum(waived, "price"), waivedCount: waived.length, pending: bs.filter((x) => x.status === "pending").length, live: bs.filter((x) => x.status === "active" && x.endsAt > now).length, prices: { 6: 49, 12: 79, 24: 99 } },
       banners: { sold: sum(sold, "price"), soldCount: sold.length, live: bn.filter((x) => x.active && x.endsAt > now).length },
-      totalThisMonth: cp + bp + sum(paid, "price") + sum(sold, "price"),
+      totalThisMonth: cp.soldThisMonth + bp.soldThisMonth + sum(paid, "price") + sum(sold, "price"),
     };
   },
   async addView(id) { const db = load(); const o = db.offers.find((x) => x.id === id); if (o) { o.views += 1; save(db); } },
@@ -502,21 +527,29 @@ export const api = {
     const sub = (u, p) => { const x = subOut(db.subs.find((s) => s.userId === u.id && s.plan === p)); return x && { status: x.status, until: x.currentPeriodEnd, active: x.active }; };
     return list.slice(0, 50).map((u) => {
       const b = db.businesses.find((x) => x.ownerId === u.id);
-      return { id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role || "user", regions: u.regions || [], createdAt: u.createdAt || null,
+      return { id: u.id, name: u.name, phone: maskPhone(u.phone), email: maskEmail(u.email), masked: true, role: u.role || "user", regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [], createdAt: u.createdAt || null,
         customer: sub(u, "customer"), owner: sub(u, "owner"), business: b ? { name: b.name, city: b.city, state: b.state, status: b.status } : null };
     });
   },
-  async adminSetRole(email, role, regions) {
+  async revealUser(id) { const db = load(); staff(db, true); const u = db.users.find((x) => x.id === id); if (!u) throw new Error("User not found"); return { phone: u.phone || "", email: u.email || "" }; },
+  async revealBusiness(id) { const db = load(); const s = staff(db); const b = db.businesses.find((x) => x.id === id); if (!b) throw new Error("Business not found"); if (!s.canSee(b)) throw new Error("This business is outside your area"); return { phone: b.phone || "" }; },
+  async adminTeam() { const db = load(); staff(db, true); return db.users.filter((u) => ["admin", "moderator"].includes(u.role)).map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [] })); },
+  async adminSetRole(email, role, regions, cities = [], pincodes = []) {
     const db = load(); const s = staff(db, true);
     const u = db.users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
     if (!u) throw new Error("No user with that email");
     if (u.id === db.session && role !== "admin") throw new Error("You can't remove your own admin access");
-    u.role = role; u.regions = role === "moderator" ? regions || [] : []; save(db);
+    const agent = role === "moderator";
+    if (agent && !(regions || []).length) throw new Error("Pick at least one state for the area agent");
+    u.role = role; u.regions = agent ? regions || [] : [];
+    u.areaCities = agent ? [...new Set(cities.map((c) => cityKey(c)).filter(Boolean))] : [];
+    u.areaPincodes = agent ? [...new Set(pincodes.map((x) => String(x).replace(/\D/g, "")).filter((x) => /^[1-9]\d{5}$/.test(x)))] : [];
+    save(db);
     return s;
   },
   async adminBusinesses({ status, state } = {}) {
     const db = load(); const s = staff(db);
-    const list = db.businesses.filter((b) => (!status || b.status === status) && (!state || b.state === state) && s.canSee(b.state))
+    const list = db.businesses.filter((b) => (!status || b.status === status) && (!state || b.state === state) && s.canSee(b))
       .sort((a, b) => b.createdAt - a.createdAt);
     return list.map((b) => {
       const flags = [];
@@ -524,14 +557,14 @@ export const api = {
       if (db.businesses.filter((x) => x.phone === b.phone).length > 1) flags.push("Same phone as another business");
       if (Date.now() - b.createdAt < 2 * D) flags.push("New in last 48 h");
       const sub = db.subs.find((x) => x.userId === b.ownerId && x.plan === "owner" && x.status === "active" && x.currentPeriodEnd > Date.now());
-      return { ...b, flags, trialEndsAt: b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : null), planUntil: sub ? sub.currentPeriodEnd : null };
+      return { ...b, phone: maskPhone(b.phone), masked: true, flags, trialEndsAt: b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : null), planUntil: sub ? sub.currentPeriodEnd : null };
     });
   },
   async setBusinessStatus(id, status, note) {
     const db = load(); const s = staff(db);
     const b = db.businesses.find((x) => x.id === id);
     if (!b) throw new Error("Business not found");
-    if (!s.canSee(b.state)) throw new Error("This business is outside your region");
+    if (!s.canSee(b)) throw new Error("This business is outside your area");
     b.status = status; b.statusNote = note || "";
     if (status === "verified" && !b.trialEndsAt) b.trialEndsAt = Date.now() + 30 * D;
     save(db);
@@ -560,7 +593,7 @@ export const api = {
     if (!u) throw new Error("No user with that email");
     let s = db.subs.find((x) => x.userId === u.id && x.plan === plan);
     if (!s) { s = { userId: u.id, plan, provider: "manual" }; db.subs.push(s); }
-    if (months > 0) { s.status = "active"; s.currentPeriodEnd = Math.max(s.currentPeriodEnd || 0, Date.now()) + months * 30 * D; }
+    if (months > 0) { s.status = "active"; s.months = months; s.currentPeriodEnd = Math.max(s.currentPeriodEnd || 0, Date.now()) + months * 30 * D; recordSale(db, u.id, plan, months); }
     else { s.status = "expired"; s.currentPeriodEnd = Date.now(); }
     save(db);
   },
@@ -659,7 +692,8 @@ export const api = {
     if (action === "unlock") {
       if (!s) { s = { userId: b.ownerId, plan: "owner", provider: "manual" }; db.subs.push(s); }
       const base = s.status === "active" && s.currentPeriodEnd > now ? s.currentPeriodEnd : now;
-      s.status = "active"; s.currentPeriodEnd = base + months * 30 * D;
+      s.status = "active"; s.months = months; s.provider = "manual"; s.currentPeriodEnd = base + months * 30 * D;
+      recordSale(db, b.ownerId, "owner", months);
     } else if (action === "extendTrial") {
       const cur = b.trialEndsAt || (b.status === "verified" ? b.createdAt + 30 * D : 0);
       b.trialEndsAt = Math.max(now, cur) + days * D;

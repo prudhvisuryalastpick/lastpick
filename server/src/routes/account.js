@@ -25,7 +25,7 @@ async function profile(id) {
   const u = await one("SELECT * FROM users WHERE id = $1", [id]);
   if (!u) throw notFound("Account not found");
   return {
-    id: u.id, name: u.name, phone: u.phone, email: u.email || "", role: u.role, regions: u.regions || [],
+    id: u.id, name: u.name, phone: u.phone, email: u.email || "", role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
     trialEndsAt: ms(u.trial_ends_at), consentVersion: u.consent?.version || null, partnerConsentVersion: u.partner_consent?.version || null,
     needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
   };
@@ -154,7 +154,7 @@ export function accountRoutes(r) {
     await limit(u.id, "export", 5, 86400);
     const id = u.id;
     const [profileRow, business, contact, subscriptions, offers, offerHistory, contacts, numbersShared, leadsReceived, reviewsWritten, reviewsOfMyBusiness, grievances, consents] = await Promise.all([
-      one("SELECT id, email, name, phone, role, regions, trial_ends_at, consent, partner_consent, created_at FROM users WHERE id = $1", [id]),
+      one("SELECT id, email, name, phone, role, regions, area_cities, area_pincodes, trial_ends_at, consent, partner_consent, created_at FROM users WHERE id = $1", [id]),
       one("SELECT * FROM businesses WHERE id = $1", [id]),
       one("SELECT phone, whatsapp, updated_at FROM business_contacts WHERE business_id = $1", [id]),
       many("SELECT plan, status, current_period_end, provider, updated_at FROM subscriptions WHERE user_id = $1", [id]),

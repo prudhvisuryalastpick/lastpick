@@ -14,8 +14,17 @@ import { bad, cityKey, denied, ms, needUuid, notFound, precondition, str } from 
 
 // Boost prices in rupees, by hours. Keep in sync with BOOST_PRICES in web/src/lib/config.js.
 export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
-// Monthly list prices, used to estimate subscription revenue. Keep in sync with PLANS in web/src/lib/config.js.
-const PLAN_MONTHLY = { customer: 149, owner: 499 };
+// Plan prices in rupees by months. Keep in sync with PLANS in web/src/lib/config.js.
+export const PLAN_PRICES = {
+  customer: { 1: 149, 3: 399, 6: 749, 12: 1399 },
+  owner: { 1: 499, 3: 1349, 6: 2499, 12: 4499 },
+};
+// price of a plan for any number of months (longer plans cost less per month)
+export const planPrice = (plan, months) => {
+  const p = PLAN_PRICES[plan]; const m = Math.max(1, Number(months) || 1);
+  if (p[m]) return p[m];
+  return Math.floor(m / 12) * p[12] + (m % 12 ? planPrice(plan, m % 12) : 0); // e.g. 24 months = 2 × 12; 2 months = 2 × 1
+};
 
 const mapBoost = (b) => b && ({
   id: b.id, offerId: b.offer_id, ownerId: b.owner_id, hours: b.hours, price: b.price, status: b.status, paidBy: b.paid_by,
@@ -143,14 +152,25 @@ export function revenueAdminRoutes(r) {
     return mapBanner(row);
   });
 
-  // Earnings this month (India time) and what's coming in. Payments aren't live yet, so subscriptions are an
-  // estimate (active plans × monthly list price); boosts and banners are what was confirmed as paid.
+  // Earnings this month (India time), from real records: plan sales (plan_sales), paid boosts and sold banners.
+  // Monthly recurring revenue (MRR) = each active paid plan's price ÷ its months.
   r.get("/api/admin/revenue", async (ctx) => {
     needAdmin(ctx);
     const month = "date_trunc('month', now() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata'";
-    const subs = await many(`SELECT plan, count(*)::int AS n FROM subscriptions
-      WHERE status IN ('active', 'cancelled') AND current_period_end > now() AND provider NOT IN ('trial', 'launch') GROUP BY plan`);
-    const subRow = (p) => subs.find((s) => s.plan === p)?.n || 0;
+    const active = await many(`SELECT plan, coalesce(months, 1) AS months, count(*)::int AS n FROM subscriptions
+      WHERE status IN ('active', 'cancelled') AND current_period_end > now() AND provider NOT IN ('trial', 'launch') GROUP BY plan, coalesce(months, 1)`);
+    const sales = await many(`SELECT plan, months, count(*)::int AS n, coalesce(sum(amount), 0)::int AS amount FROM plan_sales
+      WHERE created_at >= ${month} GROUP BY plan, months`);
+    const planSummary = (plan) => {
+      const a = active.filter((x) => x.plan === plan), s = sales.filter((x) => x.plan === plan);
+      return {
+        active: a.reduce((t, x) => t + x.n, 0),
+        mrr: Math.round(a.reduce((t, x) => t + x.n * planPrice(plan, x.months) / x.months, 0)),
+        soldThisMonth: s.reduce((t, x) => t + x.amount, 0),
+        soldCount: s.reduce((t, x) => t + x.n, 0),
+        byMonths: Object.fromEntries([1, 3, 6, 12].map((m) => [m, a.filter((x) => Number(x.months) === m).reduce((t, x) => t + x.n, 0)])),
+      };
+    };
     const boosts = await one(`SELECT
         coalesce(sum(price) FILTER (WHERE paid_by IN ('manual', 'gateway') AND starts_at >= ${month}), 0)::int AS paid,
         count(*) FILTER (WHERE paid_by IN ('manual', 'gateway') AND starts_at >= ${month})::int AS paid_count,
@@ -162,13 +182,13 @@ export function revenueAdminRoutes(r) {
     const banners = await one(`SELECT coalesce(sum(price) FILTER (WHERE created_at >= ${month}), 0)::int AS sold,
         count(*) FILTER (WHERE created_at >= ${month})::int AS sold_count,
         count(*) FILTER (WHERE active AND starts_at <= now() AND ends_at > now())::int AS live FROM banners`);
-    const customerPass = subRow("customer") * PLAN_MONTHLY.customer, businessPro = subRow("owner") * PLAN_MONTHLY.owner;
+    const customerPass = planSummary("customer"), businessPro = planSummary("owner");
     return {
       freeMode: await freeMode(),
-      subscriptions: { customerPass: { active: subRow("customer"), monthly: customerPass }, businessPro: { active: subRow("owner"), monthly: businessPro } },
+      subscriptions: { customerPass, businessPro, prices: PLAN_PRICES, mrr: customerPass.mrr + businessPro.mrr },
       boosts: { paid: boosts.paid, paidCount: boosts.paid_count, waived: boosts.waived, waivedCount: boosts.waived_count, pending: boosts.pending, live: boosts.live, prices: BOOST_PRICES },
       banners: { sold: banners.sold, soldCount: banners.sold_count, live: banners.live },
-      totalThisMonth: customerPass + businessPro + boosts.paid + banners.sold,
+      totalThisMonth: customerPass.soldThisMonth + businessPro.soldThisMonth + boosts.paid + banners.sold,
     };
   });
 }
