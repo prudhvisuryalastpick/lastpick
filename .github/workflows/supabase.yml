@@ -92,11 +92,11 @@ jobs:
           S="npx --yes supabase@latest secrets"
           # the sign-in secret is created once and then kept (changing it would sign everyone out)
           if ! $S list --project-ref "$SUPABASE_PROJECT_ID" | grep -q JWT_SECRET; then
-            $S set --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
           fi
           # e-mail codes through Brevo, only when both secrets are saved in GitHub
           if [ -n "${{ secrets.BREVO_API_KEY }}" ] && [ -n "${{ secrets.MAIL_FROM }}" ]; then
-            $S set --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "::add-mask::$(grep CRON_SECRET "$GITHUB_ENV" | cut -d= -f2)"
@@ -106,10 +106,10 @@ jobs:
           for s in customer partner admin; do
             rm -rf supabase/functions/$s/server && mkdir -p supabase/functions/$s/server && cp -r server/src supabase/functions/$s/server/
           done
-          npx --yes supabase@latest secrets set --project-ref "$SUPABASE_PROJECT_ID" \
+          npx --yes supabase@latest secrets set --yes --project-ref "$SUPABASE_PROJECT_ID" \
             "CRON_SECRET=$CRON_SECRET" "NODE_ENV=production" \
             "ALLOWED_ORIGINS=https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
-          npx --yes supabase@latest functions deploy customer partner admin --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --use-api
+          npx --yes supabase@latest functions deploy customer partner admin --yes --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --use-api
 
       - name: Background jobs every 5 minutes (pg_cron)
         working-directory: server
