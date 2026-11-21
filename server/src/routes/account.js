@@ -4,8 +4,8 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
-import { sendEmail } from "../mail.js";
+import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER } from "../config.js";
+import { sendEmail, sendSms } from "../mail.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -13,7 +13,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, ms, normEmail, notFound, precondition, str, validEmail,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -88,11 +88,13 @@ export function accountRoutes(r) {
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
   const checkCode = async (email, code) => {
+    const sms = String(email).startsWith("sms:");
+    const what = sms ? "mobile (SMS)" : "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
-    if (!row || new Date(row.expires_at) < new Date()) throw bad("The code has expired. Ask for a new one.");
-    if (row.attempts > 5) throw bad("Too many wrong tries. Ask for a new code.");
+    if (!row || new Date(row.expires_at) < new Date()) throw bad(`The ${what} code has expired. Ask for a new one.`);
+    if (row.attempts > 5) throw bad(`Too many wrong tries for the ${what} code. Ask for a new one.`);
     const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
-    if (!ok) throw bad("That code is not right. Please check the e-mail and try again.");
+    if (!ok) throw bad(sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
     await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
   // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
@@ -119,7 +121,24 @@ export function accountRoutes(r) {
       [email, codeHash(email, code)]);
     await sendEmail(email, `${code} is your LastPick code`,
       `Your LastPick code is ${code}\n\nIt expires in 10 minutes. Never share it with anyone: LastPick and businesses will never ask for it.\nIf you didn't ask for it, ignore this e-mail.`);
-    return { sent: true, to: maskEmail(email) };
+    return { sent: true, to: maskEmail(email), expiresIn: 600 };
+  }, { limit: "auth" });
+
+  // Mobile number check at sign-up: a 6-digit code by SMS (Brevo). Stored like the e-mail codes, under "sms:+91…".
+  r.post("/api/auth/otp/send-sms", async ({ body, ip }) => {
+    if (!SMS_SENDER) throw precondition("SMS codes aren't switched on yet.");
+    const phone = indianPhone(body?.phone);
+    if (!phone) throw bad("Please enter a valid Indian mobile number");
+    if (await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
+    await limit("ip:" + ip, "sms", 10, 3600);
+    await limit("phone:" + phone, "sms", 4, 3600, "Too many codes for this number. Try again in an hour.");
+    const code = String(crypto.randomInt(100000, 1000000));
+    const key = "sms:" + phone;
+    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
+             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
+      [key, codeHash(key, code)]);
+    await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`);
+    return { sent: true, to: maskPhone(phone), expiresIn: 600 };
   }, { limit: "auth" });
 
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
@@ -136,7 +155,9 @@ export function accountRoutes(r) {
     // say "already registered" BEFORE using up the e-mail code, so a mistake doesn't waste the code
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
+    if (SMS_SENDER && !phone) throw bad("Please enter your mobile number");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
+    if (SMS_SENDER) await checkCode("sms:" + phone, body.phoneOtp); // and the mobile number with an SMS code
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -241,7 +262,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN,
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, smsCodes: !!SMS_SENDER,
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

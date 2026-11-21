@@ -63,8 +63,9 @@ export const api = {
   },
   onAuthChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
   async signIn(email, password) { const r = await post("/api/auth/login", { email: email.trim(), password }); clearCache(); setToken(r.token); },
-  async signUp({ email, password, name, phone, consent, otp }) {
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, consent: consent ? { adult: !!consent.adult, items: consent.items || [] } : undefined });
+  async signUp({ email, password, name, phone, consent, otp, phoneOtp }) {
+    // consent goes as is: it carries the Terms text the person read (readFull, docText, docHash)
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneOtp, consent: consent || undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },
@@ -72,9 +73,10 @@ export const api = {
   async sendPhoneOtp(phone) { return post("/api/auth/otp/send", { phone: String(phone || "").trim() }); },
   async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/otp/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
+  async sendSmsOtp(phone) { return post("/api/auth/otp/send-sms", { phone: String(phone || "").trim() }); },
   async verifyEmailOtp(email, code) { const r = await post("/api/auth/otp/verify", { email: String(email || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async completeProfile({ name, phone, consent }) {
-    await post("/api/me/complete-profile", { name, phone, consent: { adult: !!consent.adult, items: consent.items || [] } });
+    await post("/api/me/complete-profile", { name, phone, consent });
   },
   // forgot password: code from sendEmailOtp + new password -> logged in here, other devices logged out
   async resetPassword(email, code, password) { const r = await post("/api/auth/reset", { email, code, password }); clearCache(); setToken(r.token); },

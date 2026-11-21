@@ -89,6 +89,11 @@ test("one account per mobile number", async () => {
 test("e-mail codes: refused cleanly while e-mail isn't set up", async () => {
   const r = await client("customer").post("/api/auth/otp/send", { email: "someone@test.lastpick.in" });
   assert.equal(r.status, 409);
+  // SMS codes for mobile numbers are off until SMS_SENDER is set; the app learns this from /api/config
+  assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 409);
+  const cfg = (await client("customer").get("/api/config")).data;
+  assert.equal(cfg.smsCodes, false);
+  assert.equal(cfg.emailCodes, false);
 });
 
 test("each server has only its own routes", async () => {

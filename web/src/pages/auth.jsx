@@ -82,7 +82,7 @@ function OwnerWelcome({ go }) {
 
 // ------------------------------------------------------------------ Sign in
 export function Login({ next = "/" }) {
-  const { session, profile, toast, refresh } = useApp();
+  const { session, profile, toast, refresh, config } = useApp();
   const [step, setStep] = useState(OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset
   const [method, setMethod] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -93,7 +93,8 @@ export function Login({ next = "/" }) {
   const [err, setErr] = useState("");
   const [wait, setWait] = useState(0);
   const [sentTo, setSentTo] = useState("");
-  const [resetSent, setResetSent] = useState(false); // forgot password: code e-mailed, now enter code + new password
+  const [resetSent, setResetSent] = useState(false);
+  const [resetSentAt, setResetSentAt] = useState(0); // forgot password: code e-mailed, now enter code + new password
   const codeRef = useRef();
   // why the user was logged out (e.g. logged in on another device): shown once
   const [reason] = useState(() => { try { const r = localStorage.getItem("lastpick-logout-reason"); localStorage.removeItem("lastpick-logout-reason"); return r || ""; } catch { return ""; } });
@@ -105,6 +106,11 @@ export function Login({ next = "/" }) {
   const [consent, setConsent] = useState({ adult: false, agree: false });
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  // mobile check at sign-up: SMS code (when switched on); each code has a 10-minute expiry and a 30-second resend wait
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [emailSentAt, setEmailSentAt] = useState(0);
+  const [smsSentAt, setSmsSentAt] = useState(0);
+  const smsOn = !!config?.smsCodes;
   if (session && profile && !profile.needsProfile) { setTimeout(() => navigate(next || "/", { replace: true }), 0); return <Spinner />; }
 
   const target = method === "phone" ? prettyPhone(indianPhone(phone) || phone) : email.trim();
@@ -137,7 +143,7 @@ export function Login({ next = "/" }) {
     try {
       if (step === "reset" && !resetSent) {
         // forgot password, step 1: e-mail a 6-digit code
-        await api.sendEmailOtp(email.trim()); setResetSent(true); setCode(""); setPassword("");
+        await api.sendEmailOtp(email.trim()); setResetSent(true); setResetSentAt(Date.now()); setCode(""); setPassword("");
         toast(`We sent a 6-digit code to ${email.trim()}`);
       } else if (step === "reset") {
         // step 2: code + new password -> password changed, other devices logged out, logged in here
@@ -159,11 +165,21 @@ export function Login({ next = "/" }) {
     setBusy(true);
     try {
       if (!codeSent) {
-        // step 1: e-mail a 6-digit code (if e-mail codes aren't switched on, the account is created straight away)
+        // step 1: a 6-digit code to the e-mail, and (when SMS is on) another to the mobile number.
+        // If e-mail codes aren't switched on, the account is created straight away.
         const sent = await api.sendEmailOtp(email).then(() => true).catch((x) => { if (/switched on/i.test(errText(x))) return false; throw x; });
-        if (sent) { setCodeSent(true); toast(`We sent a 6-digit code to ${email.trim()}`); setBusy(false); return; }
-      } else if (!/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
-      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim() });
+        if (sent) setEmailSentAt(Date.now());
+        if (smsOn) { await api.sendSmsOtp(mobile); setSmsSentAt(Date.now()); }
+        if (sent || smsOn) {
+          setCodeSent(true);
+          toast(sent && smsOn ? "We sent one code to your e-mail and one to your mobile" : sent ? `We sent a 6-digit code to ${email.trim()}` : "We sent a 6-digit code to your mobile");
+          setBusy(false); return;
+        }
+      } else {
+        if (emailSentAt && !/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
+        if (smsOn && !/^\d{6}$/.test(phoneOtp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the SMS"); }
+      }
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOtp.trim() });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
       await refresh();
       if (IS_OWNER_APP) navigate("/owner/business");
@@ -240,16 +256,20 @@ export function Login({ next = "/" }) {
         <p className="lead">{IS_OWNER_APP ? "Step 1: your account. Next you add your shop details; our team verifies them before you can post." : "See today's deals near you."}</p>
         <form className="form" style={{ padding: "20px 0 0" }} onSubmit={signUp}>
           <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => setMobile(e.target.value)} />
             <span className="hint">{IS_OWNER_APP ? "Customers contact you on your shop's number (added next)." : "Never shown to businesses."}</span></div>
-          <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} disabled={codeSent} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <ConsentBoxes value={consent} onChange={setConsent} />
-          {codeSent && <div className="fld"><label htmlFor="su-otp">6-digit code sent to {email.trim()}</label>
+          {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">E-mail code: 6 digits sent to {email.trim()}</label>
             <input id="su-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-            <span className="hint">Didn't get it? Check spam, or <button type="button" className="link small" onClick={() => { setCodeSent(false); setOtp(""); }}>send a new code</button>.</span></div>}
+            <CodeTimer sentAt={emailSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email); setOtp(""); setEmailSentAt(Date.now()); toast("New e-mail code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
+          {codeSent && smsOn && <div className="fld"><label htmlFor="su-sms">Mobile code: 6 digits sent by SMS to {prettyPhone(indianPhone(mobile) || mobile)}</label>
+            <input id="su-sms" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+            <CodeTimer sentAt={smsSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneOtp(""); setSmsSentAt(Date.now()); toast("New SMS code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
+          {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setPhoneOtp(""); setEmailSentAt(0); setSmsSentAt(0); setErr(""); }}>Change e-mail or mobile number</button>}
           {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : "Send verification code"}</button>
+          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : smsOn ? "Send codes to e-mail and mobile" : "Send verification code"}</button>
           <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
         </form>
       </>}
@@ -261,7 +281,7 @@ export function Login({ next = "/" }) {
           {step === "password" && <div className="fld"><label htmlFor="pw-pass">Password</label><input id="pw-pass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>}
           {step === "reset" && resetSent && <>
             <div className="fld"><label htmlFor="rs-code">6-digit code</label><input id="rs-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
-              <span className="hint">Didn't get it? Check spam, or <button type="button" className="link small" onClick={() => { setResetSent(false); setCode(""); setErr(""); }}>send a new code</button>.</span></div>
+              <CodeTimer sentAt={resetSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email.trim()); setCode(""); setResetSentAt(Date.now()); toast("New code sent"); } catch (x) { setErr(errText(x)); } }} /></div>
             <div className="fld"><label htmlFor="rs-pass">New password (8+ characters)</label><input id="rs-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           </>}
           {err && <div className="error">{err}</div>}
@@ -335,3 +355,20 @@ export function CompleteProfile() {
     </form>
   );
 }
+
+// Under a code box: "Code expires in 9:41" and "Resend in 0:28", then a "Resend code" link.
+const CODE_LIFE_S = 600, RESEND_WAIT_S = 30;
+function CodeTimer({ sentAt, onResend, hint }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const gone = Math.floor((now - sentAt) / 1000);
+  const left = Math.max(0, CODE_LIFE_S - gone), wait = Math.max(0, RESEND_WAIT_S - gone);
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return (
+    <span className="hint codetimer">
+      {left > 0 ? <>Code expires in <b>{mmss(left)}</b>. </> : <b style={{ color: "var(--bad)" }}>This code has expired. </b>}
+      {hint} {wait > 0 ? <span>Resend in <b>{mmss(wait)}</b></span> : <button type="button" className="link small" onClick={onResend}>Resend code</button>}
+    </span>
+  );
+}
+
