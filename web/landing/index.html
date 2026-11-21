@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LastPick · Today's best deals near you, before midnight</title>
+<meta name="description" content="LastPick shows same-day offers from shops, salons, hotels and travel near you. Every deal is for today only. Businesses post in 30 seconds." />
+<meta name="theme-color" content="#06373A" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230E6B66'/%3E%3Cpath d='M17 18h14l16 16-13 13-17-16z' fill='%23fff'/%3E%3Ccircle cx='24' cy='25' r='3.4' fill='%23D9F99D'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --deep: #06373A; --teal: #0E6B66; --mint: #D9F99D; --ink: #0B2224; --muted: #4E6366;
+    --gold: #E8A33D; --brown: #3B1606; --peach: #FED7AA; --cream: #FFF8EE; --bg: #F3FBF8;
+    --r: 22px; --shadow: 0 18px 50px rgba(6, 55, 58, .16);
+    --fh: "Bricolage Grotesque", system-ui, sans-serif; --fb: "Inter", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; overflow-x: clip; }
+  body { font-family: var(--fb); color: var(--ink); background: var(--bg); overflow-x: clip; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: var(--fh); letter-spacing: -.02em; line-height: 1.05; }
+  .wrap { width: min(1180px, 92vw); margin: 0 auto; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 15px 24px; border-radius: 999px; font-weight: 700; font-size: 15.5px; transition: transform .2s, box-shadow .2s; white-space: nowrap; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.main { background: var(--mint); color: var(--deep); box-shadow: 0 10px 30px rgba(217, 249, 157, .35); }
+  .btn.ghost { background: rgba(255,255,255,.1); color: #fff; border: 1.5px solid rgba(255,255,255,.35); }
+  .btn.gold { background: var(--gold); color: var(--brown); box-shadow: 0 10px 30px rgba(232, 163, 61, .35); }
+  .btn.dark { background: var(--deep); color: #fff; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* ---------- nav ---------- */
+  nav { position: fixed; inset: 0 0 auto; z-index: 50; transition: background .3s, box-shadow .3s; }
+  nav.solid { background: rgba(6, 55, 58, .92); backdrop-filter: blur(12px); box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+  .logo { display: flex; align-items: center; gap: 10px; color: #fff; font-family: var(--fh); font-weight: 800; font-size: 22px; }
+  .logo svg { width: 38px; height: 38px; border-radius: 11px; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+  .navlinks { display: flex; gap: 26px; align-items: center; color: rgba(255,255,255,.85); font-weight: 600; font-size: 14.5px; }
+  .navlinks a:hover { color: #fff; }
+  .navlinks .btn { padding: 10px 18px; font-size: 14px; }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; min-height: 100vh; background: radial-gradient(1200px 700px at 80% 10%, #13867F 0%, transparent 60%), radial-gradient(900px 600px at 0% 100%, #0A4F4B 0%, transparent 60%), var(--deep); color: #fff; overflow: hidden; padding: 130px 0 90px; }
+  .rays { position: absolute; inset: -40%; background: repeating-conic-gradient(from 0deg at 72% 38%, rgba(255,255,255,.045) 0deg 9deg, transparent 9deg 18deg); animation: spin 90s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .5; animation: float 14s ease-in-out infinite; }
+  .blob.b1 { width: 420px; height: 420px; background: #1FB5A3; top: -80px; right: 8%; }
+  .blob.b2 { width: 360px; height: 360px; background: #E8A33D; bottom: -120px; left: 5%; opacity: .32; animation-delay: -5s; }
+  @keyframes float { 50% { transform: translate(30px, -40px) scale(1.08); } }
+  .hero .wrap { position: relative; display: grid; grid-template-columns: 1.08fr .92fr; gap: 50px; align-items: center; }
+  .hero .pill { background: rgba(217, 249, 157, .14); color: var(--mint); border: 1px solid rgba(217,249,157,.3); }
+  .hero .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(217,249,157,.7); animation: ping 1.8s infinite; }
+  @keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(217,249,157,0); } 100% { box-shadow: 0 0 0 0 rgba(217,249,157,0); } }
+  .hero h1 { font-size: clamp(42px, 6.4vw, 84px); margin: 22px 0 20px; font-weight: 800; }
+  .hero h1 .hl { color: var(--mint); position: relative; white-space: nowrap; }
+  .hero h1 .hl svg { position: absolute; left: 0; bottom: -10px; width: 100%; height: 18px; }
+  .hero h1 .hl path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw 1.4s .6s ease forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .rotor { display: inline-block; position: relative; height: 1.05em; vertical-align: bottom; overflow: hidden; }
+  .rotor span { display: block; animation: rotor 10s infinite; color: var(--peach); }
+  @keyframes rotor { 0%,16% { transform: translateY(0); } 20%,36% { transform: translateY(-100%); } 40%,56% { transform: translateY(-200%); } 60%,76% { transform: translateY(-300%); } 80%,96% { transform: translateY(-400%); } 100% { transform: translateY(-500%); } }
+  .hero p.lead { font-size: clamp(16.5px, 1.6vw, 19px); line-height: 1.6; color: rgba(255,255,255,.82); max-width: 560px; }
+  .ctas { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .trust { display: flex; gap: 22px; margin-top: 34px; flex-wrap: wrap; color: rgba(255,255,255,.75); font-size: 14px; font-weight: 600; }
+  .trust b { color: #fff; }
+  .trust div { display: flex; align-items: center; gap: 8px; }
+  .trust svg { width: 18px; height: 18px; color: var(--mint); }
+
+  /* ---------- phone "video" ---------- */
+  .stage { position: relative; height: 640px; display: grid; place-items: center; text-align: left; }
+  .phone { position: relative; width: 300px; height: 610px; border-radius: 46px; background: #0A1416; padding: 12px; box-shadow: 0 40px 90px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.08); animation: bob 6s ease-in-out infinite; z-index: 2; }
+  @keyframes bob { 50% { transform: translateY(-12px) rotate(-1deg); } }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: linear-gradient(180deg, #F3FBF8, #E6F4EF); color: var(--ink); }
+  .notch { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 96px; height: 26px; border-radius: 20px; background: #0A1416; z-index: 9; }
+  .scene { position: absolute; inset: 0; padding: 50px 14px 14px; opacity: 0; transition: opacity .6s; }
+  .scene.on { opacity: 1; }
+  .sbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .sbar b { font-family: var(--fh); font-size: 19px; }
+  .sbar small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .sbar b { display: block; white-space: nowrap; }
+  .avatar { width: 30px; height: 30px; border-radius: 10px; background: var(--teal); }
+  .chips { display: flex; gap: 6px; margin-bottom: 12px; overflow: hidden; }
+  .chips span { flex: none; font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .chips span.on { background: var(--deep); color: #fff; }
+  .card { display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 16px; padding: 10px; margin-bottom: 10px; box-shadow: 0 6px 18px rgba(6,55,58,.08); opacity: 0; transform: translateY(24px) scale(.97); }
+  .scene.on .card { animation: cardIn .6s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  .scene.on .card:nth-of-type(2) { animation-delay: .25s; } .scene.on .card:nth-of-type(3) { animation-delay: .5s; } .scene.on .card:nth-of-type(4) { animation-delay: .75s; }
+  @keyframes cardIn { to { opacity: 1; transform: none; } }
+  .thumb { flex: none; width: 54px; height: 54px; border-radius: 13px; display: grid; place-items: center; position: relative; }
+  .thumb svg { width: 26px; height: 26px; }
+  .thumb em { position: absolute; top: -6px; left: -6px; font-style: normal; font-size: 10px; font-weight: 800; background: var(--deep); color: var(--mint); padding: 2px 6px; border-radius: 999px; }
+  .card .t { font-weight: 700; font-size: 12.5px; line-height: 1.25; }
+  .card .m { font-size: 10.5px; color: var(--muted); margin: 2px 0 4px; }
+  .card .p { font-size: 13px; font-weight: 800; }
+  .card .p s { font-size: 10.5px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .card .p i { font-style: normal; font-size: 10px; font-weight: 800; color: #0F7B4F; background: #E3F6EC; padding: 2px 6px; border-radius: 999px; margin-left: 4px; }
+  .timer { font-size: 10px; font-weight: 700; color: #B4410E; }
+  .detail { background: #fff; border-radius: 20px; padding: 14px; box-shadow: 0 10px 30px rgba(6,55,58,.1); }
+  .detail .big { height: 110px; border-radius: 15px; background: #FFF1E0; display: grid; place-items: center; margin-bottom: 12px; }
+  .detail .big svg { width: 48px; height: 48px; color: #B35A00; }
+  .detail h4 { font-family: var(--fh); font-size: 17px; margin-bottom: 4px; }
+  .detail .q { font-size: 11px; font-style: italic; background: #FFF4E5; padding: 8px 10px; border-radius: 10px; margin: 8px 0; }
+  .detail .row { display: flex; justify-content: space-between; align-items: center; background: #F3FBF8; padding: 10px; border-radius: 12px; margin-bottom: 10px; }
+  .detail .row b { font-size: 20px; font-family: var(--fh); }
+  .ibtn { position: relative; width: 100%; padding: 13px; border-radius: 14px; border: 0; background: var(--deep); color: #fff; font-weight: 800; font-size: 13px; overflow: hidden; }
+  .ibtn.tap { animation: press .5s ease; }
+  @keyframes press { 40% { transform: scale(.95); } }
+  .ripple { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: rgba(217,249,157,.6); translate: -50% -50%; opacity: 0; }
+  .ibtn.tap .ripple { animation: rip .8s ease-out; }
+  @keyframes rip { 0% { opacity: 1; width: 10px; height: 10px; } 100% { opacity: 0; width: 360px; height: 360px; } }
+  .finger { position: absolute; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.55); border: 2px solid rgba(6,55,58,.25); bottom: 70px; right: 40px; opacity: 0; z-index: 8; }
+  .scene.on .finger { animation: finger 2.6s ease forwards; }
+  @keyframes finger { 0% { opacity: 0; transform: translate(60px, 80px); } 40% { opacity: 1; transform: translate(-60px, 0); } 55% { transform: translate(-60px, 0) scale(.8); } 70% { transform: translate(-60px, 0) scale(1); opacity: 1; } 100% { opacity: 0; transform: translate(-60px, 0); } }
+  .toast { position: absolute; left: 14px; right: 14px; bottom: 16px; background: var(--deep); color: #fff; border-radius: 14px; padding: 12px; font-size: 11.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; transform: translateY(140%); transition: transform .5s cubic-bezier(.2,.9,.3,1.2); z-index: 7; }
+  .toast.up { transform: none; }
+  .toast svg { flex: none; width: 18px; height: 18px; color: var(--mint); }
+  .biz-screen { background: linear-gradient(180deg, #FBF3EA, #F5E7D6); }
+  .biz-screen .sbar b { color: var(--brown); }
+  .notif { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(59,22,6,.1); opacity: 0; transform: translateY(-20px); }
+  .scene.on .notif { animation: cardIn .6s .4s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  .notif .h { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #8A5A00; font-weight: 800; margin-bottom: 6px; }
+  .notif .h i { width: 22px; height: 22px; border-radius: 7px; background: var(--gold); display: grid; place-items: center; }
+  .notif .h svg { width: 13px; height: 13px; color: var(--brown); }
+  .notif b { font-size: 14px; display: block; }
+  .notif small { font-size: 11px; color: var(--muted); }
+  .stat { display: flex; gap: 8px; }
+  .stat div { flex: 1; background: #fff; border-radius: 14px; padding: 10px; text-align: center; }
+  .stat b { font-family: var(--fh); font-size: 22px; color: var(--brown); display: block; }
+  .stat small { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .floaty { position: absolute; z-index: 3; background: #fff; color: var(--ink); border-radius: 18px; padding: 12px 14px; box-shadow: var(--shadow); font-size: 13px; font-weight: 700; display: flex; gap: 10px; align-items: center; animation: bob 7s ease-in-out infinite; }
+  .floaty .ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; }
+  .floaty .ic svg { width: 18px; height: 18px; }
+  .floaty small { display: block; font-weight: 500; color: var(--muted); font-size: 11.5px; }
+  .f1 { top: 250px; left: -30px; animation-delay: -2s; } .f2 { bottom: 50px; right: -20px; animation-delay: -4s; } .f3 { top: 120px; right: -40px; animation-delay: -1s; }
+  .scenebar { position: absolute; bottom: -6px; left: 50%; translate: -50% 0; display: flex; gap: 6px; z-index: 4; }
+  .scenebar i { width: 34px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.25); overflow: hidden; }
+  .scenebar i b { display: block; height: 100%; width: 0; background: var(--mint); }
+  .scenebar i.on b { animation: fill 4s linear forwards; }
+  @keyframes fill { to { width: 100%; } }
+
+  /* ---------- marquee ---------- */
+  .marq { background: var(--mint); color: var(--deep); padding: 18px 0; overflow: hidden; transform: rotate(-1.5deg); margin: -26px -2% 0; width: 104%; box-shadow: 0 10px 30px rgba(0,0,0,.1); position: relative; z-index: 5; }
+  .marq .track { display: flex; gap: 46px; width: max-content; animation: marq 30s linear infinite; font-family: var(--fh); font-weight: 800; font-size: 22px; }
+  .marq .track span { display: flex; align-items: center; gap: 46px; }
+  .marq .track span::after { content: "✦"; color: var(--teal); }
+  @keyframes marq { to { transform: translateX(-50%); } }
+
+  section { padding: 110px 0; }
+  .eyebrow { font-weight: 800; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); margin-bottom: 14px; }
+  .h2 { font-size: clamp(32px, 4.4vw, 56px); margin-bottom: 18px; }
+  .sub { font-size: 17.5px; line-height: 1.6; color: var(--muted); max-width: 640px; }
+
+  /* ---------- how it works ---------- */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 56px; }
+  .step { position: relative; background: #fff; border-radius: 28px; padding: 30px 26px; box-shadow: var(--shadow); overflow: hidden; }
+  .step .num { position: absolute; left: 40px; top: 40px; z-index: 2; font-family: var(--fh); font-size: 14px; font-weight: 800; color: var(--deep); background: #fff; padding: 4px 10px; border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .step .art { height: 150px; border-radius: 20px; margin-bottom: 22px; position: relative; overflow: hidden; display: grid; place-items: center; }
+  .step h3 { font-size: 23px; margin-bottom: 8px; }
+  .step p { color: var(--muted); line-height: 1.55; font-size: 15px; }
+  .radar { width: 120px; height: 120px; border-radius: 50%; position: relative; background: radial-gradient(circle, rgba(14,107,102,.2) 0 30%, transparent 31%), radial-gradient(circle, transparent 0 45%, rgba(14,107,102,.15) 46% 47%, transparent 48%), radial-gradient(circle, transparent 0 68%, rgba(14,107,102,.15) 69% 70%, transparent 71%); }
+  .radar::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(14,107,102,.45), transparent 25%); animation: spin 2.8s linear infinite; }
+  .radar i { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(232,163,61,.25); animation: blink 2.8s infinite; }
+  @keyframes blink { 0%, 100% { opacity: .2; } 30% { opacity: 1; } }
+  .tapdemo { position: relative; padding: 14px 26px; border-radius: 16px; background: var(--deep); color: #fff; font-weight: 800; animation: press 2.4s infinite; }
+  .tapdemo::before { content: ""; position: absolute; inset: -8px; border-radius: 22px; border: 2px solid var(--mint); opacity: 0; animation: ring 2.4s infinite; }
+  @keyframes ring { 0% { opacity: .9; transform: scale(.9); } 60%, 100% { opacity: 0; transform: scale(1.25); } }
+  .namecard { background: #fff; border-radius: 16px; padding: 12px 16px; box-shadow: 0 10px 24px rgba(59,22,6,.12); display: flex; gap: 12px; align-items: center; animation: slideName 3s infinite; }
+  .namecard i { width: 36px; height: 36px; border-radius: 12px; background: var(--gold); display: grid; place-items: center; font-style: normal; font-weight: 800; color: var(--brown); }
+  .namecard small { display: block; color: var(--muted); font-size: 12px; }
+  @keyframes slideName { 0% { transform: translateX(-130%); opacity: 0; } 20%, 80% { transform: none; opacity: 1; } 100% { transform: translateX(130%); opacity: 0; } }
+
+  /* ---------- categories ---------- */
+  .cats { background: #fff; }
+  .catgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 50px; }
+  .cat { border-radius: 24px; padding: 22px 18px; position: relative; overflow: hidden; transition: transform .3s; cursor: default; }
+  .cat:hover { transform: translateY(-6px) rotate(-1deg); }
+  .cat .ic { width: 56px; height: 56px; border-radius: 17px; background: #fff; display: grid; place-items: center; box-shadow: 0 8px 20px rgba(0,0,0,.08); margin-bottom: 14px; transform: rotate(-6deg); transition: transform .3s; }
+  .cat:hover .ic { transform: rotate(4deg) scale(1.08); }
+  .cat .ic svg { width: 28px; height: 28px; }
+  .cat b { font-family: var(--fh); font-size: 19px; display: block; }
+  .cat small { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .cat .tag { position: absolute; top: 14px; right: 14px; font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; color: #fff; }
+
+  /* ---------- clock ---------- */
+  .clocksec { background: var(--deep); color: #fff; position: relative; overflow: hidden; }
+  .clocksec .sub { color: rgba(255,255,255,.75); }
+  .clocksec .eyebrow { color: var(--mint); }
+  .clockgrid { display: grid; grid-template-columns: .95fr 1.05fr; gap: 60px; align-items: center; }
+  .dial { position: relative; width: min(440px, 84vw); aspect-ratio: 1; margin: 0 auto; }
+  .dial svg { width: 100%; height: 100%; }
+  .hand { transform-origin: 220px 220px; animation: day 12s linear infinite; }
+  @keyframes day { to { transform: rotate(360deg); } }
+  .dialcenter { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+  .dialcenter b { font-family: var(--fh); font-size: clamp(26px, 6vw, 36px); display: block; }
+  .dialcenter small { color: rgba(255,255,255,.7); font-weight: 600; }
+  .rules { display: grid; gap: 14px; margin-top: 30px; }
+  .rule { display: flex; gap: 14px; align-items: flex-start; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 16px 18px; }
+  .rule .dot { flex: none; width: 14px; height: 14px; border-radius: 50%; margin-top: 4px; }
+  .rule b { display: block; font-size: 16px; margin-bottom: 3px; }
+  .rule span { color: rgba(255,255,255,.72); font-size: 14.5px; line-height: 1.5; }
+
+  /* ---------- business ---------- */
+  .biz { background: linear-gradient(160deg, #FFF8EE 0%, #FBEBD6 100%); position: relative; overflow: hidden; }
+  .biz .eyebrow { color: #B35A00; }
+  .bizgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .postdemo { background: #fff; border-radius: 30px; padding: 26px; box-shadow: 0 30px 70px rgba(59,22,6,.16); position: relative; }
+  .postdemo .lbl { font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; }
+  .field { border: 1.5px solid #EEDFCB; border-radius: 14px; padding: 12px 14px; font-weight: 600; font-size: 15px; min-height: 48px; position: relative; }
+  .field .caret { display: inline-block; width: 2px; height: 18px; background: var(--brown); vertical-align: middle; animation: caret 1s steps(1) infinite; }
+  @keyframes caret { 50% { opacity: 0; } }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pct { margin-top: 12px; font-weight: 700; color: #0F7B4F; font-size: 14px; opacity: 0; transition: opacity .4s; }
+  .pct.on { opacity: 1; }
+  .postbtn { margin-top: 16px; width: 100%; padding: 15px; border: 0; border-radius: 16px; background: var(--brown); color: #fff; font-weight: 800; font-size: 15px; transition: background .3s; }
+  .postbtn.done { background: #0F7B4F; }
+  .perks { display: grid; gap: 14px; margin: 30px 0; }
+  .perk { display: flex; gap: 14px; align-items: flex-start; }
+  .perk i { flex: none; width: 40px; height: 40px; border-radius: 13px; background: var(--gold); display: grid; place-items: center; color: var(--brown); }
+  .perk i svg { width: 20px; height: 20px; }
+  .perk b { display: block; font-size: 16px; }
+  .perk span { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+  .price { display: flex; align-items: baseline; gap: 10px; margin-bottom: 22px; }
+  .price b { font-family: var(--fh); font-size: 46px; color: var(--brown); }
+  .price span { color: var(--muted); font-weight: 600; }
+
+  /* ---------- quotes ---------- */
+  .quotes { padding: 70px 0; text-align: center; background: var(--bg); }
+  .quote { font-family: var(--fh); font-size: clamp(26px, 3.6vw, 44px); font-weight: 800; color: var(--deep); min-height: 2.4em; display: grid; place-items: center; }
+  .quote span { animation: qin 6s ease both; display: block; }
+  @keyframes qin { 0% { opacity: 0; transform: translateY(20px); filter: blur(6px); } 10%, 88% { opacity: 1; transform: none; filter: none; } 100% { opacity: 0; transform: translateY(-14px); } }
+
+  /* ---------- download ---------- */
+  .download { padding: 0 0 110px; }
+  .dlbox { border-radius: 36px; padding: 60px; background: radial-gradient(700px 400px at 90% 0%, #13867F 0%, transparent 60%), var(--deep); color: #fff; display: grid; grid-template-columns: 1.2fr .8fr; gap: 40px; align-items: center; position: relative; overflow: hidden; }
+  .dlbox h2 { font-size: clamp(30px, 4vw, 50px); margin-bottom: 14px; }
+  .dlbox p { color: rgba(255,255,255,.78); line-height: 1.6; font-size: 16.5px; }
+  .dlbtns { display: grid; gap: 12px; }
+  .store { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); transition: background .2s; }
+  .store:hover { background: rgba(255,255,255,.14); }
+  .store i { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+  .store i svg { width: 22px; height: 22px; }
+  .store b { display: block; font-size: 16px; }
+  .store small { color: rgba(255,255,255,.7); font-size: 12.5px; }
+
+  /* ---------- faq ---------- */
+  .faq { background: #fff; }
+  .faqlist { margin-top: 40px; display: grid; gap: 12px; max-width: 860px; }
+  details { border-radius: 18px; background: var(--bg); padding: 18px 22px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::after { content: "+"; font-size: 22px; color: var(--teal); transition: transform .3s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { margin-top: 10px; color: var(--muted); line-height: 1.6; font-size: 15px; }
+
+  footer { background: #041F21; color: rgba(255,255,255,.7); padding: 50px 0 36px; font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; align-items: center; }
+  footer nav { position: static; display: flex; gap: 20px; flex-wrap: wrap; }
+  footer a:hover { color: #fff; }
+
+  @media (max-width: 960px) {
+    .hero .wrap, .clockgrid, .bizgrid, .dlbox { grid-template-columns: 1fr; }
+    .hero { padding-top: 110px; text-align: center; }
+    .hero p.lead { margin: 0 auto; }
+    .ctas, .trust { justify-content: center; }
+    .stage { height: 600px; }
+    .steps { grid-template-columns: 1fr; }
+    .catgrid { grid-template-columns: repeat(2, 1fr); }
+    .navlinks a:not(.btn) { display: none; }
+    .dlbox { padding: 36px 24px; }
+    section { padding: 80px 0; }
+    .f3 { display: none; }
+  }
+  @media (max-width: 960px) { .f1 { left: 0; } .f2 { right: 0; } }
+  @media (max-width: 420px) { .phone { transform: scale(.9); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } .reveal { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+
+<!-- small icon set -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-food" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM6 11V8a6 6 0 0 1 12 0v3M9 6V4M12 5V3M15 6V4"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18V6M3 14h18v4M21 14v-3a3 3 0 0 0-3-3h-7v6M7 11a1.5 1.5 0 1 0 0-.01"/></symbol>
+    <symbol id="i-bus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21v-4M16 21v-4M8.5 14h.01M15.5 14h.01"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
+    <symbol id="i-brush" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9.5 9.5-3-3zM8.5 12.5 5 16c-1 1-1 3-3 3 2 2 5 2 6.5.5l3-3"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/></symbol>
+    <symbol id="i-mega" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1zM17 9a4 4 0 0 1 0 6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></symbol>
+    <symbol id="i-android" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48 19.4 6.3a.6.6 0 0 0-1.04-.6l-1.83 3.17A11.4 11.4 0 0 0 12 7.9c-1.62 0-3.16.35-4.53.97L5.64 5.7a.6.6 0 1 0-1.04.6l1.8 3.18A10.6 10.6 0 0 0 1 18h22a10.6 10.6 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  </defs>
+</svg>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="LastPick home">
+      <svg viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E6B66"/><stop offset="1" stop-color="#06373A"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lg)"/><path d="M17 18h14l16 16-13 13-17-16z" fill="#fff"/><circle cx="24" cy="25" r="3.4" fill="#D9F99D"/></svg>
+      LastPick
+    </a>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#categories">Categories</a>
+      <a href="#business">For businesses</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn main" href="https://customer.lastpick.in">Open LastPick</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <div class="rays"></div><div class="blob b1"></div><div class="blob b2"></div>
+  <div class="wrap">
+    <div class="reveal">
+      <span class="pill"><i></i> Today's deals · gone at midnight</span>
+      <h1>Grab today's best
+        <span class="rotor"><span>food deals</span><span>hotel rooms</span><span>salon slots</span><span>bus seats</span><span>fashion drops</span><span>food deals</span></span><br/>
+        <span class="hl">before midnight
+          <svg viewBox="0 0 300 18" preserveAspectRatio="none"><path d="M3 12 C 80 2, 200 2, 297 10" stroke="#D9F99D" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+        </span>
+      </h1>
+      <p class="lead">LastPick shows same-day offers from verified shops, salons, hotels and travel near you. See the price, the discount and how long it lasts. Tap "I'm interested" and the business gets only your name.</p>
+      <div class="ctas">
+        <a class="btn main" href="https://customer.lastpick.in">Find deals near me
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn ghost" href="https://partner.lastpick.in">I own a business</a>
+      </div>
+      <div class="trust">
+        <div><svg><use href="#i-shield"/></svg><span><b>Verified</b> businesses only</span></div>
+        <div><svg><use href="#i-eye"/></svg><span>Your number stays <b>private</b></span></div>
+        <div><svg><use href="#i-clock"/></svg><span>Fresh offers <b>every day</b></span></div>
+      </div>
+    </div>
+
+    <!-- animated phone "video" -->
+    <div class="stage reveal" aria-label="Animation: a customer finds a deal and the business receives their name">
+      <div class="floaty f1"><span class="ic" style="background:#FFF1E0;color:#B35A00"><svg><use href="#i-food"/></svg></span><span>40% off cakes<small>Ends at 9:00 PM</small></span></div>
+      <div class="floaty f2"><span class="ic" style="background:#E9EEFF;color:#1E4BB8"><svg><use href="#i-bed"/></svg></span><span>Room tonight<small>Open 24×7</small></span></div>
+      <div class="floaty f3"><span class="ic" style="background:#FFF3D6;color:#8A5A00"><svg><use href="#i-user"/></svg></span><span>Name only<small>never your number</small></span></div>
+
+      <div class="phone">
+        <div class="screen" id="screen">
+          <div class="notch"></div>
+
+          <!-- scene 1: feed -->
+          <div class="scene on" data-scene>
+            <div class="sbar"><div><small>Indiranagar, Bengaluru</small><b>Deals near you</b></div><span class="avatar"></span></div>
+            <div class="chips"><span class="on">All</span><span>Food</span><span>Hotels</span><span>Salon</span><span>Travel</span></div>
+            <div class="card"><span class="thumb" style="background:#FFF1E0;color:#B35A00"><em>-40%</em><svg><use href="#i-food"/></svg></span><div><div class="t">Fresh cakes before closing</div><div class="m">Sunrise Bakery · 400 m</div><div class="p">₹240<s>₹400</s><i>40% off</i></div><div class="timer">Offer ends in 3 hours</div></div></div>
+            <div class="card"><span class="thumb" style="background:#E9EEFF;color:#1E4BB8"><em>-35%</em><svg><use href="#i-bed"/></svg></span><div><div class="t">Deluxe room tonight</div><div class="m">Green Stay · 1.2 km</div><div class="p">₹1,950<s>₹3,000</s><i>35% off</i></div><div class="timer">Offer ends in 9 hours</div></div></div>
+            <div class="card"><span class="thumb" style="background:#EEF1F5;color:#6B2FB3"><em>-30%</em><svg><use href="#i-cut"/></svg></span><div><div class="t">Haircut slots this evening</div><div class="m">Style Studio · 800 m</div><div class="p">₹280<s>₹400</s><i>30% off</i></div><div class="timer">Offer ends in 2 hours</div></div></div>
+            <div class="card"><span class="thumb" style="background:#E4F5F2;color:#0F6E5C"><em>-25%</em><svg><use href="#i-bus"/></svg></span><div><div class="t">Last seats to Mysuru</div><div class="m">City Travels · 2 km</div><div class="p">₹450<s>₹600</s><i>25% off</i></div><div class="timer">Offer ends in 5 hours</div></div></div>
+          </div>
+
+          <!-- scene 2: offer + tap -->
+          <div class="scene" data-scene>
+            <div class="sbar"><div><small>Food · 400 m away</small><b>Sunrise Bakery</b></div><span class="avatar"></span></div>
+            <div class="detail">
+              <div class="big"><svg><use href="#i-food"/></svg></div>
+              <h4>Fresh cakes before closing</h4>
+              <div class="q">“Every rupee spent nearby feeds a family.”</div>
+              <div class="row"><div><b>₹240</b> <s style="color:#4E6366;font-size:12px">₹400</s></div><div style="text-align:right;font-size:11px;color:#4E6366">Offer ends in<br/><b style="font-size:14px;color:#0B2224">3 hours</b></div></div>
+              <button class="ibtn" id="ibtn" type="button" tabindex="-1">I'm interested · sends only your name<span class="ripple"></span></button>
+            </div>
+            <div class="finger"></div>
+            <div class="toast" id="toast"><svg><use href="#i-check"/></svg>Sent your name to Sunrise Bakery</div>
+          </div>
+
+          <!-- scene 3: partner gets the name -->
+          <div class="scene biz-screen" data-scene>
+            <div class="sbar"><div><small>LastPick Business</small><b>Sunrise Bakery</b></div><span class="avatar" style="background:#E8A33D"></span></div>
+            <div class="notif"><div class="h"><i><svg><use href="#i-user"/></svg></i>NEW INTEREST · just now</div><b>Priya is interested</b><small>in “Fresh cakes before closing”</small></div>
+            <div class="stat"><div><b data-count="128">0</b><small>customers saw it</small></div><div><b data-count="9">0</b><small>interested</small></div></div>
+            <div class="notif" style="animation-delay:.9s"><div class="h"><i><svg><use href="#i-star"/></svg></i>NEW REVIEW</div><b>★★★★★ “Lovely cakes!”</b><small>Reply to thank them</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="scenebar" id="scenebar"><i class="on"><b></b></i><i><b></b></i><i><b></b></i></div>
+    </div>
+  </div>
+</header>
+
+<div class="marq" aria-hidden="true"><div class="track" id="marq"></div></div>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section id="how">
+  <div class="wrap">
+    <div class="reveal"><div class="eyebrow">How it works</div><h2 class="h2">Three taps from deal to doorstep</h2><p class="sub">No coupons, no codes, no spam calls. Just today's real offers from businesses around you.</p></div>
+    <div class="steps">
+      <div class="step reveal"><span class="num">01</span>
+        <div class="art" style="background:#E6F4EF"><div class="radar"><i style="top:22px;left:70px"></i><i style="top:68px;left:24px;animation-delay:.9s"></i><i style="top:80px;left:86px;animation-delay:1.8s"></i></div></div>
+        <h3>See what's near you</h3><p>Offers within your chosen distance, by pincode or city. Each one shows the price, the % off and the time it ends.</p></div>
+      <div class="step reveal"><span class="num">02</span>
+        <div class="art" style="background:#E9EEFF"><span class="tapdemo">I'm interested</span></div>
+        <h3>Tap "I'm interested"</h3><p>The business gets your first name, never your phone number. You see their number and decide when to go.</p></div>
+      <div class="step reveal"><span class="num">03</span>
+        <div class="art" style="background:#FFF1E0"><div class="namecard"><i>P</i><div><b>Priya is interested</b><small>Fresh cakes · just now</small></div></div></div>
+        <h3>Walk in, save money</h3><p>Pay the business directly, enjoy the deal, and leave a review to help your neighbours.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CATEGORIES ================= -->
+<section class="cats" id="categories">
+  <div class="wrap">
+    <div class="reveal"><div class="eyebrow">Categories</div><h2 class="h2">Everything your city sells today</h2><p class="sub">From closing-time cakes to last-minute rooms, every offer is for today only.</p></div>
+    <div class="catgrid">
+      <div class="cat reveal" style="background:#FFF1E0;color:#B35A00"><span class="ic"><svg><use href="#i-food"/></svg></span><b style="color:#0B2224">Food</b><small>Bakeries, restaurants</small></div>
+      <div class="cat reveal" style="background:#E9EEFF;color:#1E4BB8"><span class="tag" style="background:#1E4BB8">24×7</span><span class="ic"><svg><use href="#i-bed"/></svg></span><b style="color:#0B2224">Hotels</b><small>Rooms tonight</small></div>
+      <div class="cat reveal" style="background:#E4F5F2;color:#0F6E5C"><span class="tag" style="background:#0F6E5C">24×7</span><span class="ic"><svg><use href="#i-bus"/></svg></span><b style="color:#0B2224">Travel</b><small>Last-minute seats</small></div>
+      <div class="cat reveal" style="background:#EEF1F5;color:#6B2FB3"><span class="ic"><svg><use href="#i-cut"/></svg></span><b style="color:#0B2224">Salon</b><small>Free slots today</small></div>
+      <div class="cat reveal" style="background:#FDEAF3;color:#A3245E"><span class="ic"><svg><use href="#i-brush"/></svg></span><b style="color:#0B2224">Makeup</b><small>Artists near you</small></div>
+      <div class="cat reveal" style="background:#FFF6D6;color:#8A6100"><span class="ic"><svg><use href="#i-bag"/></svg></span><b style="color:#0B2224">Fashion</b><small>Today's drops</small></div>
+      <div class="cat reveal" style="background:#EEF0F6;color:#3B4654"><span class="ic"><svg><use href="#i-tv"/></svg></span><b style="color:#0B2224">Home appliances</b><small>Store offers</small></div>
+      <div class="cat reveal" style="background:#E8F6EC;color:#0F7A43"><span class="ic"><svg><use href="#i-store"/></svg></span><b style="color:#0B2224">Shops</b><small>Local stores</small></div>
+      <div class="cat reveal" style="background:#FFF3D6;color:#8A5A00"><span class="tag" style="background:#8A5A00">LOCAL</span><span class="ic"><svg><use href="#i-mega"/></svg></span><b style="color:#0B2224">Hiring</b><small>Jobs within 10 km</small></div>
+      <div class="cat reveal" style="background:#EEF1F5;color:#12355B"><span class="ic"><svg><use href="#i-more"/></svg></span><b style="color:#0B2224">Other</b><small>And more</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CLOCK ================= -->
+<section class="clocksec">
+  <div class="wrap clockgrid">
+    <div class="dial reveal" aria-label="Animated 24-hour clock showing LastPick's hours">
+      <svg viewBox="0 0 440 440">
+        <circle cx="220" cy="220" r="200" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.12)" stroke-width="2"/>
+        <!-- 24x7 ring for hotels & travel -->
+        <circle cx="220" cy="220" r="186" fill="none" stroke="#1E7BD8" stroke-width="10" opacity=".75" stroke-dasharray="6 6"/>
+        <!-- 4 AM – 11 PM shown, posting till 10:30 PM -->
+        <path id="openarc" fill="none" stroke="#D9F99D" stroke-width="22" stroke-linecap="round"/>
+        <path id="postarc" fill="none" stroke="#E8A33D" stroke-width="8" stroke-linecap="round"/>
+        <g id="ticks"></g>
+        <circle cx="220" cy="220" r="74" fill="#0A4744" stroke="rgba(255,255,255,.15)" stroke-width="2"/>
+        <g class="hand"><line x1="220" y1="146" x2="220" y2="52" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="220" cy="52" r="9" fill="#fff"/></g>
+      </svg>
+      <div class="dialcenter"><div><b>Today</b><small>ends today</small></div></div>
+    </div>
+    <div class="reveal">
+      <div class="eyebrow">Same-day only</div>
+      <h2 class="h2">Fresh deals every morning. Gone at midnight.</h2>
+      <p class="sub">LastPick runs on today. Nothing lingers, so every offer you see is real and available right now.</p>
+      <div class="rules">
+        <div class="rule"><span class="dot" style="background:#D9F99D"></span><div><b>4 AM – 11 PM: offers are shown</b><span>Shops, salons, food and more. Every offer ends by 11 PM and is removed at midnight.</span></div></div>
+        <div class="rule"><span class="dot" style="background:#E8A33D"></span><div><b>Posting until 10:30 PM</b><span>Businesses post from 4 AM, up to 3 offers a day, so every deal has time to be seen.</span></div></div>
+        <div class="rule"><span class="dot" style="background:#1E7BD8"></span><div><b>Hotels and travel: 24×7</b><span>Rooms and seats can be posted any time and run for up to 24 hours.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUOTES ================= -->
+<div class="quotes"><div class="wrap"><div class="quote" id="quote"><span>Waste nothing. Share today's best.</span></div></div></div>
+
+<!-- ================= BUSINESS ================= -->
+<section class="biz" id="business">
+  <div class="wrap bizgrid">
+    <div class="reveal">
+      <div class="eyebrow">For businesses</div>
+      <h2 class="h2" style="color:#3B1606">Turn today's extra stock into today's customers</h2>
+      <p class="sub">Empty rooms, free salon chairs, closing-time food, unsold seats. Post an offer in 30 seconds and reach people nearby, right now.</p>
+      <div class="perks">
+        <div class="perk"><i><svg><use href="#i-bolt"/></svg></i><div><b>Post in 30 seconds</b><span>Title, normal price, offer price. The % off is worked out for you.</span></div></div>
+        <div class="perk"><i><svg><use href="#i-pin"/></svg></i><div><b>Seen by people nearby</b><span>Shown to customers within their distance and pincode. See how many saw each offer.</span></div></div>
+        <div class="perk"><i><svg><use href="#i-user"/></svg></i><div><b>Names of interested customers</b><span>Know who's coming. Reply to reviews and build your reputation.</span></div></div>
+        <div class="perk"><i><svg><use href="#i-mega"/></svg></i><div><b>Hire locally</b><span>Post job openings at your shop, shown to people within 10 km.</span></div></div>
+      </div>
+      <div class="price"><b>₹499</b><span>a month · Business Pro · verified partners only</span></div>
+      <a class="btn gold" href="https://partner.lastpick.in">Register your business</a>
+    </div>
+    <div class="postdemo reveal" aria-label="Animation: posting an offer">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:var(--fh);font-size:22px;color:#3B1606">Post an offer</b><span class="pill" style="background:#FFF1E0;color:#B35A00">Food</span></div>
+      <div class="lbl">Offer title</div><div class="field" id="ftitle"><span id="ttext"></span><span class="caret"></span></div>
+      <div class="two">
+        <div><div class="lbl">Normal price ₹</div><div class="field" id="forig"></div></div>
+        <div><div class="lbl">Offer price ₹</div><div class="field" id="fprice"></div></div>
+      </div>
+      <div class="lbl">Offer ends</div><div class="field">Till 11 PM (today)</div>
+      <div class="pct" id="fpct">Discount: 40% off · worked out from your prices</div>
+      <button class="postbtn" id="fbtn" type="button" tabindex="-1">Make offer live</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DOWNLOAD ================= -->
+<div class="download">
+  <div class="wrap">
+    <div class="dlbox reveal">
+      <div><h2>LastPick, in your pocket</h2><p>Open LastPick in your browser now, on phone or computer. The Android apps for customers and businesses are coming to the Play Store soon.</p></div>
+      <div class="dlbtns">
+        <a class="store" href="https://customer.lastpick.in"><i style="background:#D9F99D;color:#06373A"><svg><use href="#i-globe"/></svg></i><span><b>Open the customer site</b><small>customer.lastpick.in</small></span></a>
+        <a class="store" href="https://partner.lastpick.in"><i style="background:#E8A33D;color:#3B1606"><svg><use href="#i-store"/></svg></i><span><b>Open LastPick Business</b><small>partner.lastpick.in</small></span></a>
+        <div class="store" style="opacity:.75"><i style="background:#fff;color:#0F7B4F"><svg><use href="#i-android"/></svg></i><span><b>Android apps</b><small>Coming soon to Google Play</small></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FAQ ================= -->
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="reveal"><div class="eyebrow">Questions</div><h2 class="h2">Good to know</h2></div>
+    <div class="faqlist">
+      <details class="reveal"><summary>Does the business get my phone number?</summary><p>No. When you tap "I'm interested", the business sees only your first name. You can see the business's number and contact them yourself.</p></details>
+      <details class="reveal"><summary>Why do offers end the same day?</summary><p>LastPick is for today's deals: food before closing, rooms tonight, free slots this evening. Offers end by 11 PM and are removed at midnight. Hotels and travel run 24×7, for up to 24 hours.</p></details>
+      <details class="reveal"><summary>Who can post offers?</summary><p>Only businesses verified by the LastPick team, each in its own category, up to 3 posts a day. Any business can also post job openings for its own shop.</p></details>
+      <details class="reveal"><summary>Does LastPick handle payments for the deal?</summary><p>No. LastPick only connects you with the business. You pay the business directly. Never pay an advance to someone you haven't verified.</p></details>
+      <details class="reveal"><summary>What does it cost?</summary><p>For businesses, Business Pro is ₹499 a month. For customers, the Customer Pass is ₹99 a month.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:19px">LastPick <span style="font-family:var(--fb);font-weight:500;font-size:13px;opacity:.7;margin-left:8px">Today's deals near you</span></div>
+    <nav>
+      <a href="https://customer.lastpick.in/#/terms">Terms</a>
+      <a href="https://customer.lastpick.in/#/privacy">Privacy</a>
+      <a href="https://customer.lastpick.in/#/grievance">Grievances</a>
+      <a href="mailto:support@lastpick.in">support@lastpick.in</a>
+    </nav>
+    <div style="width:100%;font-size:12.5px;opacity:.6">LastPick only connects customers and businesses. Offers, payments and services are between you and the business. © <span id="yr"></span> LastPick</div>
+  </div>
+</footer>
+
+<script>
+  // reveal on scroll
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .15 });
+  document.querySelectorAll(".reveal").forEach((el, i) => { el.style.transitionDelay = (i % 5) * 70 + "ms"; io.observe(el); });
+  // solid nav after scrolling
+  const nav = document.getElementById("nav");
+  addEventListener("scroll", () => nav.classList.toggle("solid", scrollY > 40), { passive: true });
+  document.getElementById("yr").textContent = new Date().getFullYear();
+
+  // marquee
+  const words = ["Closing-time cakes", "Rooms tonight", "Free salon slots", "Last bus seats", "Fashion drops", "Appliance offers", "Local jobs", "Makeup artists"];
+  const track = document.getElementById("marq");
+  const row = words.map((w) => `<span>${w}</span>`).join("");
+  track.innerHTML = row + row;
+
+  // phone "video": feed -> tap I'm interested -> business sees the name
+  const scenes = [...document.querySelectorAll("[data-scene]")];
+  const bars = [...document.querySelectorAll("#scenebar i")];
+  const btn = document.getElementById("ibtn"), toast = document.getElementById("toast");
+  let s = 0;
+  function show(n) {
+    scenes.forEach((el, i) => el.classList.toggle("on", i === n));
+    bars.forEach((b, i) => { b.classList.remove("on"); void b.offsetWidth; if (i === n) b.classList.add("on"); });
+    toast.classList.remove("up"); btn.classList.remove("tap");
+    if (n === 1) { setTimeout(() => btn.classList.add("tap"), 1150); setTimeout(() => toast.classList.add("up"), 1500); }
+    if (n === 2) document.querySelectorAll("[data-count]").forEach((el) => {
+      const to = +el.dataset.count; let v = 0; const step = Math.max(1, Math.round(to / 30));
+      const t = setInterval(() => { v = Math.min(to, v + step); el.textContent = v; if (v >= to) clearInterval(t); }, 35);
+    });
+  }
+  show(0);
+  setInterval(() => { s = (s + 1) % scenes.length; show(s); }, 4000);
+
+  // 24-hour dial: shown 4 AM–11 PM (mint), posting 4 AM–10:30 PM (gold), ticks every 3 hours
+  const C = 220, ang = (h) => (h / 24) * 2 * Math.PI - Math.PI / 2;
+  const pt = (h, r) => [C + r * Math.cos(ang(h)), C + r * Math.sin(ang(h))];
+  const arc = (a, b, r) => { const [x1, y1] = pt(a, r), [x2, y2] = pt(b, r); return `M${x1} ${y1} A${r} ${r} 0 ${b - a > 12 ? 1 : 0} 1 ${x2} ${y2}`; };
+  document.getElementById("openarc").setAttribute("d", arc(4, 23, 160));
+  document.getElementById("postarc").setAttribute("d", arc(4, 22.5, 132));
+  const ticks = document.getElementById("ticks");
+  for (let h = 0; h < 24; h += 3) {
+    const [x, y] = pt(h, 108), label = h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
+    ticks.insertAdjacentHTML("beforeend", `<text x="${x}" y="${y + 5}" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="14" font-weight="700" font-family="Inter">${label}</text>`);
+  }
+
+  // rotating short quotes
+  const quotes = ["Waste nothing. Share today's best.", "Small shops, big hearts.", "Today's deal is tomorrow's memory.", "Buy local. Smile local.", "Every rupee spent nearby feeds a family."];
+  let q = 0; const qel = document.getElementById("quote");
+  setInterval(() => { q = (q + 1) % quotes.length; qel.innerHTML = `<span>${quotes[q]}</span>`; }, 6000);
+
+  // posting demo: types the title, fills prices, shows the % and goes live
+  const title = "Fresh cakes before closing", tt = document.getElementById("ttext");
+  const orig = document.getElementById("forig"), price = document.getElementById("fprice"), pct = document.getElementById("fpct"), fbtn = document.getElementById("fbtn");
+  function postDemo() {
+    tt.textContent = ""; orig.textContent = ""; price.textContent = ""; pct.classList.remove("on"); fbtn.classList.remove("done"); fbtn.textContent = "Make offer live";
+    let i = 0;
+    const t = setInterval(() => { tt.textContent = title.slice(0, ++i); if (i >= title.length) { clearInterval(t);
+      setTimeout(() => { orig.textContent = "400"; }, 400);
+      setTimeout(() => { price.textContent = "240"; pct.classList.add("on"); }, 900);
+      setTimeout(() => { fbtn.classList.add("done"); fbtn.textContent = "✓ Your offer is live"; }, 1900);
+    } }, 60);
+  }
+  postDemo(); setInterval(postDemo, 7000);
+</script>
+</body>
+</html>

@@ -31,7 +31,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 | API (one codebase, `SERVICE=customer\|partner\|admin`) | Node.js 22, only one package (`pg`) | `server/` |
 | Database schema | PostgreSQL 16 migrations | `server/migrations/` |
 | API on Supabase Edge Functions | Deno | `supabase/functions/*`, `server/src/edge.js` |
-| Web apps on Cloudflare (static) | Wrangler | `wrangler.toml`, `wrangler.redirect.toml` |
+| Web apps on Cloudflare (static) | Wrangler | `wrangler.toml`, `wrangler.home.toml` (home page `web/landing/`) |
 | Tests (Node server, Supabase code in Node and Deno), deploy on every push | GitHub Actions | `.github/workflows/supabase.yml` |
 | AI agents: CI/CD and deployment | Claude Code | `.claude/agents/` |
 
