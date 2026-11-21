@@ -2,7 +2,7 @@
 import { many, q, tx } from "./db.js";
 import { onJob, schedule } from "./queue.js";
 import { recomputeRating } from "./routes/reviews.js";
-import { RETENTION } from "./util.js";
+import { RETENTION, isNight } from "./util.js";
 
 // Ended offers leave the live offers table at once: they are copied to offer_archive (the partner's History, with
 // views and lead counts) and deleted. Customers never see old offers; leads keep their own copy of the offer title.
@@ -38,9 +38,9 @@ export function registerJobs() {
   // After 11 PM (India time) every offer except hotels, travel and logistics (24x7) is closed, whatever end time it had.
   schedule("close-offers", { every: 300000 }, async () => {
     const timeUp = await q("UPDATE offers SET status = 'ended' WHERE status = 'live' AND ends_at <= now()");
-    const night = await q(`UPDATE offers SET status = 'ended', ends_at = least(ends_at, now())
-                           WHERE status = 'live' AND category NOT IN ('stay', 'travel', 'logistics')
-                             AND ((now() AT TIME ZONE 'Asia/Kolkata')::time >= time '23:00' OR (now() AT TIME ZONE 'Asia/Kolkata')::time < time '04:00')`);
+    // the closing hour comes from BUSINESS_HOURS (11 PM to 4 AM by default), same rule as the rest of the app
+    const night = isNight() ? await q(`UPDATE offers SET status = 'ended', ends_at = least(ends_at, now())
+                           WHERE status = 'live' AND category NOT IN ('stay', 'travel', 'logistics')`) : { rowCount: 0 };
     return { timeUp: timeUp.rowCount, closedAt11pm: night.rowCount, archived: await archiveEnded() };
   });
 
