@@ -14,3 +14,14 @@ console.log("lastpick.in visible to the token:", zones.length ? `yes (status: ${
 if (zones[0] && zones[0].account?.id !== account) console.log("NOTE: lastpick.in is in a different account than CLOUDFLARE_ACCOUNT_ID");
 const scripts = await cf(`/accounts/${account}/workers/scripts`);
 console.log("may manage Workers in that account:", scripts.status === 200 ? "yes" : `NO (${scripts.status}: ${scripts.body?.errors?.map((e) => e.message).join("; ")})`);
+
+// Can it publish? Upload a tiny test Worker, then remove it.
+const form = new FormData();
+form.append("metadata", new Blob([JSON.stringify({ main_module: "w.js", compatibility_date: "2025-09-01" })], { type: "application/json" }));
+form.append("w.js", new Blob(["export default { fetch() { return new Response('ok'); } };"], { type: "application/javascript+module" }), "w.js");
+const put = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/workers/scripts/lastpick-access-check`, { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: form });
+const putBody = await put.json().catch(() => ({}));
+console.log("may publish Workers:", put.ok ? "yes" : `NO (${put.status}: ${putBody?.errors?.map((e) => `${e.code} ${e.message}`).join("; ")})`);
+if (put.ok) await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/workers/scripts/lastpick-access-check`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+const sub = await cf(`/accounts/${account}/workers/subdomain`);
+console.log("workers.dev subdomain set up:", sub.status === 200 && sub.body?.result?.subdomain ? "yes" : `no (${sub.status}: ${sub.body?.errors?.map((e) => e.message).join("; ")})`);
