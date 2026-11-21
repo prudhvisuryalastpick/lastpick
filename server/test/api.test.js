@@ -25,8 +25,11 @@ async function startServer(service) {
   // "night" is a customer server whose working hours are 0-0, so it is always night there
   const hours = service === "night" ? { OPEN_HOUR: "0", CLOSE_HOUR: "0", POST_FROM_HOUR: "0", POST_TILL_HOUR: "0" } : { OPEN_HOUR: "0", CLOSE_HOUR: "24", POST_FROM_HOUR: "0", POST_TILL_HOUR: "24" };
   // LP_TEST_TARGET=worker runs the Cloudflare Workers code (src/worker.js) instead of the Node server
-  const entry = process.env.LP_TEST_TARGET === "worker" ? "test/worker-bridge.js" : "src/index.js";
-  const p = spawn(process.execPath, [entry], { cwd: root, env: { ...process.env, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
+  // LP_TEST_TARGET: worker = Cloudflare Workers code, edge = Supabase Edge Functions code (in Node), deno = same in Deno
+  const target = process.env.LP_TEST_TARGET;
+  const entry = target === "worker" ? "test/worker-bridge.js" : target === "edge" || target === "deno" ? "test/edge-bridge.js" : "src/index.js";
+  const [cmd, args] = target === "deno" ? ["deno", ["run", "-A", "--config", "deno.json", entry]] : [process.execPath, [entry]];
+  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
   procs.push(p);
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(`http://localhost:${PORTS[service]}/healthz`)).ok) return; } catch { /* starting */ }

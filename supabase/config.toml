@@ -1,0 +1,10 @@
+# Supabase project settings used by the CLI when deploying (GitHub Actions). The project ID comes from the
+# SUPABASE_PROJECT_ID secret. The API functions do their own sign-in checks, so Supabase's JWT check is off.
+project_id = "lastpick"
+
+[functions.customer]
+verify_jwt = false
+[functions.partner]
+verify_jwt = false
+[functions.admin]
+verify_jwt = false

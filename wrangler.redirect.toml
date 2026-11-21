@@ -1,0 +1,6 @@
+# lastpick.in and www.lastpick.in -> https://customer.lastpick.in (free plan Worker).
+name = "lastpick-redirect"
+main = "server/src/redirect-worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+routes = [{ pattern = "lastpick.in", custom_domain = true }, { pattern = "www.lastpick.in", custom_domain = true }]

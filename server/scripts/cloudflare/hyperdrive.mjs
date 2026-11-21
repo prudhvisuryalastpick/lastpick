@@ -23,5 +23,5 @@ const config = {
 const existing = (await api("GET", "")).find((c) => c.name === NAME);
 const result = existing ? await api("PUT", `/${existing.id}`, config) : await api("POST", "", config);
 console.log(existing ? "Hyperdrive updated" : "Hyperdrive created", result.id);
-const file = new URL("../../../wrangler.toml", import.meta.url);
+const file = new URL("../../../wrangler.workers.toml", import.meta.url);
 fs.writeFileSync(file, fs.readFileSync(file, "utf8").replaceAll("HYPERDRIVE_ID", result.id));

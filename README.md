@@ -1,39 +1,27 @@
-# LastPick on Cloudflare
+# LastPick on Supabase + Cloudflare
 
 Local businesses post same-day offers and job openings; customers nearby see them and tap "I'm interested" (the partner sees only their name). LastPick only connects people.
 
-This repo runs LastPick on **Cloudflare** as **four Workers from one codebase**, with a **PostgreSQL database** (PlanetScale, Mumbai, created and billed through Cloudflare) reached via **Hyperdrive**:
-
-| Worker | Address | What it does |
+| Part | Where | Address |
 |---|---|---|
-| **customer** | https://customer.lastpick.in | Customer web app + API (offers, interest, reviews); also runs the background jobs every 5 minutes |
-| **partner** | https://partner.lastpick.in | Partner web app + business API (profile, posting, leads, reviews) |
-| **admin** | https://admin.lastpick.in | Admin panel + admin API (verification, plans, reports, combos switch) |
-| **redirect** | lastpick.in, www.lastpick.in | Sends visitors to the customer site |
+| Customer web app | Cloudflare (free, static files) | https://customer.lastpick.in |
+| Partner web app | Cloudflare (free) | https://partner.lastpick.in |
+| Admin panel | Cloudflare (free) | https://admin.lastpick.in |
+| API: 3 functions `customer`, `partner`, `admin` (same code as `server/src`) | Supabase Edge Functions | `https://<project>.supabase.co/functions/v1/<name>` |
+| Database (PostgreSQL) + background jobs (pg_cron every 5 min) | Supabase, its own LastPick project, Mumbai | - |
+| Android apps (customer, partner): release APK + Play Store bundle | GitHub Actions (Capacitor) | Actions → Build Android APKs → Artifacts |
 
-The web apps are static files Cloudflare serves for free; only `/api/*` runs code. Public offer lists are cached by Cloudflare for 60 seconds.
+Supabase's open data API is locked: every table has row-level security and no grants for its public roles, so only the LastPick functions reach the data.
+**Cost:** $0 while testing (Supabase Free + Cloudflare Free); Supabase Pro $25/month at launch. Alternatives kept in the repo: Cloudflare Workers API (`wrangler.workers.toml`, manual workflow) and AWS (`Dockerfile`, lastpick-terraform).
 
-```
-  users ── Cloudflare (HTTPS, DDoS protection, free static files, 60 s cache of offer lists)
-              ├ customer Worker ┐
-              ├ partner Worker  ┼── Hyperdrive ── PostgreSQL (PlanetScale, Mumbai)
-              └ admin Worker    ┘
-```
+## Set up (one time, owner)
 
-**Cost:** Workers Paid $5/month + database from $5/month ≈ **₹1,000/month** at low traffic; about ₹15,000–25,000 a month at 10,000 people online at once.
-The previous AWS setup (ECS Fargate + RDS, `Dockerfile`, `deploy.yml`, lastpick-terraform) is kept as a fallback; its deploy now runs only by hand.
+1. **Cloudflare:** add `lastpick.in` (Free) and change the nameservers at GoDaddy to Cloudflare's two. Create an API token from the **"Edit Cloudflare Workers"** template (zone lastpick.in).
+2. **Supabase:** create a **new project just for LastPick**, region **Mumbai**. Copy: the **Session pooler** connection string (Connect button, with your database password), the **Project ID** (Project Settings → General), and an **access token** (Account → Access Tokens).
+3. **GitHub → this repo → Settings → Secrets and variables → Actions**, add: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `DATABASE_URL`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SEED_PASSWORD`.
+4. **Actions → Deploy (Supabase + Cloudflare pages) → Run workflow**, tick *test accounts*. After that every push to `main` deploys.
 
-## Set up Cloudflare (one time, owner, in the browser)
-
-1. cloudflare.com → **Add a site** `lastpick.in` (Free plan) → check the support@lastpick.in MX/TXT records were copied → change the **nameservers at GoDaddy** to Cloudflare's two.
-2. **Workers & Pages → Plans → Workers Paid** ($5/month).
-3. **Create the database:** Storage & Databases → PlanetScale Postgres → single node, region **Mumbai (ap-south-1)**. Copy its connection string (direct, with password).
-4. **API token** (My Profile → API Tokens → Create Custom Token): Account · Workers Scripts · Edit; Account · Hyperdrive · Edit; Zone · Workers Routes · Edit; Zone · DNS · Edit (zone lastpick.in).
-5. In this repo → Settings → Secrets and variables → Actions → **New repository secret** (never paste them in a chat):
-   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (dashboard home, right side), `DATABASE_URL` (step 3), `SEED_PASSWORD` (a password of your choice for the test accounts).
-6. **Actions → Deploy to Cloudflare → Run workflow**, ticking *test accounts*. After that, every push to `main` deploys automatically.
-
-Test accounts (password = your `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator@test.lastpick.in`, `owner@test.lastpick.in`, `customer@test.lastpick.in`.
+Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator@test.lastpick.in`, `owner@test.lastpick.in`, `customer@test.lastpick.in`.
 
 ## What's inside
 
@@ -42,8 +30,9 @@ Test accounts (password = your `SEED_PASSWORD`): `admin@test.lastpick.in`, `mode
 | Web apps (3 builds from one codebase) | React 18 + Vite | `web/` |
 | API (one codebase, `SERVICE=customer\|partner\|admin`) | Node.js 22, only one package (`pg`) | `server/` |
 | Database schema | PostgreSQL 16 migrations | `server/migrations/` |
-| Cloudflare Workers (4 environments) | Wrangler | `wrangler.toml`, `server/src/worker.js` |
-| Tests (Node server + Workers code), build and deploy on every push | GitHub Actions | `.github/workflows/cloudflare.yml` |
+| API on Supabase Edge Functions | Deno | `supabase/functions/*`, `server/src/edge.js` |
+| Web apps on Cloudflare (static) | Wrangler | `wrangler.toml`, `wrangler.redirect.toml` |
+| Tests (Node server, Supabase code in Node and Deno), deploy on every push | GitHub Actions | `.github/workflows/supabase.yml` |
 | Fallback: container image and AWS infrastructure | Docker, Terraform | `Dockerfile`, `.github/workflows/deploy.yml` (manual), [lastpick-terraform](https://github.com/prudhvisuryalastpick/lastpick-terraform) |
 | AI agents: CI/CD and deployment | Claude Code | `.claude/agents/` (infra agent: in lastpick-terraform) |
 

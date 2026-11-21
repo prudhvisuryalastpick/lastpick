@@ -46,4 +46,6 @@ export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
 export const LOG_LEVEL = env.LOG_LEVEL || "info";
 // E-mail one-time codes (Amazon SES). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
 export const MAIL_FROM = env.MAIL_FROM || "";
+// Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
+export const CRON_SECRET = env.CRON_SECRET || "";
 export const AWS_REGION = env.AWS_REGION || env.AWS_DEFAULT_REGION || "ap-south-1";

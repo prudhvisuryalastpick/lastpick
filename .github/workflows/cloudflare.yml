@@ -1,13 +1,11 @@
-name: Deploy to Cloudflare
+name: Deploy to Cloudflare Workers (alternative)
 
 # Every push to main: run all tests (Node server and the Cloudflare Workers code), build the three web apps,
 # update the database, and deploy the four Workers (customer, partner, admin, redirect).
 # Repo secrets needed: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATABASE_URL (PostgreSQL, direct connection),
 # and SEED_PASSWORD only if you tick "test accounts".
+# Not used now: the live setup is Supabase + Cloudflare pages (supabase.yml). Runs only by hand.
 on:
-  push:
-    branches: [main]
-    paths: ["server/**", "web/**", "wrangler.toml", ".github/workflows/cloudflare.yml"]
   workflow_dispatch:
     inputs:
       seed:
@@ -89,13 +87,13 @@ jobs:
 
       - name: Deploy the Workers
         run: |
-          for e in customer partner admin redirect; do npx --yes wrangler@4 deploy --env $e; done
+          for e in customer partner admin redirect; do npx --yes wrangler@4 deploy --config wrangler.workers.toml --env $e; done
 
       - name: Sign-in secret (created once per Worker)
         run: |
           for e in customer partner admin; do
-            if ! npx --yes wrangler@4 secret list --env $e | grep -q JWT_SECRET; then
-              openssl rand -hex 32 | npx --yes wrangler@4 secret put JWT_SECRET --env $e
+            if ! npx --yes wrangler@4 secret list --config wrangler.workers.toml --env $e | grep -q JWT_SECRET; then
+              openssl rand -hex 32 | npx --yes wrangler@4 secret put JWT_SECRET --config wrangler.workers.toml --env $e
             fi
           done
 

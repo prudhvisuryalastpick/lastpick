@@ -1,0 +1,152 @@
+name: Deploy (Supabase + Cloudflare pages)
+
+# Every push to main: run all tests (Node server, and the Supabase function code in Node and in Deno), update the
+# database, deploy the 3 API functions to Supabase, schedule the background jobs, and publish the 3 web apps on
+# Cloudflare (free plan).
+#
+# Repo secrets needed:
+#   SUPABASE_ACCESS_TOKEN   Supabase → Account → Access Tokens
+#   SUPABASE_PROJECT_ID     Supabase → Project Settings → General → Project ID (the LastPick project only)
+#   DATABASE_URL            Supabase → Connect → Session pooler connection string (with the database password)
+#   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
+#   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
+#   SEED_PASSWORD           only for "test accounts": the password they get
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", "web/**", "supabase/**", "wrangler*.toml", ".github/workflows/supabase.yml"]
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Create / refresh the test accounts (uses the SEED_PASSWORD secret)"
+        type: boolean
+        default: false
+
+concurrency: { group: lastpick-deploy, cancel-in-progress: false }
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: lastpick_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/lastpick_test
+    defaults:
+      run: { working-directory: server }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: npm install --no-audit --no-fund
+      - name: Tests (Node server)
+        run: npm test
+      - name: Tests (Supabase function code, in Node)
+        run: npm test
+        env: { LP_TEST_TARGET: edge }
+      - name: Tests (Supabase function code, in Deno like Supabase)
+        run: npm test
+        env: { LP_TEST_TARGET: deno }
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: Check settings
+        run: |
+          missing=""
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID DATABASE_URL CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          [ -z "$missing" ] || { echo "::error::Add these repo secrets:$missing"; exit 1; }
+
+      - run: npm install --no-audit --no-fund
+        working-directory: server
+
+      - name: Update the database (and lock Supabase's public data API)
+        working-directory: server
+        env: { DB_SSL: require }
+        run: node scripts/migrate.js
+
+      - name: Test accounts
+        if: ${{ inputs.seed }}
+        working-directory: server
+        env: { DB_SSL: require, SEED_PASSWORD: "${{ secrets.SEED_PASSWORD }}" }
+        run: node scripts/seed.js
+
+      - name: Function secrets
+        run: |
+          S="npx --yes supabase@latest secrets"
+          # the sign-in secret is created once and then kept (changing it would sign everyone out)
+          if ! $S list --project-ref "$SUPABASE_PROJECT_ID" | grep -q JWT_SECRET; then
+            $S set --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
+          fi
+          echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "::add-mask::$(grep CRON_SECRET "$GITHUB_ENV" | cut -d= -f2)"
+
+      - name: Deploy the API (3 Supabase functions)
+        run: |
+          for s in customer partner admin; do
+            rm -rf supabase/functions/$s/server && mkdir -p supabase/functions/$s/server && cp -r server/src supabase/functions/$s/server/
+          done
+          npx --yes supabase@latest secrets set --project-ref "$SUPABASE_PROJECT_ID" \
+            "CRON_SECRET=$CRON_SECRET" "NODE_ENV=production" \
+            "ALLOWED_ORIGINS=https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
+          npx --yes supabase@latest functions deploy customer partner admin --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --use-api
+
+      - name: Background jobs every 5 minutes (pg_cron)
+        working-directory: server
+        env: { DB_SSL: require }
+        run: node scripts/supabase/cron.mjs
+
+      - name: Build the three web apps
+        working-directory: web
+        env:
+          API: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1
+          VITE_CUSTOMER_URL: https://customer.lastpick.in
+          VITE_PARTNER_URL: https://partner.lastpick.in
+        run: |
+          npm install --no-audit --no-fund
+          VITE_APP_VARIANT=customer VITE_API_URL=$API/customer npx vite build --outDir dist-customer
+          VITE_APP_VARIANT=owner VITE_API_URL=$API/partner npx vite build --outDir dist-partner
+          VITE_APP_VARIANT=admin VITE_API_URL=$API/admin npx vite build --outDir dist-admin
+          node ../server/scripts/cloudflare/headers.mjs dist-customer dist-partner dist-admin
+
+      - name: Publish the web apps on Cloudflare (free)
+        run: |
+          for e in customer partner admin; do npx --yes wrangler@4 deploy --env $e; done
+          npx --yes wrangler@4 deploy --config wrangler.redirect.toml
+
+      - name: Health check
+        run: |
+          API="https://$SUPABASE_PROJECT_ID.supabase.co/functions/v1"
+          for s in customer partner admin; do
+            ok=no
+            for i in $(seq 1 12); do
+              if curl -fsS "$API/$s/healthz" >/dev/null 2>&1; then ok=yes; break; fi
+              sleep 10
+            done
+            echo "$s API: $ok"; [ "$ok" = yes ] || echo "::warning::$s API isn't answering yet"
+            curl -fsS -o /dev/null "https://$s.lastpick.in/" && echo "$s site: yes" || echo "::warning::$s.lastpick.in isn't live yet (DNS can take a few minutes)"
+          done
+          {
+            echo "### LastPick is deployed"
+            echo "- Customer: https://customer.lastpick.in"
+            echo "- Partner: https://partner.lastpick.in"
+            echo "- Admin: https://admin.lastpick.in"
+          } >> "$GITHUB_STEP_SUMMARY"

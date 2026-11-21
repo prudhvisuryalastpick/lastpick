@@ -1,63 +1,20 @@
-# LastPick on Cloudflare Workers: one codebase, four Workers (deploy with: wrangler deploy --env <name>).
-# Deployed by GitHub Actions (.github/workflows/cloudflare.yml); nobody runs this by hand.
-# HYPERDRIVE_ID is filled in by the workflow (server/scripts/cloudflare/hyperdrive.mjs) before deploying.
-name = "lastpick"
-main = "server/src/worker.js"
+# LastPick web apps on Cloudflare (free plan): static files only, no server code here.
+# The API runs on Supabase Edge Functions (supabase/functions). Deployed by .github/workflows/supabase.yml.
+name = "lastpick-web"
 compatibility_date = "2025-09-01"
-compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 
-[observability]
-enabled = true
-
-# ---------- customer.lastpick.in (also runs the background jobs every 5 minutes) ----------
 [env.customer]
-name = "lastpick-customer"
+name = "lastpick-web-customer"
 routes = [{ pattern = "customer.lastpick.in", custom_domain = true }]
-assets = { directory = "web/dist-customer", binding = "ASSETS", not_found_handling = "single-page-application", run_worker_first = ["/api/*", "/healthz"] }
-hyperdrive = [{ binding = "HYPERDRIVE", id = "HYPERDRIVE_ID" }]
-triggers = { crons = ["*/5 * * * *"] }
-placement = { mode = "smart" }
-[env.customer.vars]
-SERVICE = "customer"
-NODE_ENV = "production"
-SIGNUP = "open"
-DB_SSL = "off"
-SITE_DOMAIN = "lastpick.in"
+assets = { directory = "web/dist-customer", not_found_handling = "single-page-application" }
 
-# ---------- partner.lastpick.in ----------
 [env.partner]
-name = "lastpick-partner"
+name = "lastpick-web-partner"
 routes = [{ pattern = "partner.lastpick.in", custom_domain = true }]
-assets = { directory = "web/dist-partner", binding = "ASSETS", not_found_handling = "single-page-application", run_worker_first = ["/api/*", "/healthz"] }
-hyperdrive = [{ binding = "HYPERDRIVE", id = "HYPERDRIVE_ID" }]
-placement = { mode = "smart" }
-[env.partner.vars]
-SERVICE = "partner"
-NODE_ENV = "production"
-SIGNUP = "open"
-DB_SSL = "off"
-SITE_DOMAIN = "lastpick.in"
+assets = { directory = "web/dist-partner", not_found_handling = "single-page-application" }
 
-# ---------- admin.lastpick.in ----------
 [env.admin]
-name = "lastpick-admin"
+name = "lastpick-web-admin"
 routes = [{ pattern = "admin.lastpick.in", custom_domain = true }]
-assets = { directory = "web/dist-admin", binding = "ASSETS", not_found_handling = "single-page-application", run_worker_first = ["/api/*", "/healthz"] }
-hyperdrive = [{ binding = "HYPERDRIVE", id = "HYPERDRIVE_ID" }]
-placement = { mode = "smart" }
-[env.admin.vars]
-SERVICE = "admin"
-NODE_ENV = "production"
-SIGNUP = "closed"
-DB_SSL = "off"
-SITE_DOMAIN = "lastpick.in"
-
-# ---------- lastpick.in and www.lastpick.in -> https://customer.lastpick.in ----------
-[env.redirect]
-name = "lastpick-redirect"
-routes = [{ pattern = "lastpick.in", custom_domain = true }, { pattern = "www.lastpick.in", custom_domain = true }]
-[env.redirect.vars]
-SERVICE = "redirect"
-NODE_ENV = "production"
-SITE_DOMAIN = "lastpick.in"
+assets = { directory = "web/dist-admin", not_found_handling = "single-page-application" }

@@ -1,7 +1,9 @@
 name: Build Android APKs
 
-# Builds two installable test APKs (customer app and partner app) with Capacitor.
-# Download them from the run's "Artifacts" section on GitHub (Actions tab).
+# Builds the customer app and the partner app with Capacitor, like a release build: an installable APK and a
+# Play Store bundle (.aab) for each. Download them from the run's "Artifacts" section (Actions tab).
+# They talk to the live API on Supabase (secret SUPABASE_PROJECT_ID). Signing: secrets ANDROID_KEYSTORE_BASE64,
+# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS; without them a temporary key is made (fine for testing, not for Play).
 on:
   push:
     branches: [main]
@@ -18,9 +20,13 @@ jobs:
           - variant: customer
             appId: in.lastpick.app
             appName: LastPick
+            api: customer
+            host: customer.lastpick.in
           - variant: owner
             appId: in.lastpick.partner
             appName: LastPick Business
+            api: partner
+            host: partner.lastpick.in
     defaults:
       run:
         working-directory: web
@@ -37,33 +43,70 @@ jobs:
       - name: Install
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          npm install --no-audit --no-fund @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/geolocation@7 @capacitor/splash-screen@7
 
       - name: Build web app (${{ matrix.variant }})
         env:
           VITE_APP_VARIANT: ${{ matrix.variant }}
-          VITE_API_URL: ${{ vars[format('API_URL_{0}', matrix.variant)] }}
-        # No server address set yet (AWS not created) -> demo mode with the test accounts.
+          PROJECT: ${{ secrets.SUPABASE_PROJECT_ID }}
+        # No Supabase project yet -> demo mode with the test accounts.
         run: |
-          if [ -z "$VITE_API_URL" ]; then export VITE_DEMO=1; echo "Demo mode APK"; fi
+          if [ -n "$PROJECT" ]; then export VITE_API_URL="https://$PROJECT.supabase.co/functions/v1/${{ matrix.api }}"; else export VITE_DEMO=1; echo "Demo mode build"; fi
           npx vite build --outDir dist-app --base ./
 
       - name: Create Android project
         run: |
           cat > capacitor.config.json <<EOF
           { "appId": "${{ matrix.appId }}", "appName": "${{ matrix.appName }}", "webDir": "dist-app",
-            "server": { "androidScheme": "https" } }
+            "server": { "hostname": "${{ matrix.host }}", "androidScheme": "https" },
+            "android": { "allowMixedContent": false },
+            "plugins": { "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#ffffff", "showSpinner": false } } }
           EOF
           npx cap add android
           if [ -d android-assets/${{ matrix.variant }}/res ]; then cp -r android-assets/${{ matrix.variant }}/res/* android/app/src/main/res/; fi
+          # location permission for "Near me" and "Use my location"
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />#' android/app/src/main/AndroidManifest.xml
           npx cap sync android
 
-      - name: Build APK
+      - name: Signing key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > android/release.jks
+            echo "KS_PASS=$KS_PASS" >> "$GITHUB_ENV"; echo "KS_ALIAS=$KS_ALIAS" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: using a temporary signing key (testing only; Play Store needs a permanent key)"
+            P=$(openssl rand -hex 16); echo "::add-mask::$P"
+            keytool -genkeypair -v -keystore android/release.jks -alias lastpick -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$P" -keypass "$P" -dname "CN=LastPick, O=LastPick, C=IN" >/dev/null 2>&1
+            echo "KS_PASS=$P" >> "$GITHUB_ENV"; echo "KS_ALIAS=lastpick" >> "$GITHUB_ENV"
+          fi
+          cat >> android/app/build.gradle <<'EOF2'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../release.jks")
+                      storePassword System.getenv("KS_PASS")
+                      keyAlias System.getenv("KS_ALIAS")
+                      keyPassword System.getenv("KS_PASS")
+                  }
+              }
+              buildTypes { release { signingConfig signingConfigs.release } }
+          }
+          EOF2
+
+      - name: Build release APK and Play Store bundle
         working-directory: web/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
-          name: lastpick-${{ matrix.variant }}-apk
-          path: web/android/app/build/outputs/apk/debug/*.apk
+          name: lastpick-${{ matrix.variant }}-release
+          path: |
+            web/android/app/build/outputs/apk/release/*.apk
+            web/android/app/build/outputs/bundle/release/*.aab
           retention-days: 30

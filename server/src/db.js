@@ -49,9 +49,10 @@ async function sharedPool() {
 }
 
 // Cloudflare Workers: one small pool per request (through Hyperdrive), closed when the request is done.
-export async function requestPool(connectionString) {
+export async function requestPool(connectionString, { ssl = false } = {}) {
   const Pool = await pgPool();
-  return new Pool({ connectionString, max: 3, ssl: false }); // 3: a transaction may run alongside a fire-and-forget write
+  // 3: a transaction may run alongside a fire-and-forget write
+  return new Pool({ connectionString, max: 3, ssl: ssl ? { rejectUnauthorized: false } : false });
 }
 
 async function poolNow() {
@@ -125,6 +126,20 @@ export async function migrate() {
         throw new Error(`migration ${f} failed: ${e.message}`);
       }
     }
+    // Supabase publishes every table in "public" through its open data API. Row-level security with no policies, and no
+    // grants for its anon/authenticated roles, keeps every table reachable only by this server (the table owner).
+    await c.query(`DO $$
+      DECLARE t record;
+      BEGIN
+        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+          EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+        END LOOP;
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+          EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated';
+          EXECUTE 'REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated';
+          EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated';
+        END IF;
+      END $$`);
   } finally {
     await c.query("SELECT pg_advisory_unlock(424242)").catch(() => {});
     c.release();

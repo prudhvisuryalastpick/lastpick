@@ -46,7 +46,7 @@ export const CSP = [
   "default-src 'self'", "base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'",
   "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
-  "script-src 'self' https://checkout.razorpay.com", "connect-src 'self' https://api.postalpincode.in https://nominatim.openstreetmap.org", "frame-src https://api.razorpay.com",
+  "script-src 'self' https://checkout.razorpay.com", "connect-src 'self' https://*.supabase.co https://api.postalpincode.in https://nominatim.openstreetmap.org", "frame-src https://api.razorpay.com",
 ].join("; ");
 
 export function clientIp(req) {
