@@ -48,7 +48,7 @@ jobs:
       - name: Build web app (${{ matrix.variant }})
         env:
           VITE_APP_VARIANT: ${{ matrix.variant }}
-          PROJECT: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PROJECT: ${{ secrets.SUPABASE_PROJECT_ID || 'wgdhcseugaqbbmnkgnxv' }}
         # No Supabase project yet -> demo mode with the test accounts.
         run: |
           if [ -n "$PROJECT" ]; then export VITE_API_URL="https://$PROJECT.supabase.co/functions/v1/${{ matrix.api }}"; else export VITE_DEMO=1; echo "Demo mode build"; fi
