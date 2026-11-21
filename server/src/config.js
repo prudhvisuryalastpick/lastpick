@@ -1,5 +1,6 @@
 // All settings come from environment variables (on Supabase: function secrets; locally: your shell or docker-compose).
-const env = process.env;
+// Settings: environment variables, plus fixed values a launcher may provide (Supabase functions can't change their env).
+const env = { ...process.env, ...(globalThis.__LP_ENV || {}) };
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 export const PRODUCTION = env.NODE_ENV === "production";

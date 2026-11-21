@@ -1,10 +1,9 @@
 // LastPick customer API on Supabase Edge Functions. The server code (server/src) is copied next to this file at deploy time.
+// Supabase doesn't allow changing environment variables, so the fixed settings are handed over in globalThis.__LP_ENV.
 import process from "node:process";
 
 (globalThis as any).process ??= process;
-process.env.SERVICE = "customer";
-process.env.SIGNUP = "open";
-process.env.NODE_ENV ??= "production";
+(globalThis as any).__LP_ENV = { SERVICE: "customer", SIGNUP: "open", NODE_ENV: "production" };
 
 const { createEdgeHandler } = await import("./server/src/edge.js");
 const handle = createEdgeHandler({ dbUrl: Deno.env.get("SUPABASE_DB_URL")! });
