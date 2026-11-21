@@ -15,7 +15,8 @@ export const IS_OWNER_APP = APP_VARIANT === "owner";
 export const IS_CUSTOMER_APP = APP_VARIANT === "customer";
 export const IS_ADMIN_APP = APP_VARIANT === "admin";
 // One-time-code login (SMS / e-mail) comes later. Until then: e-mail + password (test accounts).
-export const OTP_LOGIN = import.meta.env?.VITE_OTP_LOGIN === "1";
+// log in with a one-time code (by e-mail). Set VITE_OTP_LOGIN=0 to show only the password login.
+export const OTP_LOGIN = import.meta.env?.VITE_OTP_LOGIN !== "0";
 // true inside the Play Store apps (Capacitor). Google Play doesn't allow selling app features with an outside
 // payment gateway inside the app, so payment screens are hidden there (see README "Payments and Google Play").
 export const IS_NATIVE = typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.();

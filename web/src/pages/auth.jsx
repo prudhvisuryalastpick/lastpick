@@ -92,6 +92,7 @@ export function Login({ next = "/" }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [wait, setWait] = useState(0);
+  const [sentTo, setSentTo] = useState("");
   const codeRef = useRef();
   // why the user was logged out (e.g. logged in on another device): shown once
   const [reason] = useState(() => { try { const r = localStorage.getItem("lastpick-logout-reason"); localStorage.removeItem("lastpick-logout-reason"); return r || ""; } catch { return ""; } });
@@ -112,8 +113,8 @@ export function Login({ next = "/" }) {
     if (method === "email" && !/^\S+@\S+\.\S+$/.test(email)) return setErr("Please enter a valid e-mail address");
     setBusy(true);
     try {
-      if (method === "phone") await api.sendPhoneOtp(phone); else await api.sendEmailOtp(email.trim());
-      setCode(""); setStep("code"); setWait(30);
+      const r = method === "phone" ? await api.sendPhoneOtp(phone) : await api.sendEmailOtp(email.trim());
+      setSentTo(r?.to || ""); setCode(""); setStep("code"); setWait(30);
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
@@ -121,7 +122,7 @@ export function Login({ next = "/" }) {
     if (c.length !== 6 || busy) return;
     setBusy(true); setErr("");
     try {
-      const r = method === "phone" ? await api.verifyPhoneOtp(c) : await api.verifyEmailOtp(email.trim(), c);
+      const r = method === "phone" ? await api.verifyPhoneOtp(phone, c) : await api.verifyEmailOtp(email.trim(), c);
       await refresh();
       markWelcomed();
       toast(r.isNew ? "Verified. Just a few details and you're in." : "Welcome back!");
@@ -171,7 +172,7 @@ export function Login({ next = "/" }) {
       <Brand style={{ marginTop: 16 }} />
 
       {step === "enter" && <>
-        <h1>{IS_OWNER_APP ? "LastPick Business" : `Welcome to ${APP_NAME}`}</h1>
+        <h1>{IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
         <p className="lead">{IS_OWNER_APP ? "Turn empty rooms, halls, seats, slots and leftover stock into sales. Log in or sign up with a one-time code." : "Log in or create an account with a one-time code. No password to remember."}</p>
         <div className="tabs" role="tablist" aria-label="Sign in with" style={{ margin: "24px 0 0" }}>
           <button role="tab" aria-selected={method === "phone"} className={method === "phone" ? "on" : ""} onClick={() => { setMethod("phone"); setErr(""); }}>Mobile number</button>
@@ -182,7 +183,7 @@ export function Login({ next = "/" }) {
             <label htmlFor="otp-phone" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>Mobile number</label>
             <div className="bigfield"><b style={{ fontSize: 17 }}>+91</b><span style={{ width: 1, height: 26, background: "var(--line)" }} />
               <input id="otp-phone" inputMode="tel" autoComplete="tel-national" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98765 43210" /></div>
-            <div className="note">We'll send a 6-digit code by SMS.</div>
+            <div className="note">We'll e-mail a 6-digit code to the address on your account.</div>
           </> : <>
             <label htmlFor="otp-email" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>E-mail address</label>
             <div className="bigfield"><span aria-hidden="true">✉️</span>
@@ -194,7 +195,7 @@ export function Login({ next = "/" }) {
         </form>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           <div className="trust"><span className="ti" style={{ background: "var(--ok-soft)" }}>🛡️</span><div><b style={{ fontSize: 14 }}>Your number stays private</b><div className="muted small">A business sees it only when you tap "Share my number".</div></div></div>
-          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month` : `${PLANS.customer.name} from ${rupee(PLANS.customer.price)}/month`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Less on longer plans. Nothing is charged without asking you."}</div></div></div>
+          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month` : `${PLANS.customer.name} from ${rupee(PLANS.customer.price)}/month`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
         </div>
         <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>
         {!isLive && <div style={{ marginTop: 18 }}>
@@ -206,7 +207,7 @@ export function Login({ next = "/" }) {
       {step === "code" && <>
         <div style={{ width: 64, height: 64, borderRadius: 20, background: "var(--deep)", display: "grid", placeItems: "center", fontSize: 30, marginTop: 24 }}>{method === "phone" ? "📱" : "✉️"}</div>
         <h1>Enter the code</h1>
-        <p className="lead">Sent {method === "phone" ? "by SMS" : "by e-mail"} to <b style={{ color: "var(--ink)" }}>{target}</b>. <button className="link" onClick={() => setStep("enter")}>Change</button></p>
+        <p className="lead">{method === "phone" ? <>For <b style={{ color: "var(--ink)" }}>{target}</b>, we e-mailed the code to <b style={{ color: "var(--ink)" }}>{sentTo || "the e-mail on your account"}</b>.</> : <>Sent by e-mail to <b style={{ color: "var(--ink)" }}>{target}</b>.</>} Check spam if you don't see it. <button className="link" onClick={() => setStep("enter")}>Change</button></p>
         {!isLive && <div className="banner ok" style={{ margin: "14px 0 0" }}>Demo mode: the code is 123456</div>}
         <div className="otpboxes">
           {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} aria-hidden="true" className={i < code.length ? "f" : i === code.length ? "c" : ""}>{code[i] || ""}</span>)}
@@ -298,7 +299,7 @@ export function CompleteProfile() {
       <div className="plan" style={{ margin: "8px 0 0" }}>
         <div className="row"><span className="small" style={{ fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", color: "var(--hi)" }}>Your plan</span><span className="small" style={{ opacity: .75 }}>{IS_OWNER_APP ? PLANS.owner.name : PLANS.customer.name}</span></div>
         <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{rupee(IS_OWNER_APP ? PLANS.owner.price : PLANS.customer.price)}/month</div>
-        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? "After we verify your business. Less on 3, 6 and 12-month plans." : "Less on 3, 6 and 12-month plans. You pick a plan after this step."}</div>
+        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? "After we verify your business." : "You pick a plan after this step."}</div>
         <div style={{ height: 8, background: "rgba(255,255,255,.18)", borderRadius: 99, marginTop: 14, overflow: "hidden" }}><div style={{ height: "100%", background: "var(--hi)", borderRadius: 99, animation: "grow 1.4s ease .3s both", transformOrigin: "left" }} /></div>
       </div>
       <h1 style={{ fontSize: 26 }}>A few details</h1>

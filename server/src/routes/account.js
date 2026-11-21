@@ -13,7 +13,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, ms, normEmail, notFound, precondition, str, validEmail,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -45,6 +45,17 @@ async function recordConsent(client, uid, body, userAgent) {
     [uid, { version: CONSENT_VERSION, at: new Date().toISOString() }]);
 }
 
+// A new login. One device at a time: this login signs out every other device.
+// Admins can let customers stay logged in on several devices (partner and admin logins stay one device).
+async function startSession(u, userAgent, how) {
+  const oneDevice = SERVICE !== "customer" || await singleDeviceOn();
+  const device = deviceName(userAgent);
+  const fresh = await one(`UPDATE users SET token_version = token_version + $3, last_login_at = now(), last_login_device = $2
+                           WHERE id = $1 RETURNING id, token_version`, [u.id, device, oneDevice ? 1 : 0]);
+  audit("login", u.id, { service: SERVICE, device, how });
+  return issueToken(fresh);
+}
+
 export function accountRoutes(r) {
   // ---------- login ----------
   r.post("/api/auth/login", async ({ body, ip, userAgent }) => {
@@ -62,14 +73,7 @@ export function accountRoutes(r) {
     }
     // the admin server lets only admins and moderators in
     if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
-    // one device at a time: this login signs out every other device.
-    // Admins can let customers stay logged in on several devices (partner and admin logins stay one device).
-    const oneDevice = SERVICE !== "customer" || await singleDeviceOn();
-    const device = deviceName(userAgent);
-    const fresh = await one(`UPDATE users SET token_version = token_version + $3, last_login_at = now(), last_login_device = $2
-                             WHERE id = $1 RETURNING id, token_version`, [u.id, device, oneDevice ? 1 : 0]);
-    audit("login", u.id, { service: SERVICE, device });
-    return { token: issueToken(fresh), user: { id: u.id, email: u.email } };
+    return { token: await startSession(u, userAgent, "password"), user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
 
   // ---------- e-mail one-time codes (sign-up verification) ----------
@@ -82,19 +86,31 @@ export function accountRoutes(r) {
     if (!ok) throw bad("That code is not right. Please check the e-mail and try again.");
     await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
-  r.post("/api/auth/otp/send", async ({ body, ip }) => {
-    if (!MAIL_FROM) throw precondition("E-mail codes aren't switched on yet.");
+  // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
+  const codeEmail = async (body) => {
+    if (body.phone !== undefined && body.phone !== null && body.phone !== "") {
+      const p = indianPhone(body.phone);
+      if (!p) throw bad("Please enter a valid Indian mobile number");
+      const u = await one("SELECT email FROM users WHERE phone = $1 AND email IS NOT NULL ORDER BY created_at LIMIT 1", [p]);
+      if (!u) throw notFound("No account with this mobile number yet. Log in with your e-mail, or sign up.");
+      return normEmail(u.email);
+    }
     const email = normEmail(body.email);
     if (!validEmail(email)) throw bad("Please enter a valid email");
+    return email;
+  };
+  r.post("/api/auth/otp/send", async ({ body, ip }) => {
+    if (!MAIL_FROM) throw precondition("E-mail codes aren't switched on yet.");
     await limit("ip:" + ip, "otp", 10, 3600);
+    const email = await codeEmail(body || {});
     await limit("email:" + email, "otp", 5, 3600, "Too many codes for this e-mail. Try again in an hour.");
     const code = String(crypto.randomInt(100000, 1000000));
     await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
              ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
       [email, codeHash(email, code)]);
     await sendEmail(email, `${code} is your LastPick code`,
-      `Your LastPick verification code is ${code}\n\nIt expires in 10 minutes. If you didn't ask for it, ignore this e-mail.`);
-    return { sent: true };
+      `Your LastPick code is ${code}\n\nIt expires in 10 minutes. Never share it with anyone: LastPick and businesses will never ask for it.\nIf you didn't ask for it, ignore this e-mail.`);
+    return { sent: true, to: maskEmail(email) };
   }, { limit: "auth" });
 
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
@@ -135,8 +151,27 @@ export function accountRoutes(r) {
   });
 
   // SMS codes and password reset come later.
-  const later = async () => { throw precondition("One-time codes aren't switched on yet. Please log in with e-mail and password."); };
-  r.post("/api/auth/otp/verify", later, { limit: "auth" });
+  r.post("/api/auth/otp/verify", async ({ body, ip, userAgent }) => {
+    if (!MAIL_FROM) throw precondition("E-mail codes aren't switched on yet.");
+    await limit("ip:" + ip, "otpVerify", 30, 900);
+    const email = await codeEmail(body || {});
+    await checkCode(email, body.code);
+    let u = await one("SELECT id, email, role, token_version FROM users WHERE lower(email) = $1", [email]);
+    let isNew = false;
+    if (!u) {
+      // a new e-mail: create the account; the app then asks for name, mobile and consent
+      if (SERVICE === "admin") throw denied("This account has no admin access");
+      if (SIGNUP === "closed") throw denied("Sign-up opens soon. Please use a test account.");
+      u = await one(`INSERT INTO users (email, name, phone, trial_ends_at) VALUES ($1, '', '', now() + make_interval(days => $2))
+                     RETURNING id, email, role, token_version`, [email, TRIAL_DAYS]);
+      isNew = true;
+      audit("signup", u.id, { service: SERVICE, how: "code" });
+    }
+    if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
+    const token = await startSession(u, userAgent, "code");
+    if (isNew && SERVICE === "customer") await notify(u.id, "welcome");
+    return { token, isNew, user: { id: u.id, email: u.email } };
+  }, { limit: "auth" });
   r.post("/api/auth/reset", async () => { throw precondition("Password reset isn't switched on yet. Please contact support."); }, { limit: "auth" });
 
   // ---------- profile ----------
@@ -154,8 +189,11 @@ export function accountRoutes(r) {
     const u = needUser(ctx);
     const name = str(ctx.body.name, 80);
     if (name.length < 2) throw bad("Please enter your name");
+    const phone = indianPhone(ctx.body.phone) || "";
     await tx(async (c) => {
-      await c.query("UPDATE users SET name = $2, phone = COALESCE(NULLIF($3, ''), phone), updated_at = now() WHERE id = $1", [u.id, name, indianPhone(ctx.body.phone) || ""]);
+      // one account per mobile number (mobile login sends the code to that account's e-mail)
+      if (phone && (await c.query("SELECT 1 FROM users WHERE phone = $1 AND id <> $2", [phone, u.id])).rows.length) throw precondition("This mobile number is already registered. Log in with it instead.");
+      await c.query("UPDATE users SET name = $2, phone = COALESCE(NULLIF($3, ''), phone), updated_at = now() WHERE id = $1", [u.id, name, phone]);
       if (ctx.body.consent) await recordConsent(c, u.id, { kind: "user", version: CONSENT_VERSION, ...ctx.body.consent }, ctx.userAgent);
     });
     return profile(u.id);

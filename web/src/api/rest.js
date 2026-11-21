@@ -68,10 +68,11 @@ export const api = {
     setToken(r.token);
     return { needsConfirmation: false };
   },
-  async sendPhoneOtp() { await post("/api/auth/otp/send", {}); },
-  async verifyPhoneOtp() { await post("/api/auth/otp/verify", {}); return { isNew: false }; },
+  // one-time codes: always by e-mail; for a mobile number the code goes to the e-mail on that account
+  async sendPhoneOtp(phone) { return post("/api/auth/otp/send", { phone: String(phone || "").trim() }); },
+  async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/otp/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
-  async verifyEmailOtp() { await post("/api/auth/otp/verify", {}); return { isNew: false }; },
+  async verifyEmailOtp(email, code) { const r = await post("/api/auth/otp/verify", { email: String(email || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async completeProfile({ name, phone, consent }) {
     await post("/api/me/complete-profile", { name, phone, consent: { adult: !!consent.adult, items: consent.items || [] } });
   },

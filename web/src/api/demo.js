@@ -226,9 +226,9 @@ export const api = {
   },
   async resetPassword() { await wait(); },
   // ---------- one-time codes (demo: the code is always 123456) ----------
-  async sendPhoneOtp(phone) { await wait(300); const p = indianPhone(phone); if (!p) throw new Error("Please enter a valid Indian mobile number"); this._otp = { kind: "phone", value: p }; },
+  async sendPhoneOtp(phone) { await wait(300); const p = indianPhone(phone); if (!p) throw new Error("Please enter a valid Indian mobile number"); this._otp = { kind: "phone", value: p }; return { sent: true, to: "your e-mail" }; },
   async sendEmailOtp(email) { await wait(300); if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Please enter a valid e-mail address"); this._otp = { kind: "email", value: email.trim().toLowerCase() }; },
-  async verifyPhoneOtp(code) { return this._verifyOtp(code); },
+  async verifyPhoneOtp(phone, code) { return this._verifyOtp(code); },
   async verifyEmailOtp(email, code) { return this._verifyOtp(code); },
   async _verifyOtp(code) {
     await wait(300);

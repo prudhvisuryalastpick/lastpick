@@ -111,7 +111,7 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month, with lower monthly prices on 3, 6 and 12-month plans ({PLANS.customer.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for customers; {PLANS.owner.options.map((o) => `${planLabel(o.months)} ${rupee(o.price)}`).join(", ")} for businesses). You are never charged without choosing a plan and confirming the payment.</p>
+        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month. You are never charged without choosing a plan and confirming the payment.</p>
         <h2>Cancelling</h2>
         <p>You can cancel anytime in Account. Cancelling stops the next renewal and cancels the mandate; your plan stays active until the end of the period you already paid for.</p>
         <h2>Refunds</h2>

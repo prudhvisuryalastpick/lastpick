@@ -165,7 +165,7 @@ export function Home() {
         {config?.night
           ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels and travel are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
           : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels and travel are available 24×7.</span></div>}
-        {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(Math.round(PLANS.customer.options[3].price / 12))}/month</span></a>}
+        {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(PLANS.customer.price)}/month</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
@@ -496,7 +496,7 @@ export function OfferPage({ id }) {
               </> : <>
                 <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number and contact them, and share your number with them.</div>
                 <a className="btn main" style={{ marginTop: 12 }} href={session ? "#/plans" : `#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>
-                  {session ? `🔓 See plans · from ${rupee(Math.round(PLANS.customer.options[3].price / 12))}/month` : "🔓 Log in to see the number"}
+                  {session ? `🔓 See plans · from ${rupee(PLANS.customer.price)}/month` : "🔓 Log in to see the number"}
                 </a>
               </>}
             </>
