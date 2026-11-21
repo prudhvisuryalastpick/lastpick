@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { COMBO_ITEMS, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, INDIAN_STATES, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, COMBO_TEMPLATES, categoryOf } from "../lib/config.js";
+import { COMBO_ITEMS, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, COMBO_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -402,9 +402,9 @@ function BusinessForm({ first = false }) {
     } catch { setPinState("offline"); }
   };
   useEffect(() => { if (validPincode(f.pincode)) fillFromPincode(f.pincode, { city: f.city, area: f.area }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const onPincode = (v) => { const pin = v.replace(/\D/g, "").slice(0, 6); set("pincode", pin); if (pin.length === 6) fillFromPincode(pin); else { setAreas([]); setPinState(""); } };
 
-  // "Use my location": saves the map point AND fills address, area, city, state and pincode.
+  // The shop's location ALWAYS comes from the phone's GPS (no typed pincode, which can be wrong):
+  // it saves the map point AND fills address, area, city, state and pincode. Done automatically for a new business.
   const locate = () => {
     if (!navigator.geolocation) return toast("Location isn't available on this device");
     setLocating(true);
@@ -416,25 +416,26 @@ function BusinessForm({ first = false }) {
           const a = await addressFromLocation(lat, lng);
           if (a.outsideIndia) { toast("This location is outside India. LastPick is for businesses in India."); }
           else {
-            setF((x) => ({ ...x, address: x.address || a.address, area: a.area || x.area, city: a.city || x.city, state: a.state || x.state, pincode: a.pincode || x.pincode }));
+            setF((x) => ({ ...x, address: x.address || a.address, area: a.area || x.area, city: a.city || x.city, state: a.state || x.state, pincode: a.pincode || "" }));
             if (a.pincode) await fillFromPincode(a.pincode, { city: a.city, area: a.area });
-            toast(a.pincode ? "Address filled from your location. Please check it." : "Location saved. Enter your pincode.");
+            toast(a.pincode ? "Shop location and pincode found. Please check the address." : "We couldn't find the pincode for this spot. Step outside or move a little, then tap Detect again.");
           }
         } catch { toast("Location saved. We couldn't fetch the address, please type it."); }
         setLocating(false);
       },
-      () => { setLocating(false); toast("Couldn't get your location. Allow location access and try again."); },
-      { enableHighAccuracy: true, timeout: 10000 },
+      () => { setLocating(false); toast("Couldn't get your location. Turn on location (GPS), allow it for LastPick, and tap Detect again."); },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     );
   };
+  useEffect(() => { if (f.lat == null) locate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const missing = [];
   if (f.name.trim().length < 2) missing.push("business name");
   if (!f.area.trim()) missing.push("area");
   if (!f.city.trim()) missing.push("city");
   if (!f.state) missing.push("state");
-  if (!validPincode(f.pincode)) missing.push("a 6-digit pincode");
-  if (f.lat == null) missing.push("your shop's map location (tap Use my location at your shop)");
+  if (f.lat == null) missing.push("your shop's location (tap Detect my shop location while at your shop)");
+  else if (!validPincode(f.pincode)) missing.push("the pincode (tap Detect my shop location again)");
   if (!validPhone(f.phone)) missing.push("a valid Indian contact number");
   if (needsConsent && !f.agree) missing.push("agreement to the business terms");
 
@@ -466,14 +467,14 @@ function BusinessForm({ first = false }) {
         <div className="fld"><label>Contact number for customers</label><input inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="10-digit Indian mobile or landline with STD code" />
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
         <div className="toggle">
-          <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{f.lat != null ? "Saved. Tap again at your shop to refill the address." : "Tap this at your shop. It fills your address, area, city, state and pincode."}</div></div>
-          <button className="btn ghost sm" type="button" disabled={locating} onClick={locate}>{locating ? "Finding address…" : "📍 Use my location"}</button>
+          <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{locating ? "Finding your shop's location…" : f.lat != null ? "Found from your phone's GPS. Do this while you are at your shop." : "Turn on location and be at your shop. We fill the pincode, state, city and area from it."}</div></div>
+          <button className="btn ghost sm" type="button" disabled={locating} onClick={locate}>{locating ? "Finding…" : f.lat != null ? "📍 Detect again" : "📍 Detect my shop location"}</button>
         </div>
-        <div className="fld"><label>Pincode</label><input inputMode="numeric" maxLength={6} value={f.pincode} onChange={(e) => onPincode(e.target.value)} placeholder="6-digit pincode, e.g. 500090" />
-          <span className="hint">{pinState === "looking" ? "Finding your area…" : pinState === "unknown" ? "We couldn't find this pincode. Please check it." : pinState === "offline" ? "Couldn't look up the pincode right now. Fill the details below." : "Customers searching this pincode see your offers. Works for every pincode in India."}</span></div>
+        <div className="fld"><label>Pincode (from your location)</label><input inputMode="numeric" value={f.pincode} readOnly placeholder="Filled from your location" style={{ background: "var(--soft)" }} />
+          <span className="hint">{pinState === "looking" ? "Finding your area…" : f.pincode ? "Customers within 30 km of your shop see your offers." : "Tap Detect my shop location at your shop. The pincode can't be typed, so it is always right."}</span></div>
         <div className="two">
           <div className="fld"><label>State</label>
-            <select value={f.state} onChange={(e) => set("state", e.target.value)}><option value="">Select state</option>{INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
+            <input value={f.state} readOnly placeholder="Filled from your location" style={{ background: "var(--soft)" }} /></div>
           <div className="fld"><label>City / district</label><input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Filled from pincode" /></div>
         </div>
         <div className="fld"><label>Area</label>

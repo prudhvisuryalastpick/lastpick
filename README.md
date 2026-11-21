@@ -56,7 +56,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 - **Names only:** partners see the names of interested customers, never their numbers. Customers see the shop's number as text (no call or WhatsApp buttons).
 - **Offer times:** customers see "Offer ends in 4 hours" with the time, the normal price struck off, the offer price and the % off.
 - **Views and reviews:** partners see how many customers saw each offer, and read and reply to reviews. There is no Boost button in the partner app (featuring an offer is admin-only, under Admin → Revenue).
-- **Pincode first:** the business profile fills state, city and the area list from the pincode (India Post data, every state), and "Use my location" fills the whole address (OpenStreetMap).
+- **Shop location from GPS:** the partner taps "Detect my shop location" at the shop (done automatically for a new business). It saves the map point and fills pincode, state, city and address (OpenStreetMap), then the area list from the pincode (India Post). The pincode and state can't be typed.
 - **No dashboards** for customers or partners; admins see platform totals.
 - **Combos (admin switch):** one offer bundling a hotel room, food, pickup & drop and ironing. Off by default; Admin → Overview → Combos switches it on for partners (to post) and customers (Combos tile) at once.
 - **Automatic discount:** the % off is worked out from the prices; any "40% off" in the title is corrected automatically (app and server).
