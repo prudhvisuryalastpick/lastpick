@@ -66,9 +66,9 @@ export const api = {
   async signIn(login, password) { const r = await post("/api/auth/login", { login: String(login || "").trim(), password }); clearCache(); setToken(r.token); },
   // forgot password: a code to the e-mail (for a mobile number: to the e-mail on that account)
   async sendResetCode(login) { return post("/api/auth/otp/send", { login: String(login || "").trim() }); },
-  async signUp({ email, password, name, phone, consent, otp }) {
+  async signUp({ email, password, name, phone, consent, otp, phoneToken }) {
     // consent goes as is: it carries the Terms text the person read (readFull, docText, docHash)
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, consent: consent || undefined });
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneToken, consent: consent || undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },

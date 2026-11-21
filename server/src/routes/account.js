@@ -4,7 +4,8 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
+import { FIREBASE_PROJECT_ID, MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
+import { verifyPhoneToken } from "../firebase.js";
 import { sendEmail } from "../mail.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
@@ -147,6 +148,12 @@ export function accountRoutes(r) {
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     if (!phone) throw bad("Please enter your mobile number");
+    // mobile number proven with a Firebase SMS code (when switched on): the verified number must be the one entered
+    if (FIREBASE_PROJECT_ID) {
+      const verified = await verifyPhoneToken(body.phoneToken).catch((e) => { log.warn("phone token refused", { error: e.message }); return null; });
+      if (!verified) throw bad("Please verify your mobile number with the SMS code first.");
+      if (indianPhone(verified) !== phone) throw bad("The verified mobile number doesn't match the number entered. Please verify again.");
+    }
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
@@ -253,7 +260,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM,
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!FIREBASE_PROJECT_ID,
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

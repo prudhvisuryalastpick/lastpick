@@ -1,6 +1,14 @@
 // ---- Change these to rebrand or reprice the app ----
 export const APP_NAME = "LastPick";
 export const SUPPORT_EMAIL = import.meta.env?.VITE_SUPPORT_EMAIL || "support@lastpick.in";
+// Firebase (Google) for the mobile number check at sign-up: an SMS code to the phone. These are public web settings
+// (Firebase console -> Project settings -> Your apps -> Web app). Empty apiKey = mobile check off.
+export const FIREBASE = {
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "",
+};
 // LastPick's Instagram and YouTube pages. Empty = not created yet: the icons show "coming soon".
 // Add the links here (or as VITE_INSTAGRAM_URL / VITE_YOUTUBE_URL) once the pages exist.
 export const SOCIAL = {
