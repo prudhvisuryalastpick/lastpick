@@ -52,7 +52,7 @@ export const PLANS = {
   owner: {
     id: "owner", name: "Business Pro", price: 499,
     options: [{ months: 1, price: 499 }, { months: 3, price: 1349 }, { months: 6, price: 2499 }, { months: 12, price: 4499 }],
-    perks: ["Post up to 3 offers a day in your category", "Get customers' numbers when they're interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
+    perks: ["Post up to 3 offers a day in your category", "See the names of customers who are interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
   },
 };
 // Boosted offers: a partner pays to feature one offer at the top of customers' home screens. Rupees by hours.
