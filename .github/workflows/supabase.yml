@@ -137,7 +137,7 @@ jobs:
       - name: Publish the web apps on Cloudflare (free)
         run: |
           for e in customer partner admin; do npx --yes wrangler@4 deploy --env $e; done
-          npx --yes wrangler@4 deploy --config wrangler.redirect.toml
+          npx --yes wrangler@4 deploy --config wrangler.redirect.toml || echo "::warning::lastpick.in / www redirect not set up: delete the old DNS records for lastpick.in and www in Cloudflare (DNS → Records), then re-run"
 
       - name: Health check
         run: |
