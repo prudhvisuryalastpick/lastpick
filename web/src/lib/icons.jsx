@@ -64,6 +64,7 @@ export const P = {
   paw: "M12 13c-3 0-5 3-5 5 0 1.5 1.5 2 3 1.5 1-.3 1.4-.5 2-.5s1 .2 2 .5c1.5.5 3 0 3-1.5 0-2-2-5-5-5zM6 11a1.5 2 0 1 0 0-.01M18 11a1.5 2 0 1 0 0-.01M9.5 7a1.5 2 0 1 0 0-.01M14.5 7a1.5 2 0 1 0 0-.01",
   pill: "M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7zM7 10l7 7",
   wrench: "M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z",
+  tv: "M3 6h18v11H3zM8 21h8M12 17v4",
   laundry: "M4 3h16v18H4zM4 7h16M7 5h.01M10 5h.01M12 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   rocket: "M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-2-2c1-4 4-8 10-10 0 6-4 9-10 12zM14 9h.01",
   spark: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6",
@@ -82,35 +83,25 @@ export function Icon({ d, size = 22, stroke = 1.9, className, style }) {
 // icon, light background (tint) and dark colour (ink) for each category; short label for the home tiles
 export const CAT_STYLE = {
   food: { icon: "food", tint: "#FFF1E0", ink: "#B35A00", short: "Food" },
-  grocery: { icon: "grocery", tint: "#E8F6EC", ink: "#0F7A43", short: "Grocery" },
   stay: { icon: "stay", tint: "#E9EEFF", ink: "#1E4BB8", short: "Hotels" },
-  travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Bus & travel" },
-  sports: { icon: "ball", tint: "#EEF8E3", ink: "#3E7A0F", short: "Gym & sports" },
+  travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Travel" },
   beauty: { icon: "salon", tint: "#EEF1F5", ink: "#6B2FB3", short: "Salon" },
-  admissions: { icon: "cap", tint: "#EAF3FF", ink: "#1E4BB8", short: "Schools" },
-  laundry: { icon: "laundry", tint: "#E6F3FA", ink: "#0B5C80", short: "Laundry" },
-  combo: { icon: "spark", tint: "#FFF0E3", ink: "#B4410E", short: "Combos" },
-  retail: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Shopping" },
-  electronics: { icon: "phoneDevice", tint: "#EEF0F6", ink: "#3B4654", short: "Electronics" },
-  jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
-  photo: { icon: "camera", tint: "#EAF3FF", ink: "#1E4BB8", short: "Photographers" },
-  decor: { icon: "balloon", tint: "#FCE9F2", ink: "#9C1F5A", short: "Decorators" },
   makeup: { icon: "brush", tint: "#FDEAF3", ink: "#A3245E", short: "Makeup" },
-  tailor: { icon: "needle", tint: "#EEF1F5", ink: "#5B2393", short: "Tailors" },
-  pets: { icon: "paw", tint: "#FFF6D6", ink: "#8A6100", short: "Pet care" },
-  vehicle: { icon: "wrench", tint: "#EEF0F6", ink: "#3B4654", short: "Bike & car" },
-  services: { icon: "tools", tint: "#F1EFE8", ink: "#5C4A1E", short: "Repairs" },
-  education: { icon: "book", tint: "#E9EDFF", ink: "#12355B", short: "Classes" },
-  other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Others" },
+  fashion: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Fashion" },
+  appliances: { icon: "tv", tint: "#EEF0F6", ink: "#3B4654", short: "Appliances" },
+  shops: { icon: "store", tint: "#E8F6EC", ink: "#0F7A43", short: "Shops" },
+  jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
+  combo: { icon: "spark", tint: "#FFF0E3", ink: "#B4410E", short: "Combos" },
+  other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Other" },
 };
 // any unknown category shows as Others
 export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 
 // Category tiles on the customer home (Food, Hotels, Travel first), with small tags.
 export const HOME_TILES = [
-  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "grocery" },
-  { id: "beauty", tag: "LOW ₹", tagBg: "#6B2FB3" }, { id: "photo", tag: "NEW", tagBg: "#B35A00" }, { id: "decor", tag: "NEW", tagBg: "#B35A00" }, { id: "makeup" },
-  { id: "laundry" }, { id: "tailor" }, { id: "jobs", tag: "AD", tagBg: "#8A5A00" },
+  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" },
+  { id: "beauty" }, { id: "makeup" }, { id: "fashion" }, { id: "appliances" }, { id: "shops" },
+  { id: "jobs", tag: "AD", tagBg: "#8A5A00" }, { id: "other" },
 ];
 
 // Category icon tile (used instead of emoji when an offer has no photo)

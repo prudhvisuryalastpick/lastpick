@@ -13,8 +13,8 @@ import {
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
 // registered (a bakery posts only bakery offers). Every business may also post "jobs": a job opening at its
 // own shop, shown like an advertisement only to customers in that area.
-const CATEGORY_IDS = ["food", "stay", "travel", "grocery", "beauty", "laundry", "vehicle", "sports", "admissions", "education",
-  "retail", "electronics", "services", "photo", "decor", "makeup", "tailor", "pets", "other"];
+// Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
+const CATEGORY_IDS = ["food", "stay", "travel", "beauty", "makeup", "fashion", "appliances", "shops", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;

@@ -13,17 +13,10 @@ import { bad, cityKey, denied, ms, needUuid, notFound, precondition, str } from 
 
 // Boost prices in rupees, by hours. Keep in sync with BOOST_PRICES in web/src/lib/config.js.
 export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
-// Plan prices in rupees by months. Keep in sync with PLANS in web/src/lib/config.js.
-export const PLAN_PRICES = {
-  customer: { 1: 149, 3: 399, 6: 749, 12: 1399 },
-  owner: { 1: 499, 3: 1349, 6: 2499, 12: 4499 },
-};
-// price of a plan for any number of months (longer plans cost less per month)
-export const planPrice = (plan, months) => {
-  const p = PLAN_PRICES[plan]; const m = Math.max(1, Number(months) || 1);
-  if (p[m]) return p[m];
-  return Math.floor(m / 12) * p[12] + (m % 12 ? planPrice(plan, m % 12) : 0); // e.g. 24 months = 2 × 12; 2 months = 2 × 1
-};
+// Two plans only, monthly: Customer Pass ₹99, Business Pro ₹499. Keep in sync with PLANS in web/src/lib/config.js.
+export const PLAN_PRICES = { customer: { 1: 99 }, owner: { 1: 499 } };
+// price for a number of months (no discounts for longer periods)
+export const planPrice = (plan, months) => PLAN_PRICES[plan][1] * Math.max(1, Number(months) || 1);
 
 const mapBoost = (b) => b && ({
   id: b.id, offerId: b.offer_id, ownerId: b.owner_id, hours: b.hours, price: b.price, status: b.status, paidBy: b.paid_by,

@@ -146,7 +146,7 @@ test("partner: business, verification, offers, daily limit", async () => {
   assert.equal((await c.get(`/api/offers/${offerId}`)).status, 200);
 
   // a business posts only in its registered categories (food, stay here), 3 posts a day
-  assert.equal((await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "electronics", origPrice: 100, price: 50, endsAt: ends })).status, 403);
+  assert.equal((await p.post("/api/owner/offers", { title: "Phone accessories sale", category: "appliances", origPrice: 100, price: 50, endsAt: ends })).status, 403);
   assert.equal((await p.post("/api/owner/offers", { title: "Second", category: "food", origPrice: 100, price: 50, endsAt: ends })).status, 200);
   assert.equal((await p.post("/api/owner/offers", { title: "Third", category: "stay", origPrice: 100, price: 50, endsAt: ends })).status, 200);
   const fourth = await p.post("/api/owner/offers", { title: "Fourth", category: "food", origPrice: 100, price: 50, endsAt: ends });
@@ -441,14 +441,14 @@ test("revenue: boosted offers, sponsored banners, revenue page", async () => {
   assert.equal(ban.status, 200, JSON.stringify(ban.data));
   assert.ok((await c.get("/api/banners?city=bengaluru")).data.some((b) => b.id === ban.data.id));
   assert.ok(!(await c.get("/api/banners?city=mumbai")).data.some((b) => b.id === ban.data.id));
-  // a Customer Pass for 3 months, paid by UPI and activated by the admin: ₹399
+  // a Customer Pass for 3 months, paid by UPI and activated by the admin: 3 × ₹99 = ₹297
   const before = (await a.get("/api/admin/revenue")).data.subscriptions.customerPass.soldThisMonth;
   assert.equal((await a.post("/api/admin/plans", { email: "customer@test.lastpick.in", plan: "customer", months: 3 })).status, 200);
   // revenue this month: plan sales, the paid boost and the banner
   const rev = (await a.get("/api/admin/revenue")).data;
-  assert.equal(rev.subscriptions.customerPass.soldThisMonth - before, 399);
+  assert.equal(rev.subscriptions.customerPass.soldThisMonth - before, 297);
   assert.ok(rev.subscriptions.customerPass.byMonths[3] >= 1);
-  assert.ok(rev.subscriptions.mrr >= 133, "399 / 3 months = 133 a month");
+  assert.ok(rev.subscriptions.mrr >= 99, "₹99 a month");
   assert.equal(rev.boosts.paid, 79);
   assert.equal(rev.banners.sold, 2000);
   assert.equal(rev.totalThisMonth, rev.subscriptions.customerPass.soldThisMonth + rev.subscriptions.businessPro.soldThisMonth + 79 + 2000);

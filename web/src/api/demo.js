@@ -4,7 +4,7 @@ import { compressPhoto } from "../lib/image.js";
 import { CONSENT_VERSION, cityKey, fixTitlePercent, runs24x7 } from "../lib/config.js";
 import { distanceKm, indianPhone } from "../lib/format.js";
 
-const KEY = "lastpick-demo-v11";
+const KEY = "lastpick-demo-v12";
 const H = 3600000, D = 86400000;
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const wait = (ms = 150) => new Promise((r) => setTimeout(r, ms));
@@ -30,31 +30,31 @@ function seed() {
   const biz = [
     ["u-own", "Sunrise Bakery", "food", "Indiranagar", 12.9784, 77.6408, "9845011223"],
     ["o2", "Hotel Grand Residency", "stay", "MG Road", 12.9756, 77.6066, "8041255667"],
-    ["o3", "Stitch Perfect Tailors", "tailor", "Jayanagar", 12.925, 77.5938, "9900123456"],
+    ["o3", "Stitch Perfect Tailors", "fashion", "Jayanagar", 12.925, 77.5938, "9900123456"],
     ["o4", "Royal Travels", "travel", "Majestic", 12.9767, 77.5713, "9740088990"],
-    ["o5", "KickOff Turf", "sports", "HSR Layout", 12.9116, 77.6474, "9008044556"],
-    ["o6", "Paws & Claws Pet Spa", "pets", "Koramangala", 12.9352, 77.6245, "9632077889"],
-    ["o7", "Trendz Fashion", "retail", "Commercial Street", 12.9822, 77.6083, "9886133445"],
+    ["o5", "KickOff Turf", "other", "HSR Layout", 12.9116, 77.6474, "9008044556"],
+    ["o6", "Paws & Claws Pet Spa", "other", "Koramangala", 12.9352, 77.6245, "9632077889"],
+    ["o7", "Trendz Fashion", "fashion", "Commercial Street", 12.9822, 77.6083, "9886133445"],
     ["o8", "Glow Salon", "beauty", "Whitefield", 12.9698, 77.75, "9812345670"],
-    ["o10", "Paradise Fitness", "sports", "Banjara Hills", 17.4156, 78.4347, "9849012345", "Hyderabad", "Telangana"],
+    ["o10", "Paradise Fitness", "other", "Banjara Hills", 17.4156, 78.4347, "9849012345", "Hyderabad", "Telangana"],
     ["o11", "Hotel Sea Breeze", "stay", "Andheri East", 19.1136, 72.8697, "9820012345", "Mumbai", "Maharashtra"],
     ["o12", "Chennai Sweets", "food", "T. Nagar", 13.0418, 80.2341, "9840012345", "Chennai", "Tamil Nadu"],
-    ["o14", "Indiranagar Mobile Hub", "electronics", "Indiranagar", 12.9731, 77.6385, "9845022334"],
-    ["o15", "Greenwood Public School", "admissions", "Indiranagar", 12.9705, 77.6455, "8041234567"],
+    ["o14", "Indiranagar Mobile Hub", "appliances", "Indiranagar", 12.9731, 77.6385, "9845022334"],
+    ["o15", "Greenwood Public School", "other", "Indiranagar", 12.9705, 77.6455, "8041234567"],
     ["o16", "Hotel Indira Comforts", "stay", "Indiranagar", 12.9762, 77.6399, "9900011122"],
-    ["o17", "Speedy Bike Care", "vehicle", "Indiranagar", 12.9748, 77.6421, "9900033344"],
-    ["o18", "Indiranagar Kirana Stores", "grocery", "Indiranagar", 12.9779, 77.6436, "9845055667"],
-    ["o19", "Clean & Fresh Laundry", "laundry", "Indiranagar", 12.9718, 77.6412, "8041122334"],
-    ["o20", "Frame Story Photography", "photo", "Indiranagar", 12.9765, 77.6390, "9845066778"],
-    ["o21", "Balloon Bliss Decorators", "decor", "Domlur", 12.9609, 77.6387, "9900077889"],
+    ["o17", "Speedy Bike Care", "other", "Indiranagar", 12.9748, 77.6421, "9900033344"],
+    ["o18", "Indiranagar Kirana Stores", "shops", "Indiranagar", 12.9779, 77.6436, "9845055667"],
+    ["o19", "Clean & Fresh Laundry", "other", "Indiranagar", 12.9718, 77.6412, "8041122334"],
+    ["o20", "Frame Story Photography", "other", "Indiranagar", 12.9765, 77.6390, "9845066778"],
+    ["o21", "Balloon Bliss Decorators", "other", "Domlur", 12.9609, 77.6387, "9900077889"],
     ["o22", "Glam by Divya (makeup)", "makeup", "Indiranagar", 12.9741, 77.6428, "9845099001"],
   ].map(([owner, name, category, area, lat, lng, phone, city = "Bengaluru", state = "Karnataka"], i) => ({
     id: "b" + (i + 1), ownerId: owner, name, category, categories: [category], about: "", address: `${area}, ${city}`, area, city, state, cityKey: cityKey(city), lat, lng,
     pincode: PINS[area] || "",
     status: "verified", statusNote: "", reportCount: 0, createdAt: n - 30 * D, phone: indianPhone(phone), whatsapp: true,
   }));
-  biz.push({ id: "b99", ownerId: "o9", name: "New Mobile World", category: "electronics", about: "", address: "SP Road", area: "SP Road", city: "Bengaluru", state: "Karnataka", cityKey: "bengaluru", pincode: "560002", lat: 12.968, lng: 77.58, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 2 * H, phone: indianPhone("9988776655"), whatsapp: true });
-  biz.push({ id: "b98", ownerId: "o13", name: "Quick Deals Hyd", category: "electronics", about: "", address: "Ameerpet", area: "Ameerpet", city: "Hyderabad", state: "Telangana", cityKey: "hyderabad", pincode: "500016", lat: 17.4375, lng: 78.4482, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 5 * H, phone: indianPhone("9849012345"), whatsapp: true });
+  biz.push({ id: "b99", ownerId: "o9", name: "New Mobile World", category: "appliances", about: "", address: "SP Road", area: "SP Road", city: "Bengaluru", state: "Karnataka", cityKey: "bengaluru", pincode: "560002", lat: 12.968, lng: 77.58, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 2 * H, phone: indianPhone("9988776655"), whatsapp: true });
+  biz.push({ id: "b98", ownerId: "o13", name: "Quick Deals Hyd", category: "appliances", about: "", address: "Ameerpet", area: "Ameerpet", city: "Hyderabad", state: "Telangana", cityKey: "hyderabad", pincode: "500016", lat: 17.4375, lng: 78.4482, status: "pending", statusNote: "", reportCount: 0, createdAt: n - 5 * H, phone: indianPhone("9849012345"), whatsapp: true });
   const subs = ["u-own", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o10", "o11", "o12", "o14", "o15", "o16", "o17", "o18", "o19", "o20", "o21", "o22"].map((u) => ({ userId: u, plan: "owner", status: "active", currentPeriodEnd: n + 20 * D, provider: "demo" }));
   const o = (b, category, emoji, title, description, origPrice, price, quantity, endsIn, views) => ({
     id: rid(), businessId: b, title, description, category, emoji, photoUrl: null, origPrice, price, quantity,
@@ -64,26 +64,26 @@ function seed() {
     o("b1", "food", "🎂", "Fresh cakes & pastries before closing", "Today's cakes, pastries and breads at half price. Come before 10:30 PM.", 600, 299, "7 left", 95 * 60000, 142),
     o("b1", "food", "🥐", "Croissant box of 6, 35% off till closing", "Fresh from today's last batch.", 420, 260, "10 boxes", 9 * H, 63),
     o("b2", "stay", "🛏️", "Deluxe AC room for tonight", "Double bed, breakfast included. Check-in till midnight.", 3800, 1999, "3 rooms", 5 * H, 211),
-    o("b3", "tailor", "🧵", "Blouse stitching ₹350 (normally ₹500), today's orders", "Ready in 3 days. Bring your fabric before 8 PM.", 500, 350, "15 orders", 10 * H, 188),
+    o("b3", "fashion", "🧵", "Blouse stitching ₹350 (normally ₹500), today's orders", "Ready in 3 days. Bring your fabric before 8 PM.", 500, 350, "15 orders", 10 * H, 188),
     o("b4", "travel", "🚌", "AC sleeper to Chennai, leaves 10:45 PM", "6 seats unsold. Board at Majestic bus stand.", 1400, 799, "6 seats", 150 * 60000, 96),
-    o("b5", "sports", "⚽", "5-a-side turf, 10 to 11 PM tonight", "Floodlights, bibs and ball included.", 1800, 900, "1 slot", 55 * 60000, 54),
-    o("b6", "pets", "🐾", "Dog bath & grooming 40% off today", "Bath, nail trim and ear cleaning. Slots till 7 PM.", 1000, 600, "6 slots", 9 * H, 120),
-    o("b7", "retail", "👕", "Last-season shirts, 3 for the price of 1, today only", "Sizes M to XL.", 2400, 799, "18 left", 20 * H, 77),
+    o("b5", "other", "⚽", "5-a-side turf, 10 to 11 PM tonight", "Floodlights, bibs and ball included.", 1800, 900, "1 slot", 55 * 60000, 54),
+    o("b6", "other", "🐾", "Dog bath & grooming 40% off today", "Bath, nail trim and ear cleaning. Slots till 7 PM.", 1000, 600, "6 slots", 9 * H, 120),
+    o("b7", "fashion", "👕", "Last-season shirts, 3 for the price of 1, today only", "Sizes M to XL.", 2400, 799, "18 left", 20 * H, 77),
     o("b8", "beauty", "💇", "Haircut + head massage, 50% off this evening", "Senior stylists, 4 to 8 PM slots.", 900, 449, "8 slots", 7 * H, 40),
-    o("b9", "sports", "⚽", "Gym day pass ₹99 today", "All equipment, steam bath included. Valid till 10 PM.", 300, 99, "30 passes", 14 * H, 210),
+    o("b9", "other", "⚽", "Gym day pass ₹99 today", "All equipment, steam bath included. Valid till 10 PM.", 300, 99, "30 passes", 14 * H, 210),
     o("b10", "stay", "🛏️", "Business rooms near the airport tonight", "Free airport pickup after 10 PM.", 4500, 2499, "5 rooms", 6 * H, 133),
     o("b11", "food", "🍬", "Sweets and savouries at closing time", "Mixed boxes, 40% off after 8 PM.", 800, 480, "20 boxes", 3 * H, 88),
-    o("b12", "electronics", "📱", "Phone screen guard + cover combo at ₹199 today", "All popular models. Fitted free in 5 minutes.", 499, 199, "40 combos", 9 * H, 230),
-    o("b13", "admissions", "🎓", "Admission form fee waived today", "Nursery to Class 9, 2027-28. Visit the school office before 5 PM.", 1000, 0, "Today only", 8 * H, 512),
+    o("b12", "appliances", "📱", "Phone screen guard + cover combo at ₹199 today", "All popular models. Fitted free in 5 minutes.", 499, 199, "40 combos", 9 * H, 230),
+    o("b13", "other", "🎓", "Admission form fee waived today", "Nursery to Class 9, 2027-28. Visit the school office before 5 PM.", 1000, 0, "Today only", 8 * H, 512),
     o("b14", "stay", "🛏️", "Standard AC room tonight at ₹1,299", "Walk-in or call. Check-in till 1 AM.", 2200, 1299, "4 rooms", 14 * H, 64),
-    o("b15", "vehicle", "🔧", "Bike general service at 25% off today", "Oil change, wash and check-up. Drop by 1 PM, ready by 6 PM.", 800, 600, "6 slots", 9 * H, 41),
-    o("b18", "photo", "📷", "Birthday / family photo shoot, 40% off if booked today", "1 hour, 50 edited photos, at your home or a park.", 5000, 2999, "2 slots", 11 * H, 96),
-    o("b19", "decor", "🎈", "Balloon & flower decoration, 35% off for bookings today", "Birthday or anniversary setup at home, done in 2 hours.", 4000, 2600, "3 bookings", 12 * H, 72),
+    o("b15", "other", "🔧", "Bike general service at 25% off today", "Oil change, wash and check-up. Drop by 1 PM, ready by 6 PM.", 800, 600, "6 slots", 9 * H, 41),
+    o("b18", "other", "📷", "Birthday / family photo shoot, 40% off if booked today", "1 hour, 50 edited photos, at your home or a park.", 5000, 2999, "2 slots", 11 * H, 96),
+    o("b19", "other", "🎈", "Balloon & flower decoration, 35% off for bookings today", "Birthday or anniversary setup at home, done in 2 hours.", 4000, 2600, "3 bookings", 12 * H, 72),
     o("b20", "makeup", "💄", "Party makeup at home, 30% off this evening", "HD makeup and hairstyle. 5 to 9 PM slots.", 2500, 1750, "2 slots", 7 * H, 58),
     o("b8", "beauty", "💅", "Manicure + pedicure combo at ₹499 today", "Normally ₹899. Walk in before 7 PM.", 899, 499, "10 slots", 9 * H, 64),
-    o("b17", "laundry", "🧺", "Laundry and ironing 30% off today", "Drop before 6 PM, ready tomorrow morning. Free pickup within 2 km.", 300, 210, "Today only", 8 * H, 87),
-    o("b16", "grocery", "🥬", "Fresh vegetables 30% off till closing", "Today's stock of vegetables and fruits.", 300, 210, "Today's stock", 8 * H, 73),
-    o("b16", "grocery", "🍚", "Rice + dal + oil combo, 20% off today", "5 kg rice, 1 kg toor dal, 1 L oil.", 900, 720, "25 combos", 12 * H, 58),
+    o("b17", "other", "🧺", "Laundry and ironing 30% off today", "Drop before 6 PM, ready tomorrow morning. Free pickup within 2 km.", 300, 210, "Today only", 8 * H, 87),
+    o("b16", "shops", "🥬", "Fresh vegetables 30% off till closing", "Today's stock of vegetables and fruits.", 300, 210, "Today's stock", 8 * H, 73),
+    o("b16", "shops", "🍚", "Rice + dal + oil combo, 20% off today", "5 kg rice, 1 kg toor dal, 1 L oil.", 900, 720, "25 combos", 12 * H, 58),
     // job openings at the partner's own shop (local ads, shown within 10 km)
     o("b1", "jobs", "📣", "Bakery helper needed, 7 AM – 3 PM", "Packing and counter work at Sunrise Bakery. Food and weekly off.", 12000, 12000, "Pay per month", 3 * H, 91),
     o("b16", "jobs", "🛵", "Delivery person with own bike", "Home delivery within 3 km of Indiranagar Kirana Stores. Fuel paid.", 15000, 15000, "Pay per month", 4 * H, 66),
@@ -120,7 +120,7 @@ function seed() {
   subs.push({ userId: "u-cust", plan: "customer", status: "active", months: 1, currentPeriodEnd: n + 20 * D, provider: "manual" },
     { userId: "x1", plan: "customer", status: "active", months: 12, currentPeriodEnd: n + 300 * D, provider: "manual" },
     { userId: "x2", plan: "customer", status: "active", months: 1, currentPeriodEnd: n + 25 * D, provider: "manual" });
-  const sales = [["o2", "owner", 3, 1349], ["o5", "owner", 1, 499], ["x1", "customer", 12, 1399], ["x2", "customer", 1, 149]]
+  const sales = [["o2", "owner", 1, 499], ["o5", "owner", 1, 499], ["x1", "customer", 1, 99], ["x2", "customer", 1, 99]]
     .map(([userId, plan, months, amount], i) => ({ userId, plan, months, amount, createdAt: n - (i + 1) * H }));
   return { v: 11, sales, config: { freeMode: false }, session: null, users, businesses: biz, subs, offers, leads, contacts, reports: [], photos: {}, archive, reviews, grievances: [], consentLog: [], support, boosts, banners };
 }
@@ -138,8 +138,8 @@ function load() {
   return db;
 }
 // plan prices by months (same as the server) and the record of every plan sale
-const PLAN_PRICES = { customer: { 1: 149, 3: 399, 6: 749, 12: 1399 }, owner: { 1: 499, 3: 1349, 6: 2499, 12: 4499 } };
-const planPrice = (plan, m) => PLAN_PRICES[plan][m] || Math.floor(m / 12) * PLAN_PRICES[plan][12] + (m % 12 ? m % 12 * PLAN_PRICES[plan][1] : 0);
+const PLAN_PRICES = { customer: { 1: 99 }, owner: { 1: 499 } };
+const planPrice = (plan, m) => PLAN_PRICES[plan][1] * Math.max(1, Number(m) || 1);
 const recordSale = (db, userId, plan, months) => { db.sales = db.sales || []; db.sales.push({ userId, plan, months, amount: planPrice(plan, months), createdAt: Date.now() }); };
 // personal data is masked in admin lists, like the real server
 const maskPhone = (p) => { const d = String(p || "").replace(/\D/g, "").slice(-10); return d.length === 10 ? `+91 ${d.slice(0, 2)}•••••${d.slice(-3)}` : (p ? "•••" : ""); };

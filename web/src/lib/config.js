@@ -39,19 +39,19 @@ export const POSTS_PER_DAY = 3;
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 export const REVIEW_REPORT_REASONS = ["Fake or paid review", "Abusive or hateful", "Personal information", "Not about this business", "Something else"];
 
-// Plans. There is no free version: Customer Pass from ₹149/month, Business Pro (verified business partners)
+// Plans. There is no free version: Customer Pass ₹99/month, Business Pro (verified business partners)
 // from ₹499/month; longer plans cost less per month. Until the payment gateway is added, the admin turns a
 // plan on in Admin → Plans after the payment is received. Keep in sync with TRIAL_DAYS on the server.
 export const TRIAL_DAYS = 0;
 export const PLANS = {
   customer: {
-    id: "customer", name: "Customer Pass", price: 149,
-    options: [{ months: 1, price: 149 }, { months: 3, price: 399 }, { months: 6, price: 749 }, { months: 12, price: 1399 }],
+    id: "customer", name: "Customer Pass", price: 99,
+    options: [{ months: 1, price: 99 }],
     perks: ["See every business's phone number", "Call or WhatsApp businesses directly", "Share your number in one tap", "Keep a list of businesses you contacted"],
   },
   owner: {
     id: "owner", name: "Business Pro", price: 499,
-    options: [{ months: 1, price: 499 }, { months: 3, price: 1349 }, { months: 6, price: 2499 }, { months: 12, price: 4499 }],
+    options: [{ months: 1, price: 499 }],
     perks: ["Post up to 3 offers a day in your category", "See the names of customers who are interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
   },
 };
@@ -70,25 +70,15 @@ export const DEFAULT_LOCATION = { lat: 12.9716, lng: 77.5946, label: "Bengaluru"
 // A partner posts ONLY in its own registered category (a bakery posts only bakery offers), plus job
 // openings at its own shop. No halls, movie tickets or buy-and-sell of personal items. Keep in sync with CATEGORY_IDS in server/src/routes/partner.js.
 export const CATEGORIES = [
-  { id: "food", label: "Food & bakery", icon: "🍰" },
-  { id: "stay", label: "Hotels & stays", icon: "🛏️" },
-  { id: "travel", label: "Bus & travel", icon: "🚌" },
-  { id: "grocery", label: "Grocery", icon: "🥬" },
-  { id: "beauty", label: "Salon & spa", icon: "💇" },
-  { id: "laundry", label: "Laundry, ironing & dry cleaning", icon: "🧺" },
-  { id: "vehicle", label: "Bike & car service", icon: "🔧" },
-  { id: "sports", label: "Gym, sports & fitness", icon: "⚽" },
-  { id: "admissions", label: "Schools & colleges", icon: "🎓" },
-  { id: "education", label: "Classes & coaching", icon: "📚" },
-  { id: "retail", label: "Shopping & clothes", icon: "🛍️" },
-  { id: "electronics", label: "Mobiles & electronics", icon: "📱" },
-  { id: "services", label: "Repairs & home services", icon: "🛠️" },
-  { id: "photo", label: "Photographers & videographers", icon: "📷" },
-  { id: "decor", label: "Decorators & flowers", icon: "🎈" },
-  { id: "makeup", label: "Makeup & mehendi artists", icon: "💄" },
-  { id: "tailor", label: "Tailors & boutiques", icon: "🧵" },
-  { id: "pets", label: "Pet care & grooming", icon: "🐾" },
-  { id: "other", label: "Others", icon: "📦" },
+  { id: "food", label: "Food", icon: "🍰" },
+  { id: "stay", label: "Hotels", icon: "🛏️" },
+  { id: "travel", label: "Travel", icon: "🚌" },
+  { id: "beauty", label: "Salon", icon: "💇" },
+  { id: "makeup", label: "Makeup", icon: "💄" },
+  { id: "fashion", label: "Fashion", icon: "👗" },
+  { id: "appliances", label: "Home appliances", icon: "📺" },
+  { id: "shops", label: "Shops", icon: "🏪" },
+  { id: "other", label: "Other", icon: "📦" },
 ];
 // Not a business category: any shop can post a job opening for workers at its own shop. Shown only to
 // customers in that local area (10 km / same pincode), like an advertisement.

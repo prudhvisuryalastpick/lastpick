@@ -28,7 +28,7 @@ const CFLOAT = [
   { cat: "beauty", t: "Salon slots today", s: "4 – 8 PM · 0.8 km", o: "-50%", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
   { cat: "travel", t: "Bus seats tonight", s: "Leaves 10:45 PM", o: "-43%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
 ];
-const TRAIL = ["food", "stay", "travel", "beauty", "laundry", "grocery", "photo", "other"];
+const TRAIL = ["food", "stay", "travel", "beauty", "makeup", "fashion", "appliances", "shops"];
 
 export function Welcome() {
   const go = (to) => { markWelcomed(); navigate(to, { replace: true }); };
