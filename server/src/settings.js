@@ -15,3 +15,7 @@ export async function setSetting(key, value, by) {
 export const COMBO_ITEMS = ["stay", "food", "pickup", "ironing"];
 export const COMBO_24x7 = ["stay", "pickup"]; // a combo with a hotel room or pickup & drop runs 24×7 like hotels and travel
 export const combosOn = async () => (await getSetting("combos", false)) === true;
+
+// ---- One device at a time for customers. On unless an admin switches it off. ----
+// (Partner and admin logins are always one device at a time.)
+export const singleDeviceOn = async () => (await getSetting("single_device", true)) !== false;

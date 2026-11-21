@@ -255,6 +255,22 @@ test("only one device can be logged in", async () => {
   assert.equal(old.data.code, "signed_in_elsewhere");
   assert.match(old.data.error, /another device/);
   assert.equal((await laptop.get("/api/me")).status, 200);
+
+  // admin switches it off: customers can stay logged in on two devices
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  assert.equal((await a.get("/api/admin/settings")).data.singleDevice, true);
+  assert.equal((await a.post("/api/admin/settings", { singleDevice: false })).data.singleDevice, false);
+  const tab = client("customer");
+  await tab.login("customer@test.lastpick.in");
+  assert.equal((await laptop.get("/api/me")).status, 200);
+  assert.equal((await tab.get("/api/me")).status, 200);
+  // partner logins stay one device even when the switch is off
+  const p1 = client("partner"), p2 = client("partner");
+  await p1.login("owner@test.lastpick.in"); await p2.login("owner@test.lastpick.in");
+  assert.equal((await p1.get("/api/me")).status, 401);
+  assert.equal((await a.post("/api/admin/settings", { singleDevice: true })).data.singleDevice, true);
+  await phone.login("customer@test.lastpick.in");
+  assert.equal((await tab.get("/api/me")).status, 401);
 });
 
 test("consent is checked on the server", async () => {

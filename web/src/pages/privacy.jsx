@@ -153,7 +153,7 @@ export function Terms() {
         <h2>2. The deal is between customer and provider. We take no responsibility for it</h2>
         <p>Any agreement, payment, delivery, service, treatment, admission, journey or job happens directly between the customer and the provider. {APP_NAME} is not a party to it. To the extent the law allows, {APP_NAME} is not responsible for the quality, safety, legality, accuracy or availability of anything posted, for the conduct of any user, or for any loss, injury or dispute arising from a deal. Check the provider before you pay or travel. This doesn't limit any right you have under Indian consumer law.</p>
         <h2>3. Who can use {APP_NAME}</h2>
-        <p>You must be 18 or older and in India. Give true details and keep your login safe. One account per person; one business profile per account. For security, an account can be logged in on <b>one device at a time</b>: logging in on a new device logs out the previous one.</p>
+        <p>You must be 18 or older and in India. Give true details and keep your login safe. One account per person; one business profile per account. For security, LastPick can limit an account to <b>one device at a time</b>: when this is on, logging in on a new device logs out the previous one. Business and admin accounts are always limited to one device.</p>
         <h2>4. Rules for providers (business partners)</h2>
         <ul>
           <li>Post only genuine offers you can honour. The "normal price" must be the real price you usually charge; the offer price is the final price, with no hidden charges.</li>

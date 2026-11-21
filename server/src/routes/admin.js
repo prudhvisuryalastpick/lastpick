@@ -1,6 +1,6 @@
 // Admin panel API. "admin" (super admin) sees all of India. A "moderator" (area agent) sees only their area:
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
-import { combosOn, setSetting } from "../settings.js";
+import { combosOn, setSetting, singleDeviceOn } from "../settings.js";
 import { needUser } from "../auth.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, rmany, rone } from "../db.js";
@@ -180,14 +180,16 @@ export function adminRoutes(r) {
   });
 
   // Super admins: switches such as combos (off until LastPick has enough good partners).
-  r.get("/api/admin/settings", async (ctx) => { staff(ctx); return { combos: await combosOn() }; });
+  const settingsNow = async () => ({ combos: await combosOn(), singleDevice: await singleDeviceOn() });
+  r.get("/api/admin/settings", async (ctx) => { staff(ctx); return settingsNow(); });
   r.post("/api/admin/settings", async (ctx) => {
     const me = superAdmin(ctx);
-    if (typeof ctx.body?.combos !== "boolean") throw bad("Say whether combos are on or off");
-    await setSetting("combos", ctx.body.combos, me.id);
-    clearCache("feed:");
-    audit("setting_changed", me.id, { combos: ctx.body.combos });
-    return { combos: ctx.body.combos };
+    const { combos, singleDevice } = ctx.body || {};
+    if (typeof combos !== "boolean" && typeof singleDevice !== "boolean") throw bad("Say which switch to turn on or off");
+    if (typeof combos === "boolean") { await setSetting("combos", combos, me.id); clearCache("feed:"); }
+    if (typeof singleDevice === "boolean") await setSetting("single_device", singleDevice, me.id);
+    audit("setting_changed", me.id, { combos, singleDevice });
+    return settingsNow();
   });
 
   // Super admins: unlock Business Pro (1/3/6/12 months), extend the free month, or end both.

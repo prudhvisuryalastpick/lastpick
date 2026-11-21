@@ -317,8 +317,13 @@ export const api = {
       .sort((a, b) => a.endsAt - b.endsAt);
   },
   async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN, combos: combosOnIn(load()) }; },
-  async adminSettings() { const db = load(); staff(db); return { combos: combosOnIn(db) }; },
-  async setAdminSettings({ combos }) { const db = load(); staff(db, true); db.settings = { ...(db.settings || {}), combos: !!combos }; save(db); return { combos: !!combos }; },
+  async adminSettings() { const db = load(); staff(db); return { combos: combosOnIn(db), singleDevice: db.settings?.singleDevice !== false }; },
+  async setAdminSettings(v) {
+    const db = load(); staff(db, true); const s = { ...(db.settings || {}) };
+    if (typeof v.combos === "boolean") s.combos = v.combos;
+    if (typeof v.singleDevice === "boolean") s.singleDevice = v.singleDevice;
+    db.settings = s; save(db); return { combos: !!s.combos, singleDevice: s.singleDevice !== false };
+  },
   async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
     const db = load(), now = Date.now(), map = {};

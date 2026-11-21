@@ -188,6 +188,24 @@ function ComboSwitch({ toast }) {
   );
 }
 
+function SingleDeviceSwitch({ toast }) {
+  const [on, setOn] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.adminSettings().then((x) => setOn(x.singleDevice !== false)).catch(() => setOn(true)); }, []);
+  const flip = async (v) => {
+    setBusy(true);
+    try { const r = await api.setAdminSettings({ singleDevice: v }); setOn(r.singleDevice); toast(r.singleDevice ? "Customers can be logged in on one device at a time" : "Customers can now stay logged in on several devices"); } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="panel switchrow" style={{ margin: "4px 16px 12px" }}>
+      <div><b>Customers: one device at a time</b> {on ? <span className="pill p-ok">On</span> : <span className="pill p-mute">Off</span>}
+        <div className="muted small">When on, logging in on a new device logs the customer out of the old one. When off, customers can stay logged in on several devices. Partner and admin logins are always one device.</div></div>
+      {on == null ? <span className="muted small">…</span> : <button type="button" aria-label="One device at a time on or off" aria-pressed={on} className={"sw " + (on ? "on" : "")} disabled={busy} onClick={() => flip(!on)} />}
+    </div>
+  );
+}
+
 function AdminOverview({ toast, go }) {
   const { isAdmin } = useApp();
   const [data, setData] = useState(null);
@@ -203,6 +221,7 @@ function AdminOverview({ toast, go }) {
     <>
       {isAdmin && <PaymentsNote />}
       {isAdmin && <ComboSwitch toast={toast} />}
+      {isAdmin && <SingleDeviceSwitch toast={toast} />}
       {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>
         <div className="amt" style={{ fontSize: 32 }}>{rupee(mrr)}</div>

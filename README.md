@@ -41,7 +41,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 
 ## Product rules built in
 
-- **One device at a time:** logging in on a new device logs out the old one, and the old device says why.
+- **One device at a time:** logging in on a new device logs out the old one, and the old device says why. Admins can switch this off for customers (Admin → Overview); partner and admin logins always stay one device.
 - **Consent checked on the server:** customers can't view numbers, share theirs or review without accepting the current notice. That notice includes "LastPick is only a platform". Partners can't post without accepting the business terms.
 - **Working hours (India time):**
   - Hotels and travel (and combos with a room or pickup & drop) are 24×7: they can post at any time, and an offer runs for up to 24 hours.

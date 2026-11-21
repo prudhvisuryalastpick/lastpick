@@ -140,7 +140,7 @@ const FAQ = {
     ["How does it work?", `Businesses near you post deals. Open one, see the business's number and contact them. Businesses never see your number. You pay the business directly; ${APP_NAME} only connects you.`],
     ["The business didn't honour the offer", "Open the offer and tap Report. We review every report and can warn, hide or suspend the business. You can also leave an honest review."],
     ["Is my number safe?", "Businesses never see your number; they see only your name if you tap \"I'm interested\". You can download or delete your data anytime in Account → Privacy."],
-    ["Why was I logged out?", "Your account can be logged in on one device at a time. Logging in on a new phone logs out the old one."],
+    ["Why was I logged out?", "For safety, your account may be limited to one device at a time. When it is, logging in on a new phone logs out the old one."],
   ],
   partner: [
     ["How do I get verified?", "Fill in your business profile with your shop location and contact number. Our team checks it, usually within 1 working day."],
@@ -268,7 +268,7 @@ export function Rules() {
       <R icon="⏰" title="Today's deals only">Offers are shown from 4 AM to 11 PM, valid for that day only, and removed at 12 midnight. Only hotels and travel are available 24×7: they can post at any time, and their offers run for up to 24 hours.</R>
       <R icon="🏪" title="Rules for partners">Genuine offers at real prices, posted only after LastPick verifies your business, with the licences your work needs (e.g. FSSAI for food, recognition for schools and colleges). Post only in your own registered category, up to 3 posts a day, between 4 AM and 10:30 PM (hotels and travel: any time). Job openings for workers at your own shop are allowed. No movie tickets, halls or selling personal items. Use customers' numbers only to reply about their request.</R>
       <R icon="🙋" title="Rules for customers">Check the offer and the provider before paying. Never pay an advance to someone you haven't verified. Write honest reviews about your own experience.</R>
-      <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. One account is logged in on one device at a time, to keep it safe. Download or delete your data anytime.</R>
+      <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. Accounts can be limited to one device at a time, to keep them safe. Download or delete your data anytime.</R>
       <R icon="🚫" title="Not allowed">Alcohol, tobacco, drugs, prescription medicines, weapons, gambling, adult content, counterfeit or stolen goods, fake reviews, spam, or anything illegal or unsafe.</R>
       <div className="pad"><a className="btn ghost" href="#/support">Need help? Contact support</a></div>
     </>

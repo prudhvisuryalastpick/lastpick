@@ -1,5 +1,5 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
-import { combosOn } from "../settings.js";
+import { combosOn, singleDeviceOn } from "../settings.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
 import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
@@ -60,10 +60,12 @@ export function accountRoutes(r) {
     }
     // the admin server lets only admins and moderators in
     if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
-    // one device at a time: this login signs out every other device
+    // one device at a time: this login signs out every other device.
+    // Admins can let customers stay logged in on several devices (partner and admin logins stay one device).
+    const oneDevice = SERVICE !== "customer" || await singleDeviceOn();
     const device = deviceName(userAgent);
-    const fresh = await one(`UPDATE users SET token_version = token_version + 1, last_login_at = now(), last_login_device = $2
-                             WHERE id = $1 RETURNING id, token_version`, [u.id, device]);
+    const fresh = await one(`UPDATE users SET token_version = token_version + $3, last_login_at = now(), last_login_device = $2
+                             WHERE id = $1 RETURNING id, token_version`, [u.id, device, oneDevice ? 1 : 0]);
     audit("login", u.id, { service: SERVICE, device });
     return { token: issueToken(fresh), user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
