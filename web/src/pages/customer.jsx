@@ -8,7 +8,6 @@ import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, nearestCity, useApp, useNow } from "../state.jsx";
-import { RADIUS_OPTIONS, validPincode } from "../lib/geo.js";
 
 function useLiveOffers(city) {
   const [offers, setOffers] = useState(null);
@@ -52,76 +51,14 @@ export function areaLabel(area, city) {
   return city.name;
 }
 
-// Choose where to see offers: near me (radius), a pincode, or a whole city.
-function AreaSheet({ onClose }) {
-  const { area, setArea, locationStatus } = useApp();
-  const [pin, setPin] = useState(area.mode === "pincode" ? area.pincode : "");
-  const [showCities, setShowCities] = useState(false);
-  if (showCities) return <CityPicker onClose={onClose} onPicked={() => setArea({ mode: "city" })} />;
-  return (
-    <Sheet onClose={onClose}>
-      <h2 className="title" style={{ fontSize: 19 }}>Show offers</h2>
-      <div className="label-up" style={{ padding: "14px 0 6px" }}>Near me</div>
-      {locationStatus === "denied" || locationStatus === "unavailable"
-        ? <div className="banner warn" style={{ margin: 0 }}>Location is off. Allow location for this site/app to see offers near you, or use your pincode below.</div>
-        : <div className="chips" style={{ padding: 0 }}>{RADIUS_OPTIONS.map((r) => (
-          <button key={r} className={"chip " + (area.mode === "near" && area.radius === r ? "on" : "")} onClick={() => { setArea({ mode: "near", radius: r }); onClose(); }}>Within {r} km</button>
-        ))}</div>}
-      <div className="label-up" style={{ padding: "16px 0 6px" }}>In my pincode</div>
-      <form className="gap" onSubmit={(e) => { e.preventDefault(); if (validPincode(pin)) { setArea({ mode: "pincode", pincode: pin.trim() }); onClose(); } }}>
-        <input inputMode="numeric" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="6-digit pincode" aria-label="Pincode"
-          style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 12, padding: "11px 12px" }} />
-        <button className="btn dark sm" disabled={!validPincode(pin)}>Show</button>
-      </form>
-      <div className="label-up" style={{ padding: "16px 0 6px" }}>Whole city</div>
-      <button className="btn ghost" onClick={() => setShowCities(true)}>🏙️ Choose a city</button>
-    </Sheet>
-  );
-}
-
-// Pick which city's offers to show. Cities with live offers come first.
-function CityPicker({ onClose, onPicked }) {
-  const { city, setCity, location } = useApp();
-  const [list, setList] = useState(null);
-  const [q, setQ] = useState("");
-  useEffect(() => {
-    api.listCities().then((live) => {
-      const map = new Map(live.map((c) => [c.key, c]));
-      MAJOR_CITIES.forEach((m) => { const k = cityKey(m.name); if (!map.has(k)) map.set(k, { key: k, name: m.name, state: m.state, lat: m.lat, lng: m.lng, liveOffers: 0 }); });
-      setList([...map.values()].sort((a, b) => b.liveOffers - a.liveOffers || a.name.localeCompare(b.name)));
-    }).catch(() => setList(MAJOR_CITIES.map((m) => ({ key: cityKey(m.name), ...m, liveOffers: 0 }))));
-  }, []);
-  const pick = (c) => { setCity({ key: c.key, name: c.name, state: c.state, lat: c.lat, lng: c.lng }); onPicked?.(); onClose(); };
-  const shown = (list || []).filter((c) => !q || `${c.name} ${c.state}`.toLowerCase().includes(q.toLowerCase()));
-  return (
-    <Sheet onClose={onClose}>
-      <h2 className="title" style={{ fontSize: 19 }}>Choose your city</h2>
-      <div className="form" style={{ padding: "10px 0 6px" }}>
-        <div className="fld"><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search city or state" aria-label="Search city" /></div>
-        {location.exact && <button className="btn ghost" onClick={() => { const n = nearestCity(location, list || MAJOR_CITIES); if (n) pick(n); }}>📍 Use nearest city to me</button>}
-      </div>
-      {!list ? <Spinner /> : shown.length === 0
-        ? <div className="muted pad">No match. Offers appear here once a business in that city posts one.</div>
-        : shown.map((c) => (
-          <button key={c.key} className="menu-item" style={{ borderRadius: 0 }} onClick={() => pick(c)}>
-            <span>{c.key === city.key ? "✅" : "🏙️"}</span>
-            <span className="grow"><b>{c.name}</b> <span className="muted small">{c.state}</span></span>
-            <span className="muted small">{c.liveOffers ? `${c.liveOffers} live` : ""}</span>
-          </button>
-        ))}
-    </Sheet>
-  );
-}
-
 // ------------------------------------------------------------------ Home
 const hourText = (h) => (h === 0 || h === 24 ? "12 AM" : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`);
 const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
 export function Home() {
-  const { location, isCustomer, session, profile, city, area, config } = useApp();
+  const { location, isCustomer, session, profile, config, place, retryLocation, toast } = useApp();
   const { offers, error, needGps, locationStatus } = useAreaOffers();
-  const [picking, setPicking] = useState(false);
   const [allCats, setAllCats] = useState(false);
   const [q, setQ] = useState("");
   const now = useNow(30000);
@@ -134,13 +71,14 @@ export function Home() {
   const open = (id) => navigate("/c/" + id);
   const noLocation = needGps && locationStatus !== "asking";
   const hours = config?.hours || { open: 4, close: 23 };
-  const where = area.mode === "near"
-    ? (location.exact ? (nearestCity(location)?.name || "Your location") : locationStatus === "asking" ? "Finding you…" : "Location is off")
-    : areaLabel(area, city);
+  // always the live location (GPS): area name + pincode, e.g. "Nizampet · 500090"
+  const where = location.exact
+    ? (place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : (nearestCity(location)?.name || "Your location"))
+    : locationStatus === "asking" ? "Finding you…" : "Location is off";
   const top = (
     <div className="shero-top">
-      <button className="cwho glassy" onClick={() => setPicking(true)} aria-label="Change area">
-        <Icon d="place" size={16} stroke={2} /><span>{where}</span><Icon d="chevDown" size={14} stroke={2.2} />
+      <button className="cwho glassy" onClick={() => { retryLocation(); if (location.exact) toast("Showing offers within 30 km of you"); }} aria-label="Your location (tap to refresh)">
+        <Icon d="place" size={16} stroke={2} /><span>{where}</span>
       </button>
       {session
         ? <a className="cround glassy" href="#/account" aria-label="Your account">{initialsOf(profile?.name) || <Icon d="user" size={18} stroke={2} />}</a>
@@ -156,7 +94,7 @@ export function Home() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cakes, rooms, salons, bus seats" aria-label="Search offers" />
         {q && <button type="button" className="clear" aria-label="Clear search" onClick={() => setQ("")}><Icon d="M6 6l12 12M18 6L6 18" size={14} stroke={2.4} /></button>}
       </label>
-      {noLocation ? <PinScreen onCity={() => setPicking(true)} /> : q.trim() ? (
+      {noLocation ? <LocationScreen status={locationStatus} onRetry={retryLocation} /> : q.trim() ? (
         <>
           <div className="shead"><h2>Results for "{q.trim()}"</h2></div>
           {results.length === 0 ? <Empty icon={<span className="emptyic"><Icon d="search" size={30} /></span>} title="Nothing matches right now">Try another word, or check back this evening.</Empty> : results.map((o) => <OfferCard key={o.id} offer={o} />)}
@@ -190,7 +128,6 @@ export function Home() {
             <div key={n} className="howcard"><span className="num">{n}</span><b>{t}</b><span>{d}</span></div>))}
         </div>
       </>}
-      {picking && <AreaSheet onClose={() => setPicking(false)} />}
       {allCats && <AllCategories value="all" onPick={(id) => { setAllCats(false); open(id); }} onClose={() => setAllCats(false)} />}
     </>
   );
@@ -373,22 +310,21 @@ function AllCategories({ value, onPick, onClose }) {
   );
 }
 
-// Location is off or not allowed: ask for the pincode instead.
-function PinScreen({ onCity }) {
-  const { setArea } = useApp();
-  const [pin, setPin] = useState("");
-  const submit = (e) => { e.preventDefault(); if (validPincode(pin)) setArea({ mode: "pincode", pincode: pin }); };
+// Location is off or not allowed. LastPick needs the live location (offers within 30 km), so there is no
+// manual pincode: ask the user to turn location on.
+function LocationScreen({ status, onRetry }) {
+  const denied = status === "denied";
   return (
     <div className="pinscreen">
       <div className="pinradar" aria-hidden="true"><span className="c1" /><span className="c2" /><span className="sw2" /><span className="pin">📍</span></div>
-      <h1 className="title" style={{ fontSize: 28, lineHeight: 1.08 }}>We couldn't find your location</h1>
-      <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.5 }}>Location is off or not allowed. Enter your 6-digit pincode and we'll show offers from businesses there.</p>
-      <form className="gap" style={{ marginTop: 16 }} onSubmit={submit}>
-        <input className="pininput" inputMode="numeric" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="560038" aria-label="Your pincode" />
-        <button className="btn main" style={{ width: 96, flex: "none" }} disabled={!validPincode(pin)}>Show</button>
-      </form>
-      <button className="btn ghost" style={{ marginTop: 20 }} onClick={() => window.location.reload()}>📍 Try my location again</button>
-      <button className="link small" style={{ marginTop: 14, display: "block" }} onClick={onCity}>Or browse a whole city</button>
+      <h1 className="title" style={{ fontSize: 28, lineHeight: 1.08 }}>Turn on your location</h1>
+      <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.5 }}>LastPick shows offers from businesses within 30 km of where you are right now, so it needs your location.</p>
+      {denied
+        ? <div className="box small" style={{ marginTop: 14, textAlign: "left", lineHeight: 1.55 }}>Location is blocked for LastPick.<br />
+            <b>Phone app:</b> Settings → Apps → LastPick → Permissions → Location → Allow.<br />
+            <b>Browser:</b> tap the lock icon next to the address → Location → Allow.<br />Then tap the button below.</div>
+        : <div className="box small" style={{ marginTop: 14 }}>Turn on Location (GPS) on your phone, then tap the button below.</div>}
+      <button className="btn main" style={{ marginTop: 20 }} onClick={onRetry}>📍 Use my location</button>
       <div className="note center">Your location stays on your phone. It's never saved.</div>
     </div>
   );
@@ -396,16 +332,15 @@ function PinScreen({ onCity }) {
 
 // ------------------------------------------------------------------ Map
 export function MapPage() {
-  const { location, city, area } = useApp();
+  const { location, place, locationStatus, retryLocation } = useApp();
   const { offers, needGps } = useAreaOffers();
-  const first = offers?.find((o) => o.business?.lat != null)?.business;
-  const center = area.mode === "near" && location.exact ? location
-    : area.mode === "pincode" && first ? first : { lat: city.lat ?? location.lat, lng: city.lng ?? location.lng };
+  const here = place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : "your location";
   return (
     <>
-      <div className="phead"><span className="cround"><Icon d="map" size={20} stroke={2} /></span><div><h1>Deals {area.mode === "near" ? "near you" : area.mode === "pincode" ? "in " + area.pincode : "in " + city.name}</h1>
-        <div className="sub">{needGps ? "Allow location, or choose a pincode on Home." : `${areaLabel(area, city)}. Change it on Home.`}</div></div></div>
-      {offers ? <MapView offers={offers} center={center} /> : <Spinner />}
+      <div className="phead"><span className="cround"><Icon d="map" size={20} stroke={2} /></span><div><h1>Deals near you</h1>
+        <div className="sub">{needGps ? "Turn on location to see offers near you." : `Within 30 km of ${here}.`}</div></div></div>
+      {needGps ? (locationStatus === "asking" ? <Spinner /> : <LocationScreen status={locationStatus} onRetry={retryLocation} />)
+        : offers ? <MapView offers={offers} center={location} /> : <Spinner />}
     </>
   );
 }

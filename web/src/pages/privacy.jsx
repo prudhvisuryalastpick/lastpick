@@ -17,7 +17,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 export const NOTICE_ITEMS = [
   { data: "Name, mobile number and e-mail", why: "To create your account and log you in. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
-  { data: "Your location", why: "Used on your phone only, to find offers near you. We don't store it on our servers." },
+  { data: "Your location", why: "Needed to show offers within 30 km of you. Sent only rounded to about 1 km to find offers, and to OpenStreetMap to show your area name and pincode. We don't store it." },
   { data: "Activity: offers you open or contact, numbers you share, reviews and reports", why: "For your contacts list, a business's leads, reviews, and to stop fraud and misuse." },
   { data: "Technical data: app error reports and server logs", why: "To keep the service secure and fix crashes." },
 ];

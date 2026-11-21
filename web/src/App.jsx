@@ -88,7 +88,7 @@ function LoadError() {
 
 export default function App() {
   const { path, query, at } = useRoute();
-  const { loading, mode, setMode, session, profile, area, setArea } = useApp();
+  const { loading, mode, setMode, session, profile, retryLocation } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
   const firstVisit = !loading && !session && !IS_OWNER_APP && !IS_ADMIN_APP && path === "/" && !welcomed();
@@ -106,7 +106,7 @@ export default function App() {
 
   const biz = IS_OWNER_APP || ownerArea || (mode === "owner" && ["/account", "/plans"].includes(path));
   const nav = biz ? OWNER_NAV : CUSTOMER_NAV;
-  const nearMe = (e) => { e.preventDefault(); setArea({ mode: "near", radius: area.mode === "near" ? area.radius : 5 }); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const nearMe = (e) => { e.preventDefault(); retryLocation(); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const fullScreen = path === "/login" || path === "/welcome" || firstVisit || needsProfile;
   const showNav = !fullScreen && !IS_ADMIN_APP;
 
