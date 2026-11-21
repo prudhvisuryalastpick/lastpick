@@ -1,30 +1,29 @@
-// One logo per app, so the customer, partner and admin apps never look the same.
-//   customer: teal tile, white price tag with a lime dot ("deals near you")
-//   partner:  warm gold tile, white shop awning ("your shop")
-//   admin:    dark slate tile, white shield with a tick ("the LastPick team")
+// The "tap pin" logo: a map pin tapping the ground (near you + one tap).
+// Same mark in each app's own colour, so the apps never look the same:
+//   customer: teal tile, lime dot · partner: gold tile, cream dot · admin: slate tile, blue dot
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP } from "./config.js";
 
 const VARIANT = IS_ADMIN_APP ? "admin" : IS_OWNER_APP ? "partner" : "customer";
 
 const MARKS = {
   customer: {
-    bg: ["#0E6B66", "#06373A"], label: APP_NAME, sub: "Deals near you", theme: "#06373A",
-    art: `<path d="M17 18h14l16 16-13 13-17-16z" fill="#fff"/><circle cx="24" cy="25" r="3.4" fill="#D9F99D"/>`,
+    bg: ["#13867F", "#06373A"], label: APP_NAME, sub: "Deals near you", theme: "#06373A",
+    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#D9F99D"/>`,
   },
   partner: {
-    bg: ["#E8A33D", "#7A3410"], label: `${APP_NAME} Business`, sub: "For partners", theme: "#3B1606",
-    art: `<path d="M14 26l4-9h28l4 9z" fill="#fff"/><path d="M14 26c0 3 2.5 5 6 5s6-2 6-5c0 3 2.5 5 6 5s6-2 6-5c0 3 2.5 5 6 5s6-2 6-5" fill="#FED7AA"/><rect x="17" y="31" width="30" height="16" rx="2" fill="#fff"/><rect x="28" y="36" width="8" height="11" rx="1" fill="#E8A33D"/>`,
+    bg: ["#F2B654", "#8A3B0E"], label: `${APP_NAME} Business`, sub: "For partners", theme: "#3B1606",
+    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#FFF1D6"/>`,
   },
   admin: {
-    bg: ["#334155", "#0F172A"], label: `${APP_NAME} Admin`, sub: "Team only", theme: "#0F172A",
-    art: `<path d="M32 14l15 6v10c0 10-6.5 17-15 20-8.5-3-15-10-15-20V20z" fill="#fff"/><path d="M25 32l5 5 9-10" stroke="#334155" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+    bg: ["#475569", "#0F172A"], label: `${APP_NAME} Admin`, sub: "Team only", theme: "#0F172A",
+    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#93C5FD"/>`,
   },
 };
 export const BRAND = MARKS[VARIANT];
 
 export function logoSvg(v = VARIANT) {
   const m = MARKS[v];
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${m.bg[0]}"/><stop offset="1" stop-color="${m.bg[1]}"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lg)"/>${m.art}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${m.bg[0]}"/><stop offset="1" stop-color="${m.bg[1]}"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#lg)"/>${m.art}</svg>`;
 }
 
 export function Logo({ size = 38 }) {
