@@ -124,6 +124,9 @@ export function accountRoutes(r) {
     if (name.length < 2) throw bad("Please enter your name");
     if (body.phone && !phone) throw bad("Please enter a valid Indian mobile number");
     await limit("ip:" + ip, "signup", 10, 3600);
+    // say "already registered" BEFORE using up the e-mail code, so a mistake doesn't waste the code
+    if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
+    if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
@@ -172,7 +175,24 @@ export function accountRoutes(r) {
     if (isNew && SERVICE === "customer") await notify(u.id, "welcome");
     return { token, isNew, user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
-  r.post("/api/auth/reset", async () => { throw precondition("Password reset isn't switched on yet. Please contact support."); }, { limit: "auth" });
+  // Forgot password: step 1 = /api/auth/otp/send with the e-mail; step 2 = this, with the code and a new password.
+  // Logs out every other device and logs in here.
+  r.post("/api/auth/reset", async ({ body, ip, userAgent }) => {
+    if (!MAIL_FROM) throw precondition("Password reset needs e-mail, which isn't switched on yet. Please contact support.");
+    const email = normEmail(body.email);
+    if (!validEmail(email)) throw bad("Please enter a valid email");
+    if (typeof body.password !== "string" || body.password.length < 8) throw bad("Password must be at least 8 characters");
+    await limit("ip:" + ip, "reset", 10, 3600);
+    const u = await one("SELECT id, email, role, token_version FROM users WHERE lower(email) = $1", [email]);
+    if (!u) throw notFound("No account with this e-mail. Please sign up.");
+    if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
+    await checkCode(email, body.code);
+    // a new password always ends every other login (even when customers may use several devices)
+    await q("UPDATE users SET password_hash = $2, token_version = token_version + 1, updated_at = now() WHERE id = $1", [u.id, await hashPassword(body.password)]);
+    audit("password_reset", u.id, { service: SERVICE });
+    const token = await startSession({ ...u }, userAgent, "reset");
+    return { token, user: { id: u.id, email: u.email } };
+  }, { limit: "auth" });
 
   // ---------- profile ----------
   r.get("/api/me", async (ctx) => profile(needUser(ctx).id));

@@ -93,6 +93,7 @@ export function Login({ next = "/" }) {
   const [err, setErr] = useState("");
   const [wait, setWait] = useState(0);
   const [sentTo, setSentTo] = useState("");
+  const [resetSent, setResetSent] = useState(false); // forgot password: code e-mailed, now enter code + new password
   const codeRef = useRef();
   // why the user was logged out (e.g. logged in on another device): shown once
   const [reason] = useState(() => { try { const r = localStorage.getItem("lastpick-logout-reason"); localStorage.removeItem("lastpick-logout-reason"); return r || ""; } catch { return ""; } });
@@ -134,8 +135,17 @@ export function Login({ next = "/" }) {
     if (!/^\S+@\S+\.\S+$/.test(email)) return setErr("Please enter a valid e-mail address");
     setBusy(true);
     try {
-      if (step === "reset") { await api.resetPassword(email); toast("Password reset link sent to your e-mail"); setStep("password"); }
-      else { await api.signIn(email, password); markWelcomed(); toast("Welcome back!"); }
+      if (step === "reset" && !resetSent) {
+        // forgot password, step 1: e-mail a 6-digit code
+        await api.sendEmailOtp(email.trim()); setResetSent(true); setCode(""); setPassword("");
+        toast(`We sent a 6-digit code to ${email.trim()}`);
+      } else if (step === "reset") {
+        // step 2: code + new password -> password changed, other devices logged out, logged in here
+        if (!/^\d{6}$/.test(code.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
+        if (password.length < 8) { setBusy(false); return setErr("New password must be at least 8 characters"); }
+        await api.resetPassword(email.trim(), code.trim(), password);
+        markWelcomed(); setResetSent(false); toast("Password changed. You're logged in.");
+      } else { await api.signIn(email, password); markWelcomed(); toast("Welcome back!"); }
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
@@ -244,15 +254,20 @@ export function Login({ next = "/" }) {
         </form>
       </>}
       {(step === "password" || step === "reset") && <>
-        <h1>{step === "reset" ? "Reset password" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Business" : `Welcome to ${APP_NAME}`}</h1>
-        <p className="lead">{step === "reset" ? "We'll e-mail you a link to set a new password." : IS_ADMIN_APP ? "For admins and moderators only." : OTP_LOGIN ? "For accounts made with an e-mail and password." : "Log in with your e-mail and password."}</p>
+        <h1>{step === "reset" ? "Reset password" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
+        <p className="lead">{step === "reset" ? (resetSent ? `Enter the 6-digit code we e-mailed to ${email.trim()} and choose a new password.` : "We'll e-mail you a 6-digit code to set a new password.") : IS_ADMIN_APP ? "For admins and moderators only." : OTP_LOGIN ? "For accounts made with an e-mail and password." : "Log in with your e-mail and password."}</p>
         <form className="form" style={{ padding: "20px 0 0" }} onSubmit={passwordLogin}>
-          <div className="fld"><label htmlFor="pw-email">E-mail</label><input id="pw-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="fld"><label htmlFor="pw-email">E-mail</label><input id="pw-email" type="email" autoComplete="email" value={email} disabled={step === "reset" && resetSent} onChange={(e) => setEmail(e.target.value)} /></div>
           {step === "password" && <div className="fld"><label htmlFor="pw-pass">Password</label><input id="pw-pass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>}
+          {step === "reset" && resetSent && <>
+            <div className="fld"><label htmlFor="rs-code">6-digit code</label><input id="rs-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+              <span className="hint">Didn't get it? Check spam, or <button type="button" className="link small" onClick={() => { setResetSent(false); setCode(""); setErr(""); }}>send a new code</button>.</span></div>
+            <div className="fld"><label htmlFor="rs-pass">New password (8+ characters)</label><input id="rs-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          </>}
           {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : step === "reset" ? "Send reset link" : "Log in"}</button>
-          {step === "password" ? (OTP_LOGIN && <button type="button" className="link" onClick={() => setStep("reset")}>Forgot password?</button>)
-            : <button type="button" className="link" onClick={() => setStep("password")}>Back to log in</button>}
+          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : step === "reset" ? (resetSent ? "Set new password" : "Send code") : "Log in"}</button>
+          {step === "password" ? <button type="button" className="link" onClick={() => { setStep("reset"); setResetSent(false); setErr(""); }}>Forgot password?</button>
+            : <button type="button" className="link" onClick={() => { setStep("password"); setResetSent(false); setErr(""); }}>Back to log in</button>}
           {OTP_LOGIN && <button type="button" className="link" style={{ color: "var(--muted)" }} onClick={() => setStep("enter")}>Use a one-time code instead</button>}
         </form>
         {step === "password" && !IS_ADMIN_APP && <button className="btn ghost" style={{ marginTop: 14 }} onClick={() => { setStep("signup"); setErr(""); }}>

@@ -42,6 +42,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 ## Product rules built in
 
 - **E-mails (when Brevo is set up):** sign-up code, welcome, "registration received", business approved / rejected / paused (with the reason), payment receipt when a plan is activated or extended, plan ended, free period extended. Replies go to support@lastpick.in.
+- **Login:** e-mail + password. Sign-up checks the e-mail with a 6-digit code; **forgot password** e-mails a 6-digit code, then a new password logs out every other device. The same account works in the customer and partner apps.
 - **One device at a time:** logging in on a new device logs out the old one, and the old device says why. Admins can switch this off for customers (Admin → Overview); partner and admin logins always stay one device.
 - **Consent checked on the server:** customers can't view numbers, share theirs or review without accepting the current notice. That notice includes "LastPick is only a platform". Partners can't post without accepting the business terms.
 - **Working hours (India time):**

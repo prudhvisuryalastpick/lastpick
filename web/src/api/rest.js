@@ -76,7 +76,8 @@ export const api = {
   async completeProfile({ name, phone, consent }) {
     await post("/api/me/complete-profile", { name, phone, consent: { adult: !!consent.adult, items: consent.items || [] } });
   },
-  async resetPassword(email) { await post("/api/auth/reset", { email }); },
+  // forgot password: code from sendEmailOtp + new password -> logged in here, other devices logged out
+  async resetPassword(email, code, password) { const r = await post("/api/auth/reset", { email, code, password }); clearCache(); setToken(r.token); },
   async signOut() { clearCache(); setToken(null); },
   async getProfile() { return get("/api/me"); },
   // is this login still valid? false = it was ended (e.g. logged in on another device), and the app is now logged out

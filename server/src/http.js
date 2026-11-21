@@ -211,18 +211,19 @@ export async function handleFetch(router, request, { ip: givenIp, guard } = {}) 
   // a Node-style request object, for the shared helpers (login token, client address)
   const req = { method: request.method, url: pathname + url.search, headers: Object.fromEntries(request.headers), socket: {} };
   const ip = givenIp || request.headers.get("cf-connecting-ip") || "unknown";
+  // CORS headers go on EVERY reply, errors too: without them the browser hides the error message
+  // and the app can only say "Can't reach LastPick".
+  const cors = {};
+  const origin = request.headers.get("origin");
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    Object.assign(cors, {
+      "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE", "Access-Control-Max-Age": "600",
+    });
+  }
   try {
-    if (guard) { const g = guard(req, ip); if (g) return json(403, { error: g }); }
-    if (!pathname.startsWith("/api/")) return json(404, { error: "Not found" });
-
-    const cors = {};
-    const origin = request.headers.get("origin");
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
-      Object.assign(cors, {
-        "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Headers": "Authorization, Content-Type",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE", "Access-Control-Max-Age": "600",
-      });
-    }
+    if (guard) { const g = guard(req, ip); if (g) return json(403, { error: g }, cors); }
+    if (!pathname.startsWith("/api/")) return json(404, { error: "Not found" }, cors);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...base, ...cors } });
 
     const found = router.find(request.method, pathname);
@@ -246,7 +247,7 @@ export async function handleFetch(router, request, { ip: givenIp, guard } = {}) 
   } catch (e) {
     const status = e instanceof HttpError ? e.status : 500;
     if (status >= 500) log.error("request failed", { reqId, method: request.method, path: pathname, error: e.message, stack: e.stack });
-    return json(status, { error: status >= 500 ? "Something went wrong on our side. Please try again in a minute." : e.message, code: e.code || "internal", reqId });
+    return json(status, { error: status >= 500 ? "Something went wrong on our side. Please try again in a minute." : e.message, code: e.code || "internal", reqId }, cors);
   } finally {
     const msTaken = Date.now() - started;
     if (msTaken > 1000) log.warn("slow request", { reqId, method: request.method, path: pathname, ms: msTaken });

@@ -63,7 +63,9 @@ jobs:
             "plugins": { "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#ffffff", "showSpinner": false } } }
           EOF
           npx cap add android
-          if [ -d android-assets/${{ matrix.variant }}/res ]; then cp -r android-assets/${{ matrix.variant }}/res/* android/app/src/main/res/; fi
+          # app icons (LP logo). This step runs inside web/, so the folder is one level up.
+          test -d ../android-assets/${{ matrix.variant }}/res || { echo "::error::Missing app icons in android-assets/${{ matrix.variant }}"; exit 1; }
+          cp -r ../android-assets/${{ matrix.variant }}/res/* android/app/src/main/res/
           # location permission for "Near me" and "Use my location"
           sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />#' android/app/src/main/AndroidManifest.xml
           npx cap sync android
