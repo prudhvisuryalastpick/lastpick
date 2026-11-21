@@ -1,0 +1,39 @@
+# Creates the PERMANENT Play Store upload key for the LastPick apps. Run it ONCE (Actions -> "Create Android upload
+# key" -> Run workflow). It makes a random key and password and gives you a private download (kept for 1 day) with:
+#   upload-key-base64.txt  -> save as GitHub secret ANDROID_KEYSTORE_BASE64
+#   password.txt           -> save as GitHub secret ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS      -> save as GitHub secret ANDROID_KEY_ALIAS with the value: lastpick
+# Keep the downloaded files somewhere safe (e.g. a password manager). The key and password are never printed in logs.
+# With Google Play App Signing, Google keeps the real signing key; this upload key can be reset in Play Console if lost.
+name: Create Android upload key
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Make the key
+        run: |
+          set -e
+          mkdir out
+          P=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 28); echo "::add-mask::$P"
+          keytool -genkeypair -keystore out/lastpick-upload.jks -alias lastpick -keyalg RSA -keysize 4096 -validity 10000 \
+            -storepass "$P" -keypass "$P" -dname "CN=LastPick, O=LastPick, L=Hyderabad, ST=Telangana, C=IN" >/dev/null 2>&1
+          base64 -w0 out/lastpick-upload.jks > out/upload-key-base64.txt
+          printf '%s' "$P" > out/password.txt
+          cat > out/README.txt <<'TXT'
+          Add these three GitHub secrets (repo -> Settings -> Secrets and variables -> Actions -> New repository secret):
+            ANDROID_KEYSTORE_BASE64   = the whole content of upload-key-base64.txt
+            ANDROID_KEYSTORE_PASSWORD = the content of password.txt
+            ANDROID_KEY_ALIAS         = lastpick
+          Then re-run "Build Android APKs". Keep lastpick-upload.jks and password.txt safe and private.
+          TXT
+          keytool -list -v -keystore out/lastpick-upload.jks -storepass "$P" | grep -E "SHA1:|SHA256:" > out/fingerprints.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lastpick-upload-key-PRIVATE
+          path: out/
+          retention-days: 1
