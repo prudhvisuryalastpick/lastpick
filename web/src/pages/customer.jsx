@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
-import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel, OfferQuote } from "../components.jsx";
+import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey, comboLabel } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -150,6 +150,7 @@ export function Home() {
   return (
     <>
       <StickerHero top={top} liveCount={offers ? live.length : null} onOpen={open} />
+      <QuoteStrip variant="inline" />
       <label className="csearch glassbar">
         <Icon d="search" size={20} stroke={2} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cakes, rooms, salons, bus seats" aria-label="Search offers" />
@@ -208,7 +209,7 @@ export function CategoryPage({ id }) {
     .map((x) => x.o), [offers, id, sort, location, now]);
   return (
     <>
-      <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id)?.label || "Offers"}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div></div>
+      <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id)?.label || "Offers"}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div><QuoteStrip variant="head" /></div>
       <div className="chips" style={{ padding: "4px 14px 10px" }}>
         {[["ending", "Ending soon"], ["near", "Nearest"], ["off", "Biggest discount"]].map(([k, l]) => <button key={k} className={"chip " + (sort === k ? "on" : "")} onClick={() => setSort(k)}>{l}</button>)}
       </div>

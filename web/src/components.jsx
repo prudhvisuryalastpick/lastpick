@@ -62,7 +62,7 @@ export function OfferQuote({ offer, big = false }) {
 // Quotes scrolling from right to left. A fresh set every 30 minutes.
 export const QUOTE_SHOW_MS = 7000;
 
-export function QuoteStrip({ partner = false }) {
+export function QuoteStrip({ partner = false, variant = "bar" }) {
   useQuoteTick();
   const q = stripQuotes(partner);
   const [i, setI] = useState(0);
@@ -72,7 +72,7 @@ export function QuoteStrip({ partner = false }) {
   }, []);
   const text = q[i % q.length];
   return (
-    <div className="qstrip" aria-live="polite">
+    <div className={variant === "bar" ? "qstrip" : "qstrip q" + variant} aria-live="polite">
       <span key={i + text} className="qitem qone"><i aria-hidden="true">✦</i>{text}</span>
     </div>
   );
