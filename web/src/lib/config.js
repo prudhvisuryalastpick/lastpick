@@ -1,6 +1,12 @@
 // ---- Change these to rebrand or reprice the app ----
 export const APP_NAME = "LastPick";
 export const SUPPORT_EMAIL = import.meta.env?.VITE_SUPPORT_EMAIL || "support@lastpick.in";
+// LastPick's Instagram and YouTube pages. Empty = not created yet: the icons show "coming soon".
+// Add the links here (or as VITE_INSTAGRAM_URL / VITE_YOUTUBE_URL) once the pages exist.
+export const SOCIAL = {
+  instagram: import.meta.env?.VITE_INSTAGRAM_URL || "",
+  youtube: import.meta.env?.VITE_YOUTUBE_URL || "",
+};
 // Optional support phone / WhatsApp (shown in Help & support when set at build time).
 export const SUPPORT_PHONE = import.meta.env?.VITE_SUPPORT_PHONE || "";
 export const SUPPORT_WHATSAPP = import.meta.env?.VITE_SUPPORT_WHATSAPP || "";
@@ -76,6 +82,7 @@ export const CATEGORIES = [
   { id: "food", label: "Food", icon: "🍰" },
   { id: "stay", label: "Hotels", icon: "🛏️" },
   { id: "travel", label: "Travel", icon: "🚌" },
+  { id: "logistics", label: "Logistics", icon: "🚚" },
   { id: "beauty", label: "Salon", icon: "💇" },
   { id: "makeup", label: "Makeup", icon: "💄" },
   { id: "fashion", label: "Fashion", icon: "👗" },
@@ -99,12 +106,12 @@ export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌"
 
 // Everything posted is for the same day (India time). Keep in sync with server/src/util.js.
 export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing runs past today
-// Hotels and travel stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
+// Hotels, travel and logistics stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
 // and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
 // Everything is removed at 12 midnight.
-export const ALWAYS_OPEN = ["stay", "travel"];
+export const ALWAYS_OPEN = ["stay", "travel", "logistics"]; // 24x7: hotels, travel, logistics (spare truck/van space)
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
-// Hotels and travel run 24×7: post any time, up to 24 hours.
+// Hotels, travel and logistics run 24×7: post any time, up to 24 hours.
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // The % in a title always matches the prices: "40% off" with 400 -> 80 becomes "80% off". Same rule as the server.
 export function fixTitlePercent(title, pct) {
@@ -187,4 +194,4 @@ export const cityKey = (name) => String(name || "").trim().toLowerCase().replace
 
 // Data retention (days). The nightly cleanup job in functions/index.js uses the same numbers.
 // Logs of number exchanges are kept 1 year (DPDP Rules 2025, rule 8(3)). Keep in sync with functions/index.js.
-export const RETENTION = { endedOfferVisibleDays: 7, archiveDays: 365, leadsDays: 365, contactsDays: 365, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };
+export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays: 365, contactsDays: 365, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };

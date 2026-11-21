@@ -4,6 +4,21 @@ import { onJob, schedule } from "./queue.js";
 import { recomputeRating } from "./routes/reviews.js";
 import { RETENTION } from "./util.js";
 
+// Ended offers leave the live offers table at once: they are copied to offer_archive (the partner's History, with
+// views and lead counts) and deleted. Customers never see old offers; leads keep their own copy of the offer title.
+export async function archiveEnded() {
+  return tx(async (c) => {
+    const r = await c.query(
+      `WITH old AS (DELETE FROM offers o WHERE o.ends_at <= now() OR o.status <> 'live' RETURNING o.*)
+       INSERT INTO offer_archive (id, owner_id, business_name, city, state, city_key, title, category, emoji, orig_price, price, views, leads, status, created_at, ends_at)
+       SELECT old.id, old.owner_id, b.name, b.city, b.state, b.city_key, old.title, old.category, old.emoji, old.orig_price, old.price, old.views,
+              (SELECT count(*) FROM leads l WHERE l.offer_id = old.id), old.status, old.created_at, least(old.ends_at, now())
+       FROM old JOIN businesses b ON b.id = old.owner_id
+       ON CONFLICT (id) DO NOTHING`);
+    return r.rowCount;
+  });
+}
+
 export function registerJobs() {
   // Removes everything left of a deleted account (its login already stopped working).
   onJob("purge_user", async ({ uid }) => {
@@ -19,14 +34,14 @@ export function registerJobs() {
     return { expired: r.rowCount };
   });
 
-  // Every 5 minutes: close offers whose time is up, even if the partner forgets. After 11 PM (India time) every offer
-  // except hotels and travel (24x7) is closed, whatever end time it had.
+  // Every 5 minutes: close offers whose time is up, even if the partner forgets, and wipe them from the live list.
+  // After 11 PM (India time) every offer except hotels, travel and logistics (24x7) is closed, whatever end time it had.
   schedule("close-offers", { every: 300000 }, async () => {
     const timeUp = await q("UPDATE offers SET status = 'ended' WHERE status = 'live' AND ends_at <= now()");
     const night = await q(`UPDATE offers SET status = 'ended', ends_at = least(ends_at, now())
-                           WHERE status = 'live' AND category NOT IN ('stay', 'travel')
+                           WHERE status = 'live' AND category NOT IN ('stay', 'travel', 'logistics')
                              AND ((now() AT TIME ZONE 'Asia/Kolkata')::time >= time '23:00' OR (now() AT TIME ZONE 'Asia/Kolkata')::time < time '04:00')`);
-    return { timeUp: timeUp.rowCount, closedAt11pm: night.rowCount };
+    return { timeUp: timeUp.rowCount, closedAt11pm: night.rowCount, archived: await archiveEnded() };
   });
 
   // Every 10 minutes: full photos of offers that just ended are deleted (thumbnails stay until the offer is archived).
@@ -36,19 +51,9 @@ export function registerJobs() {
     return { photosDeleted: r.rowCount };
   });
 
-  // Nightly, 02:30 India time: archive offers that ended over 7 days ago, then delete old activity (DPDP retention).
+  // Nightly, 02:30 India time: archive anything left over, then delete old activity (DPDP retention).
   schedule("nightly-cleanup", { dailyIST: "02:30" }, async () => {
-    const archived = await tx(async (c) => {
-      const r = await c.query(
-        `WITH old AS (DELETE FROM offers o WHERE o.ends_at < now() - make_interval(days => $1) OR (o.status <> 'live' AND o.created_at < now() - make_interval(days => $1))
-                      RETURNING o.*)
-         INSERT INTO offer_archive (id, owner_id, business_name, city, state, city_key, title, category, emoji, orig_price, price, views, leads, status, created_at, ends_at)
-         SELECT old.id, old.owner_id, b.name, b.city, b.state, b.city_key, old.title, old.category, old.emoji, old.orig_price, old.price, old.views,
-                (SELECT count(*) FROM leads l WHERE l.offer_id = old.id), old.status, old.created_at, old.ends_at
-         FROM old JOIN businesses b ON b.id = old.owner_id
-         ON CONFLICT (id) DO NOTHING`, [RETENTION.endedOfferVisibleDays]);
-      return r.rowCount;
-    });
+    const archived = await archiveEnded();
     const del = async (sql, days) => (await q(sql, [days])).rowCount;
     const ago = "now() - make_interval(days => $1)";
     return {

@@ -14,7 +14,7 @@ import {
 // registered (a bakery posts only bakery offers). Every business may also post "jobs": a job opening at its
 // own shop, shown like an advertisement only to customers in that area.
 // Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
-const CATEGORY_IDS = ["food", "stay", "travel", "beauty", "makeup", "fashion", "appliances", "shops", "other"];
+const CATEGORY_IDS = ["food", "stay", "travel", "logistics", "beauty", "makeup", "fashion", "appliances", "shops", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
@@ -96,10 +96,10 @@ export function partnerRoutes(r) {
     const hiring = category === "jobs";
     // a business posts only in its registered category (plus job openings at its own shop)
     if (!hiring && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
-    // Hotels and travel run 24×7: post any time, offer runs up to 24 hours.
+    // Hotels, travel and logistics run 24×7: post any time, offer runs up to 24 hours.
     // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
     const allDay = runs24x7(category);
-    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels and travel can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
+    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels, travel and logistics can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
     } else {

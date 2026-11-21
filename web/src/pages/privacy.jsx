@@ -34,7 +34,7 @@ function NoticeList() {
 }
 
 // The full Terms and Conditions in a scrolling box. Calls onRead({ text, hash }) once the reader reaches the end.
-export function TermsBox({ onRead, read }) {
+export function TermsBox({ onRead, read, title = TERMS_TITLE, sections = TERMS_SECTIONS, getText = termsText }) {
   const ref = useRef(null);
   const [pct, setPct] = useState(0);
   const done = useRef(false);
@@ -45,24 +45,24 @@ export function TermsBox({ onRead, read }) {
     setPct(max <= 0 ? 100 : Math.min(100, Math.round((el.scrollTop / max) * 100)));
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
       done.current = true;
-      const text = termsText();
+      const text = getText();
       onRead({ text, hash: await sha256Hex(text) });
     }
   };
   useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="termsbox-wrap">
-      <div className="termsbox-head"><b>{TERMS_TITLE}</b><span className="muted small">Version {CONSENT_VERSION}</span></div>
+      <div className="termsbox-head"><b>{title}</b><span className="muted small">Version {CONSENT_VERSION}</span></div>
       <div className="termsbox" ref={ref} onScroll={check} tabIndex={0} aria-label="Terms and Conditions (scroll to read all of it)">
-        <TermsBody />
-        <p className="muted small" style={{ marginTop: 16 }}>End of the Terms and Conditions. Our <a className="link" href="#/privacy" target="_blank" rel="noreferrer">Privacy notice</a> is part of these Terms.</p>
+        <TermsBody sections={sections} />
+        <p className="muted small" style={{ marginTop: 16 }}>End of the document. Our <a className="link" href="#/privacy" target="_blank" rel="noreferrer">Privacy notice</a> is part of these Terms.</p>
       </div>
       <div className={"termsbox-foot" + (read ? " ok" : "")}>{read ? "✓ You have read the whole document" : `Scroll to the end to continue · ${pct}% read`}</div>
     </div>
   );
 }
-function TermsBody() {
-  return TERMS_SECTIONS.map(([h, parts]) => (
+function TermsBody({ sections = TERMS_SECTIONS }) {
+  return sections.map(([h, parts]) => (
     <section key={h}>
       <h3>{h}</h3>
       {parts.map((p, i) => (Array.isArray(p) ? <ul key={i}>{p.map((b) => <li key={b}>{b}</li>)}</ul> : <p key={i}>{p}</p>))}
@@ -142,7 +142,7 @@ export function Privacy() {
           <tbody>
             {[
               ["Your account and profile", "Until you delete your account"],
-              ["Live offers and their photos", "Full photo deleted when the offer ends; offer moved to history after " + R.endedOfferVisibleDays + " days"],
+              ["Live offers and their photos", "Removed from the app as soon as the offer ends (by 11 PM); a short summary stays in the partner's history"],
               ["Offer history (for businesses)", months(R.archiveDays)],
               ["Number-exchange records (contacts, leads)", months(R.leadsDays) + " (the law asks us to keep these logs for 1 year)"],
               ["Reviews", "Until you or the business deletes the account, or we remove the review"],

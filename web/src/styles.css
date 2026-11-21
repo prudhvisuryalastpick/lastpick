@@ -637,3 +637,9 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .termsbox-foot { padding: 8px 14px; font-size: 12.5px; font-weight: 700; color: #8A5A00; background: #FFF8E6; border-top: 1px solid var(--line); }
 .termsbox-foot.ok { color: #0F7B4F; background: #E9F8F0; }
 .legal section h3 { font-size: 17px; margin: 20px 0 6px; }
+
+/* Instagram / YouTube icons ("coming soon" until the links are set in lib/config.js SOCIAL) */
+.social-links { display: flex; gap: 10px; }
+.social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
+.social-links a:hover { background: var(--brand-soft, #E3F6EF); }
+.social-links .soon { opacity: .5; cursor: default; }

@@ -1,4 +1,5 @@
 import { TermsBox } from "./privacy.jsx";
+import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
@@ -176,7 +177,7 @@ export function OwnerOffers() {
       <div className="tabs"><button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>Current</button><button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button></div>
       {tab === "history" ? (
         <>
-          <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here as soon as they end (every offer closes by 11 PM, except hotels and travel). Kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
+          <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here as soon as they end (every offer closes by 11 PM, except hotels, travel and logistics). Kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
           {(offers || []).filter((o) => !(o.status === "live" && o.endsAt > now)).map((o) => (
             <div className="item" key={o.id}>
               <OfferImage offer={o} className="ic" />
@@ -245,9 +246,9 @@ export function PostOffer() {
   const now = useNow(60000);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const job = f.category === "jobs";
-  // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels and travel.
+  // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels, travel and logistics.
   // Posting is open only from 4 AM to 11 PM.
-  // Hotels and travel: post any time, run up to 24 hours.
+  // Hotels, travel and logistics: post any time, run up to 24 hours.
   const allDay = runs24x7(f.category);
   const dayStart = istDayStart(now);
   const closing = allDay ? now + 24 * 3600000 : dayStart + HOURS.close * 3600000;
@@ -308,7 +309,7 @@ export function PostOffer() {
       <div className="card" style={{ textAlign: "center", padding: 24, marginTop: 16 }}>
         <div style={{ fontSize: 40 }}>🌙</div>
         <h2>Posting opens at 4 AM</h2>
-        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels and travel can post at night.</p>
+        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels, travel and logistics can post at night.</p>
         <a className="btn ghost" href="#/owner/offers">See my offers</a>
       </div>
     </div>
@@ -335,7 +336,7 @@ export function PostOffer() {
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
             : allDay
-              ? "Hotels and travel run 24×7: post any time, and your offer can run for up to 24 hours."
+              ? "Hotels, travel and logistics run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
         <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
@@ -352,7 +353,7 @@ export function PostOffer() {
             <select value={choices.includes(f.hours) ? f.hours : "close"} onChange={(e) => set("hours", e.target.value === "close" ? "close" : Number(e.target.value))}>
               {choices.map((h) => <option key={h} value={h}>{h === "close" ? "Till 11 PM (today)" : `${h} hour${h > 1 ? "s" : ""} · till ${whenText(Math.min(now + h * 3600000, closing))}`}</option>)}
             </select>
-            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels and travel: any time, up to 24 hours.)"}</span></div>
+            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels, travel and logistics: any time, up to 24 hours.)"}</span></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
@@ -363,7 +364,7 @@ export function PostOffer() {
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
-        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels and travel can post any time. Post again at 4 AM.</span></div>}
+        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels, travel and logistics can post any time. Post again at 4 AM.</span></div>}
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>
@@ -441,7 +442,7 @@ function BusinessForm({ first = false }) {
   if (f.lat == null) missing.push("your shop's location (tap Detect my shop location while at your shop)");
   else if (!validPincode(f.pincode)) missing.push("the pincode (tap Detect my shop location again)");
   if (!validPhone(f.phone)) missing.push("a valid Indian contact number");
-  if (needsConsent && !termsDoc) missing.push("reading the whole Terms and Conditions (scroll to the end)");
+  if (needsConsent && (!termsDoc || termsDoc.category !== f.category)) missing.push("reading your whole Partner Agreement (scroll to the end)");
   else if (needsConsent && !f.agree) missing.push("agreement to the Terms and Conditions");
 
   const save = async () => {
@@ -488,12 +489,12 @@ function BusinessForm({ first = false }) {
             : <input value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Your locality, e.g. Nizampet" />}</div>
         <div className="fld"><label>Address</label><input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Shop number, building, street" /></div>
         <div className="fld"><label>About (optional)</label><textarea rows="2" maxLength={500} value={f.about} onChange={(e) => set("about", e.target.value)} placeholder="What you do, opening hours…" /></div>
-        {needsConsent && <TermsBox read={!!termsDoc} onRead={setTermsDoc} />}
+        {needsConsent && <div className="muted small" style={{ marginTop: 4 }}>Please read your Partner Agreement for <b>{categoryOf(f.category)?.label}</b> businesses to the end. It changes with the category you pick.</div>}
+        {needsConsent && <TermsBox key={f.category} title={partnerTermsTitle(f.category)} sections={partnerTermsSections(f.category)} getText={() => partnerTermsText(f.category)} read={!!termsDoc && termsDoc.category === f.category} onRead={(doc) => setTermsDoc({ ...doc, category: f.category })} />}
         {needsConsent && (
           <label className="toggle" style={{ cursor: "pointer", justifyContent: "flex-start", alignItems: "flex-start" }}>
-            <input type="checkbox" aria-label="I agree to the business terms" disabled={!termsDoc} checked={f.agree && !!termsDoc} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
-            <span className="small">I confirm these details are true and I'm allowed to run this business. My offers will be genuine, at real prices, in my categories only, and I hold the licences my business needs (e.g. FSSAI for food).
-              I agree my business contact number is shown to logged-in customers, and I'll use customers' numbers only to reply about their offer. I'm responsible for my offers; {APP_NAME} only connects me with customers. <a className="link" href="#/terms">Business terms</a></span>
+            <input type="checkbox" aria-label="I agree to the business terms" disabled={!termsDoc || termsDoc.category !== f.category} checked={f.agree && !!termsDoc && termsDoc.category === f.category} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
+            <span className="small">{termsDoc && termsDoc.category === f.category ? "" : "(Read the whole agreement above first.) "}I have read the entire {APP_NAME} Partner Agreement for {categoryOf(f.category)?.label} businesses above, including the Terms and Conditions, and I agree to it. My details are true, I hold the licences my business needs, and I agree my business contact number is shown to logged-in customers.</span>
           </label>
         )}
         <button className="btn main" disabled={busy || missing.length > 0} onClick={save}>{busy ? "Saving…" : first ? "Create business" : "Save details"}</button>

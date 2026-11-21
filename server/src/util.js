@@ -19,23 +19,23 @@ export const CONSENT_VERSION = "2026-11-21";
 export const PLANS = ["customer", "owner"];
 export const STATUSES = ["pending", "verified", "rejected", "suspended"];
 // How long things are kept (DPDP Rules 2025: logs of number exchange for 1 year).
-export const RETENTION = { endedOfferVisibleDays: 7, archiveDays: 365, leadsDays: 365, contactsDays: 365, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };
+export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays: 365, contactsDays: 365, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 
 // ---- Working hours (India time). Outside them only ALWAYS_OPEN categories are shown and can be contacted.
-// Hotels and travel stay open 24×7 (offers till 12 midnight); everything else is shown 4 AM – 11 PM and ends by 11 PM.
-// Every partner (hotels and travel too) can post only between 4 AM and 10:30 PM. Everything is gone at 12 midnight.
+// Hotels, travel and logistics stay open 24×7 (offers till 12 midnight); everything else is shown 4 AM – 11 PM and ends by 11 PM.
+// Every partner (hotels, travel and logistics too) can post only between 4 AM and 10:30 PM. Everything is gone at 12 midnight.
 export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 4), close: Number(process.env.CLOSE_HOUR ?? 23) };
 // last post at 10:30 PM, so every offer has at least 30 minutes before 11 PM (22.5 = 10:30 PM)
 export const POSTING_HOURS = { from: Number(process.env.POST_FROM_HOUR ?? 4), till: Number(process.env.POST_TILL_HOUR ?? 22.5) };
-export const ALWAYS_OPEN = ["stay", "travel"];
+export const ALWAYS_OPEN = ["stay", "travel", "logistics"]; // 24x7: hotels, travel, logistics (spare truck/van space)
 export const istHour = (now = Date.now()) => new Date(now + 5.5 * 3600000).getUTCHours();
 export const isNight = (now = Date.now()) => { const h = istHour(now); return h < BUSINESS_HOURS.open || h >= BUSINESS_HOURS.close; };
 
 // midnight today in India (UTC+05:30)
 const IST = 5.5 * 3600000;
 export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY) * DAY - IST;
-// hotels and travel run 24×7
+// hotels, travel and logistics run 24×7
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // "Haircut slots, 40% off" with prices 400 -> 80 becomes "Haircut slots, 80% off"
 export function fixTitlePercent(title, pct) {
@@ -43,7 +43,7 @@ export function fixTitlePercent(title, pct) {
   return title.replace(/\b\d{1,3}(\.\d+)?\s*%\s*(off|discount)?/i, (m, _d, word) => `${pct}%${word ? " " + word : ""}`);
 }
 export const postingOpen = (now = Date.now()) => { const d = new Date(now + IST); const h = d.getUTCHours() + d.getUTCMinutes() / 60; return h >= POSTING_HOURS.from && h < POSTING_HOURS.till; };
-// latest end time for an offer posted today: 11 PM, or 12 midnight for hotels and travel
+// latest end time for an offer posted today: 11 PM, or 12 midnight for hotels, travel and logistics
 export const closingTimeIST = (category, now = Date.now()) => startOfDayIST(now) + (ALWAYS_OPEN.includes(category) ? DAY : BUSINESS_HOURS.close * 3600000);
 
 export const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");

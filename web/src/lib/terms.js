@@ -56,7 +56,7 @@ export const TERMS_SECTIONS = [
     [
       `Only businesses verified by ${APP_NAME} with an active Business Pro plan can post. Verification is a basic check, not a guarantee of your business.`,
       `You may post only in the one category you registered (for example, a bakery posts only food offers), up to 3 posts a day, plus job openings for your own shop.`,
-      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels and travel run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
+      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels, travel and logistics run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
       `Post only genuine offers you can honour. The "normal price" must be the price you really charge; the offer price is the final price with no hidden charges. The discount shown is worked out from these two prices.`,
       `Job openings must be real jobs at your own shop with the real pay. They are shown to people nearby (about 10 km, or the same pincode). No agencies and no fees from job seekers.`,
       `Hold every licence and registration your business needs (for example FSSAI for food, permits for travel operators, GST where it applies) and follow all laws, including consumer protection, weights and measures, and labour laws.`,
@@ -130,4 +130,95 @@ export function termsText() {
 export async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Partner agreement: the general Terms PLUS rules for the partner's kind of business. Shown in full on the business
+// registration screen; the partner must scroll to the end and agree. The exact text (with the category) is stored.
+const COMMON_PARTNER = [
+  `I am the owner of this business, or authorised by the owner, and the details I give (name, address, shop location, contact number) are true. ${APP_NAME} may verify them and may refuse or remove my business.`,
+  `I will post only genuine same-day offers in my registered category, at real prices, with no hidden charges, and I will honour every offer I post.`,
+  `I can post between 4 AM and 10:30 PM (India time), up to 3 posts a day; every offer ends by 11 PM and is closed automatically. Only hotels, travel and logistics may post at any time, for up to 24 hours.`,
+  `Customers' names and details shared with me are only for replying about my offer. I will not misuse, sell or share them.`,
+  `I am solely responsible for my goods, services, staff, premises, licences, taxes and my dealings with customers. ${APP_NAME} is only a platform and is not liable for them.`,
+  `Business Pro costs ${rupee(PLANS.owner.price)} a month and is needed to post. ${APP_NAME} may pause or remove my business for breaking these rules, without refund for the period lost.`,
+];
+
+// Rules for each kind of business (category id -> [title, [rules]]).
+export const PARTNER_RULES = {
+  food: ["Food businesses (restaurants, bakeries, sweet shops, cafés)", [
+    `I hold a valid FSSAI licence or registration and will show its number when asked.`,
+    `Food I offer is safe, fresh and fit to eat, stored and handled hygienically. I will not sell food past its use-by date or that has been left unsafe.`,
+    `I will clearly state quantity, and whether items are veg / non-veg / contain egg, and common allergens when asked.`,
+    `Discounted food is the same quality as at full price; leftover or near-closing food is described honestly.`,
+  ]],
+  stay: ["Hotels, lodges and stays", [
+    `My property has the licences and registrations required by local law (trade licence, police / tourism registration where needed, fire safety).`,
+    `I will check every guest's government ID and keep guest records as the law requires, and I will not allow anything illegal on my premises.`,
+    `The offer price is the full price for what is described (room type, number of guests, check-in / check-out time), with any taxes stated.`,
+    `I will give guests the room as described, or a better one, and handle cancellations and refunds fairly and directly with them.`,
+  ]],
+  travel: ["Travel (buses, cabs, tours, tickets)", [
+    `Every vehicle I use has valid registration, fitness certificate, permit for the route, insurance and pollution certificate, and every driver has a valid licence.`,
+    `I will not overload vehicles and will follow road-safety and passenger-safety rules.`,
+    `The offer clearly states route, date, departure time, seat type and the final fare; seats I offer really exist.`,
+    `Refunds for cancelled trips are handled by me directly with the customer.`,
+  ]],
+  logistics: ["Logistics (spare space in trucks, vans and tempos)", [
+    `I offer only space that is really available on a trip I am already making, at a fair low price, with the route, date, vehicle type and space or weight clearly stated.`,
+    `My vehicles have valid registration, goods-carriage permit, fitness certificate and insurance; drivers hold valid licences. I will not overload vehicles.`,
+    `I will not carry prohibited, dangerous or illegal goods (explosives, flammables, drugs, wildlife, stolen goods, unaccounted cash) and may inspect goods before loading.`,
+    `I will issue a proper receipt / consignment note (with e-way bill where required by GST rules) and agree in advance with the customer on loading, delivery time and responsibility for loss or damage.`,
+  ]],
+  beauty: ["Salons and spas", [
+    `My salon has the licences required locally, and staff are trained for the services offered.`,
+    `Tools are cleaned and sterilised after every customer; I use genuine products within their expiry date.`,
+    `The offer states the exact service, duration and final price; I will tell customers about any patch test or risk before treatments.`,
+  ]],
+  makeup: ["Makeup artists and studios", [
+    `I use genuine, unexpired, hygienic products and clean brushes and tools for every client.`,
+    `The offer states exactly what is included (look, duration, travel to the client if any) and the final price.`,
+    `I will tell clients about products used, and do a patch test when the client asks or has sensitive skin.`,
+  ]],
+  fashion: ["Fashion and clothing", [
+    `Products are genuine and as described (brand, fabric, size). No counterfeit or copied branded goods.`,
+    `The normal price is the real price I sell at; the offer price is final. I will state my exchange / return policy clearly before sale.`,
+  ]],
+  appliances: ["Home appliances and electronics", [
+    `Products are genuine, new unless clearly marked otherwise, and carry the manufacturer's warranty where applicable; I will give a proper GST invoice.`,
+    `I will not sell above MRP, and I follow the Legal Metrology rules for packaged goods.`,
+    `Refurbished or open-box items are clearly labelled as such.`,
+  ]],
+  shops: ["Shops and stores", [
+    `I sell only legal goods, never above MRP, and follow the Legal Metrology rules for packaged goods.`,
+    `Food and grocery items are within their expiry date; I hold FSSAI registration if I sell food.`,
+    `I will give a bill for every sale when asked.`,
+  ]],
+  other: ["Other businesses", [
+    `I hold every licence and registration my type of business needs, and my service or product is legal and safe.`,
+    `The offer clearly describes what the customer gets and the final price.`,
+  ]],
+};
+
+export const partnerTermsTitle = (category) => `${APP_NAME} Partner Agreement: ${(PARTNER_RULES[category] || PARTNER_RULES.other)[0]}`;
+export function partnerTermsSections(category) {
+  const [title, rules] = PARTNER_RULES[category] || PARTNER_RULES.other;
+  return [
+    ["A. Partner commitments", [COMMON_PARTNER]],
+    [`B. Rules for ${title}`, [rules]],
+    ["C. LastPick Terms and Conditions (apply to everyone)", ["The full Terms and Conditions below are part of this agreement."]],
+    ...TERMS_SECTIONS,
+  ];
+}
+export function partnerTermsText(category) {
+  const lines = [partnerTermsTitle(category), `Version ${CONSENT_VERSION}`, `Business category: ${category}`, ""];
+  for (const [h, parts] of partnerTermsSections(category)) {
+    lines.push(h);
+    for (const p of parts) {
+      if (Array.isArray(p)) p.forEach((b) => lines.push(`  • ${b}`));
+      else lines.push(p);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
 }

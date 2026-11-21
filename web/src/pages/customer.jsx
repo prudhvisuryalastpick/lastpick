@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
-import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -101,8 +101,8 @@ export function Home() {
         </>
       ) : <>
         {config?.night
-          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels and travel are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
-          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels and travel are available 24×7.</span></div>}
+          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels, travel and logistics are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
+          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels, travel and logistics are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(PLANS.customer.price)}/month</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
@@ -633,6 +633,8 @@ function AccountInner() {
         ["rupeeSave", "Refund & cancellation policy", "#/refund"],
       ]} />
       <div className="menubox"><button className="mi bad" onClick={async () => { await api.signOut(); navigate("/"); }}><span className="mic"><Icon d="logout" size={18} stroke={2.1} /></span>Log out</button></div>
+      <div className="center muted small" style={{ padding: "8px 0 4px" }}>Follow {APP_NAME}</div>
+      <SocialLinks style={{ justifyContent: "center", paddingBottom: 16 }} />
       {cancelling && (
         <Sheet onClose={() => setCancelling(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>Cancel {PLANS[cancelling].name}?</h2>

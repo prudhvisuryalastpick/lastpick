@@ -175,7 +175,7 @@ const pub = (b) => b && ({ id: b.id, name: b.name, category: b.category, rating:
 const boostLive = (db, id) => (db.boosts || []).some((x) => x.offerId === id && x.status === "active" && x.endsAt > Date.now());
 const withBiz = (db, o) => ({ ...o, featured: boostLive(db, o.id), business: pub(db.businesses.find((b) => b.id === o.businessId)) });
 const emit = () => listeners.forEach((cb) => cb());
-// working hours 6 AM - 11 PM India time; hotels and travel stay open 24x7; hiring ads and local sales only within 10 km
+// working hours 6 AM - 11 PM India time; hotels, travel and logistics stay open 24x7; hiring ads and local sales only within 10 km
 const ALWAYS_OPEN = ["stay", "travel"];
 const LOCAL_ONLY = ["jobs"];
 const tonight = () => Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H + D;
@@ -359,7 +359,7 @@ export const api = {
     if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
     const allDay = runs24x7(o.category);
     const h = (Date.now() + 5.5 * H) % D / H;
-    if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels and travel can post any time.");
+    if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels, travel and logistics can post any time.");
     if (o.category === "jobs") {
       if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
     } else {

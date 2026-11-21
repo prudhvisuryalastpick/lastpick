@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>LastPick · Today's best deals near you</title>
-<meta name="description" content="LastPick shows same-day offers from shops, salons, hotels and travel near you. Every deal is for today only. Businesses post in 30 seconds." />
+<meta name="description" content="LastPick shows same-day offers from shops, salons, hotels, travel and logistics near you. Every deal is for today only. Businesses post in 30 seconds." />
 <meta name="theme-color" content="#06373A" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cdefs%3E%3ClinearGradient id=%22lg%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%2313867F%22/%3E%3Cstop offset=%221%22 stop-color=%22%2306373A%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%2264%22 height=%2264%22 rx=%2218%22 fill=%22url%28%23lg%29%22/%3E%3Cpath d=%22M13 14h7.5v28.5H32V50H13z%22 fill=%22%23fff%22/%3E%3Cpath d=%22M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2243.5%22 cy=%2224.5%22 r=%223.8%22 fill=%22%23D9F99D%22/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -257,8 +257,11 @@
 
   footer { background: #041F21; color: rgba(255,255,255,.7); padding: 50px 0 36px; font-size: 14px; }
   footer .wrap { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; align-items: center; }
-  footer nav { position: static; display: flex; gap: 20px; flex-wrap: wrap; }
+  footer nav { position: static; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
   footer a:hover { color: #fff; }
+  footer .social { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.08); }
+  footer .social svg { width: 20px; height: 20px; }
+  footer .social.soon { opacity: .55; cursor: default; }
 
   @media (max-width: 960px) {
     .hero .wrap, .clockgrid, .bizgrid, .dlbox { grid-template-columns: 1fr; }
@@ -286,6 +289,9 @@
     <symbol id="i-food" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM6 11V8a6 6 0 0 1 12 0v3M9 6V4M12 5V3M15 6V4"/></symbol>
     <symbol id="i-bed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18V6M3 14h18v4M21 14v-3a3 3 0 0 0-3-3h-7v6M7 11a1.5 1.5 0 1 0 0-.01"/></symbol>
     <symbol id="i-bus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21v-4M16 21v-4M8.5 14h.01M15.5 14h.01"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+    <symbol id="i-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-youtube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></symbol>
     <symbol id="i-cut" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
     <symbol id="i-brush" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9.5 9.5-3-3zM8.5 12.5 5 16c-1 1-1 3-3 3 2 2 5 2 6.5.5l3-3"/></symbol>
     <symbol id="i-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/></symbol>
@@ -331,7 +337,7 @@
       <h1>Grab today's best
         <span class="rotor"><span>food deals</span><span>hotel rooms</span><span>salon slots</span><span>bus seats</span><span>fashion drops</span><span>food deals</span></span>
       </h1>
-      <p class="lead">LastPick shows same-day offers from verified shops, salons, hotels and travel near you. See the price, the discount and how long it lasts. Tap "I'm interested" and the business gets only your name.</p>
+      <p class="lead">LastPick shows same-day offers from verified shops, salons, hotels, travel and logistics near you. See the price, the discount and how long it lasts. Tap "I'm interested" and the business gets only your name.</p>
       <div class="ctas">
         <a class="btn main" href="https://customer.lastpick.in">Find deals near me
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -420,6 +426,7 @@
       <div class="cat reveal" style="background:#FFF1E0;color:#B35A00"><span class="ic"><svg><use href="#i-food"/></svg></span><b style="color:#0B2224">Food</b><small>Bakeries, restaurants</small></div>
       <div class="cat reveal" style="background:#E9EEFF;color:#1E4BB8"><span class="tag" style="background:#1E4BB8">24×7</span><span class="ic"><svg><use href="#i-bed"/></svg></span><b style="color:#0B2224">Hotels</b><small>Rooms tonight</small></div>
       <div class="cat reveal" style="background:#E4F5F2;color:#0F6E5C"><span class="tag" style="background:#0F6E5C">24×7</span><span class="ic"><svg><use href="#i-bus"/></svg></span><b style="color:#0B2224">Travel</b><small>Last-minute seats</small></div>
+      <div class="cat reveal" style="background:#EAF2FF;color:#1C4F9C"><span class="tag" style="background:#1C4F9C">24×7</span><span class="ic"><svg><use href="#i-truck"/></svg></span><b style="color:#0B2224">Logistics</b><small>Spare truck space</small></div>
       <div class="cat reveal" style="background:#EEF1F5;color:#6B2FB3"><span class="ic"><svg><use href="#i-cut"/></svg></span><b style="color:#0B2224">Salon</b><small>Free slots today</small></div>
       <div class="cat reveal" style="background:#FDEAF3;color:#A3245E"><span class="ic"><svg><use href="#i-brush"/></svg></span><b style="color:#0B2224">Makeup</b><small>Artists near you</small></div>
       <div class="cat reveal" style="background:#FFF6D6;color:#8A6100"><span class="ic"><svg><use href="#i-bag"/></svg></span><b style="color:#0B2224">Fashion</b><small>Today's drops</small></div>
@@ -437,7 +444,7 @@
     <div class="dial reveal" aria-label="Animated 24-hour clock showing LastPick's hours">
       <svg viewBox="0 0 440 440">
         <circle cx="220" cy="220" r="200" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.12)" stroke-width="2"/>
-        <!-- 24x7 ring for hotels & travel -->
+        <!-- 24x7 ring for hotels, travel & logistics -->
         <circle cx="220" cy="220" r="186" fill="none" stroke="#1E7BD8" stroke-width="10" opacity=".75" stroke-dasharray="6 6"/>
         <!-- 4 AM – 11 PM shown, posting till 10:30 PM -->
         <path id="openarc" fill="none" stroke="#D9F99D" stroke-width="22" stroke-linecap="round"/>
@@ -455,7 +462,7 @@
       <div class="rules">
         <div class="rule"><span class="dot" style="background:#D9F99D"></span><div><b>4 AM – 11 PM: offers are shown</b><span>Shops, salons, food and more. Every offer ends by 11 PM and is removed at midnight.</span></div></div>
         <div class="rule"><span class="dot" style="background:#E8A33D"></span><div><b>Posting until 10:30 PM</b><span>Businesses post from 4 AM, up to 3 offers a day, so every deal has time to be seen.</span></div></div>
-        <div class="rule"><span class="dot" style="background:#1E7BD8"></span><div><b>Hotels and travel: 24×7</b><span>Rooms and seats can be posted any time and run for up to 24 hours.</span></div></div>
+        <div class="rule"><span class="dot" style="background:#1E7BD8"></span><div><b>Hotels, travel and logistics: 24×7</b><span>Rooms, seats and spare truck or van space can be posted any time and run for up to 24 hours.</span></div></div>
       </div>
     </div>
   </div>
@@ -514,7 +521,7 @@
     <div class="reveal"><div class="eyebrow">Questions</div><h2 class="h2">Good to know</h2></div>
     <div class="faqlist">
       <details class="reveal"><summary>Does the business get my phone number?</summary><p>No. When you tap "I'm interested", the business sees only your first name. You can see the business's number and contact them yourself.</p></details>
-      <details class="reveal"><summary>Why do offers end the same day?</summary><p>LastPick is for today's deals: food before closing, rooms tonight, free slots this evening. Offers end by 11 PM and are removed at midnight. Hotels and travel run 24×7, for up to 24 hours.</p></details>
+      <details class="reveal"><summary>Why do offers end the same day?</summary><p>LastPick is for today's deals: food before closing, rooms tonight, free slots this evening. Offers end by 11 PM and are removed at midnight. Hotels, travel and logistics run 24×7, for up to 24 hours.</p></details>
       <details class="reveal"><summary>Who can post offers?</summary><p>Only businesses verified by the LastPick team, each in its own category, up to 3 posts a day. Any business can also post job openings for its own shop.</p></details>
       <details class="reveal"><summary>Does LastPick handle payments for the deal?</summary><p>No. LastPick only connects you with the business. You pay the business directly. Never pay an advance to someone you haven't verified.</p></details>
       <details class="reveal"><summary>What does it cost?</summary><p>For businesses, Business Pro is ₹499 a month. For customers, the Customer Pass is ₹99 a month.</p></details>
@@ -530,6 +537,9 @@
       <a href="https://customer.lastpick.in/#/privacy">Privacy</a>
       <a href="https://customer.lastpick.in/#/grievance">Grievances</a>
       <a href="mailto:support@lastpick.in">support@lastpick.in</a>
+      <!-- Social: put your page links in the two hrefs below. Until then they show "coming soon". -->
+      <a class="social" id="soc-insta" href="" aria-label="LastPick on Instagram" title="Instagram (coming soon)"><svg><use href="#i-insta"/></svg></a>
+      <a class="social" id="soc-yt" href="" aria-label="LastPick on YouTube" title="YouTube (coming soon)"><svg><use href="#i-youtube"/></svg></a>
     </nav>
     <div style="width:100%;font-size:12.5px;opacity:.6">LastPick only connects customers and businesses. Offers, payments and services are between you and the business. © <span id="yr"></span> LastPick</div>
   </div>
@@ -543,6 +553,12 @@
   const nav = document.getElementById("nav");
   addEventListener("scroll", () => nav.classList.toggle("solid", scrollY > 40), { passive: true });
   document.getElementById("yr").textContent = new Date().getFullYear();
+  // social links: empty href = not created yet -> "coming soon", no navigation
+  document.querySelectorAll("footer .social").forEach((a) => {
+    if (a.getAttribute("href")) { a.target = "_blank"; a.rel = "noopener"; return; }
+    a.classList.add("soon");
+    a.addEventListener("click", (e) => e.preventDefault());
+  });
 
   // marquee
   const words = ["Closing-time cakes", "Rooms tonight", "Free salon slots", "Last bus seats", "Fashion drops", "Appliance offers", "Local jobs", "Makeup artists"];

@@ -388,7 +388,7 @@ test("own category only, everything ends the same day, local job openings", asyn
   assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 
-test("working hours: after 11 PM only hotels and travel", async () => {
+test("working hours: after 11 PM only hotels, travel and logistics", async () => {
   const { isNight, istHour, postingOpen } = await import("../src/util.js");
   const at = (h) => Date.UTC(2026, 10, 20, h, 0) - 5.5 * 3600000; // h o'clock India time
   assert.equal(istHour(at(23)), 23);
@@ -408,15 +408,15 @@ test("working hours: after 11 PM only hotels and travel", async () => {
     const { fixTitlePercent, runs24x7 } = await import("../src/util.js");
     assert.equal(fixTitlePercent("Haircut slots free this evening, 40% off", 80), "Haircut slots free this evening, 80% off");
     assert.equal(fixTitlePercent("Fresh cakes", 50), "Fresh cakes");
-    assert.ok(runs24x7("stay") && runs24x7("travel") && !runs24x7("combo") && !runs24x7("food"));
+    assert.ok(runs24x7("stay") && runs24x7("travel") && runs24x7("logistics") && !runs24x7("combo") && !runs24x7("food"));
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel", "logistics"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
   // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel", "logistics"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
   const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.find((o) => o.category === "food");
