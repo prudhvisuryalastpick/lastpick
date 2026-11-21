@@ -6,7 +6,8 @@ const min = LEVELS[LOG_LEVEL] ?? 20;
 function write(level, message, data) {
   if (LEVELS[level] < min) return;
   const line = JSON.stringify({ t: new Date().toISOString(), level, service: SERVICE, message, ...data });
-  (level === "error" || level === "warn" ? process.stderr : process.stdout).write(line + "\n");
+  // console.* (not process.stdout) so the lines also reach Supabase's function logs
+  (level === "error" ? console.error : level === "warn" ? console.warn : console.log)(line);
 }
 export const log = {
   debug: (m, d) => write("debug", m, d),

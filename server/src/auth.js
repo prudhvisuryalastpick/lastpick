@@ -24,10 +24,13 @@ export async function checkPassword(pw, stored) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
-const b64u = (b) => Buffer.from(b).toString("base64url");
+// base64url by hand: Supabase's edge runtime doesn't support the "base64url" encoding name in node:crypto / Buffer
+const toB64u = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const fromB64u = (s) => Buffer.from(String(s).replace(/-/g, "+").replace(/_/g, "/"), "base64");
+const b64u = (b) => toB64u(Buffer.from(b));
 const sign = (data) => {
   if (!JWT_SECRET || (PRODUCTION && JWT_SECRET.length < 32)) throw new Error("JWT_SECRET is not set"); // never sign with a weak or empty secret
-  return crypto.createHmac("sha256", JWT_SECRET).update(data).digest("base64url");
+  return toB64u(crypto.createHmac("sha256", JWT_SECRET).update(data).digest());
 };
 
 export function issueToken(user) {
@@ -43,7 +46,7 @@ function verifyToken(token) {
   const got = Buffer.from(parts[2]);
   if (want.length !== got.length || !crypto.timingSafeEqual(want, got)) return null;
   try {
-    const p = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    const p = JSON.parse(fromB64u(parts[1]).toString());
     return p.exp > Date.now() / 1000 ? p : null;
   } catch { return null; }
 }
