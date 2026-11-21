@@ -1,4 +1,4 @@
-// Background job queue and scheduled tasks, both kept in PostgreSQL (no extra AWS service to pay for).
+// Background job queue and scheduled tasks, both kept in PostgreSQL (no extra service to pay for).
 // - enqueue(type, payload): a job runs within seconds on any server, with retries and exponential backoff.
 // - Jobs are claimed with FOR UPDATE SKIP LOCKED, so several servers can work the queue without doing a job twice.
 // - Scheduled tasks are claimed in schedule_runs, so each run happens once even with three servers running.

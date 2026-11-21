@@ -11,6 +11,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   SEED_PASSWORD           only for "test accounts": the password they get
+#   BREVO_API_KEY, MAIL_FROM  optional: e-mail sign-up codes through Brevo (MAIL_FROM = a sender verified in Brevo)
 on:
   push:
     branches: [main]
@@ -95,6 +96,10 @@ jobs:
           # the sign-in secret is created once and then kept (changing it would sign everyone out)
           if ! $S list --project-ref "$SUPABASE_PROJECT_ID" | grep -q JWT_SECRET; then
             $S set --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
+          fi
+          # e-mail codes through Brevo, only when both secrets are saved in GitHub
+          if [ -n "${{ secrets.BREVO_API_KEY }}" ] && [ -n "${{ secrets.MAIL_FROM }}" ]; then
+            $S set --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "::add-mask::$(grep CRON_SECRET "$GITHUB_ENV" | cut -d= -f2)"

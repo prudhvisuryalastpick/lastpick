@@ -5,7 +5,7 @@ export const SUPPORT_EMAIL = import.meta.env?.VITE_SUPPORT_EMAIL || "support@las
 export const SUPPORT_PHONE = import.meta.env?.VITE_SUPPORT_PHONE || "";
 export const SUPPORT_WHATSAPP = import.meta.env?.VITE_SUPPORT_WHATSAPP || "";
 export const SUPPORT_HOURS = "9 AM – 9 PM, all days";
-// Public addresses of the three sites (set at build time; CloudFront addresses until the domain is bought).
+// Public addresses of the three sites (set at build time).
 export const WEBSITE_URL = import.meta.env?.VITE_CUSTOMER_URL || "https://lastpick.in";
 export const PARTNER_URL = import.meta.env?.VITE_PARTNER_URL || WEBSITE_URL;
 

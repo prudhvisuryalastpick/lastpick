@@ -54,7 +54,7 @@ export function clientIp(req) {
   // Cloudflare: they must carry the origin secret, which Cloudflare adds).
   const viaCloudflare = ORIGIN_SECRET && String(req.headers["cf-connecting-ip"] || "").trim();
   if (viaCloudflare) return viaCloudflare;
-  // CloudFront appends the viewer's address to X-Forwarded-For and the load balancer appends CloudFront's,
+  // A proxy appends the viewer's address to X-Forwarded-For (and any further proxy appends its own),
   // so the viewer is PROXY_HOPS entries from the end (anything earlier is client-supplied and ignored).
   // (older setup) API Gateway set X-Client-IP itself; requests only reach us with the origin secret
   const viaGateway = ORIGIN_SECRET && String(req.headers["x-client-ip"] || "").trim();

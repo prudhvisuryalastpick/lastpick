@@ -1,5 +1,5 @@
 // Small in-memory cache with expiry (per server). Feeds are reused for 30-60 s, the city list for 5 min.
-// CloudFront caches app files and photos in front of this. Redis/ElastiCache isn't used: it costs money even when idle.
+// Small in-memory cache. No Redis: it costs money even when idle.
 const store = new Map();
 const MAX = 2000;
 const inflight = new Map();

@@ -96,7 +96,7 @@ export function Privacy() {
         <NoticeList />
         <h2>Who can see or receive your data</h2>
         <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
-        <p><b>Service providers</b> who process data for us: Amazon Web Services (servers, database and backups, stored in AWS's Mumbai region, ap-south-1) and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
+        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Brevo (sends sign-up code e-mails) and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
           <tbody>
@@ -112,7 +112,7 @@ export function Privacy() {
           </tbody>
         </table>
         <h2>How we protect it</h2>
-        <p>All data is encrypted in transit (HTTPS/TLS) and at rest (AWS encryption). Phone numbers are never public: the database only hands them out through checked server code, with limits per user to stop scraping. Admin actions are logged. If a data breach affects you, we will tell you and the Data Protection Board of India as the law requires.</p>
+        <p>All data is encrypted in transit (HTTPS/TLS) and at rest (encrypted storage at Supabase). Phone numbers are never public: the database only hands them out through checked server code, with limits per user to stop scraping. Admin actions are logged. If a data breach affects you, we will tell you and the Data Protection Board of India as the law requires.</p>
         <h2>Your rights</h2>
         <ul>
           <li><b>See your data:</b> Account → Privacy → Download my data.</li>

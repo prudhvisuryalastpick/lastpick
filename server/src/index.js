@@ -2,7 +2,7 @@
 //   SERVICE=customer  customer web app + customer API     (offers, number exchange, reviews)
 //   SERVICE=partner   partner web app + business API      (business profile, posting offers, leads)
 //   SERVICE=admin     admin panel + admin API             (verification, reports, plans, complaints, team)
-// All three share one PostgreSQL database (Amazon RDS).
+// All three share one PostgreSQL database. Local development and tests; live, the same code runs on Supabase (src/edge.js).
 import http from "node:http";
 import { ADMIN_ALLOWED_IPS, PORT, RUN_WORKER, SERVICE, WEB_DIR } from "./config.js";
 import { closePools, migrate, pool } from "./db.js";
@@ -33,7 +33,7 @@ registerJobs();
 if (RUN_WORKER) startWorker();
 
 const server = http.createServer(makeHandler(router, { webDir: WEB_DIR, guard }));
-server.keepAliveTimeout = 65000; // longer than CloudFront's keep-alive, so connections aren't dropped mid-request
+server.keepAliveTimeout = 65000; // longer than a typical proxy's keep-alive, so connections aren't dropped mid-request
 server.headersTimeout = 66000;
 server.requestTimeout = 30000;
 server.listen(PORT, () => log.info("server started", { port: PORT, service: SERVICE, web: WEB_DIR || null, worker: RUN_WORKER }));

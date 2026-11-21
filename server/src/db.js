@@ -1,4 +1,4 @@
-// PostgreSQL (Amazon RDS) connection pool, transactions and migrations.
+// PostgreSQL (Supabase) connection pools, transactions and migrations.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +20,7 @@ async function pgPool() {
 
 function ssl() {
   if (DB_SSL === "off") return false;
-  // RDS: traffic is encrypted with TLS. "verify" also checks the server certificate against the RDS CA bundle.
+  // "require" encrypts the connection with TLS; "verify" also checks the server certificate (DB_CA_FILE).
   if (DB_SSL === "verify") return { ca: fs.readFileSync(DB_CA_FILE, "utf8"), rejectUnauthorized: true };
   return { rejectUnauthorized: false };
 }

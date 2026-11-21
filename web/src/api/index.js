@@ -1,4 +1,4 @@
-// Uses the LastPick API (AWS). Set VITE_DEMO=1 to run entirely in the browser with sample data instead.
+// Uses the LastPick API (Supabase). Set VITE_DEMO=1 to run entirely in the browser with sample data instead.
 import { api as demo } from "./demo.js";
 import { api as live } from "./rest.js";
 

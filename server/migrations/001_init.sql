@@ -1,4 +1,4 @@
--- LastPick schema (PostgreSQL 16, Amazon RDS).
+-- LastPick schema (PostgreSQL 16).
 -- One database shared by the customer, partner and admin servers.
 -- Deleting a user cascades to everything they own (account deletion, DPDP Act 2023).
 

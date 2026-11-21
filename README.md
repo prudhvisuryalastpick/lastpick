@@ -12,7 +12,7 @@ Local businesses post same-day offers and job openings; customers nearby see the
 | Android apps (customer, partner): release APK + Play Store bundle | GitHub Actions (Capacitor) | Actions → Build Android APKs → Artifacts |
 
 Supabase's open data API is locked: every table has row-level security and no grants for its public roles, so only the LastPick functions reach the data.
-**Cost:** $0 while testing (Supabase Free + Cloudflare Free); Supabase Pro $25/month at launch. Alternatives kept in the repo: Cloudflare Workers API (`wrangler.workers.toml`, manual workflow) and AWS (`Dockerfile`, lastpick-terraform).
+**Cost:** $0 while testing (Supabase Free + Cloudflare Free); Supabase Pro $25/month at launch. Alternative kept in the repo: the same API on Cloudflare Workers (`wrangler.workers.toml`, manual workflow).
 
 ## Set up (one time, owner)
 
@@ -33,8 +33,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 | API on Supabase Edge Functions | Deno | `supabase/functions/*`, `server/src/edge.js` |
 | Web apps on Cloudflare (static) | Wrangler | `wrangler.toml`, `wrangler.redirect.toml` |
 | Tests (Node server, Supabase code in Node and Deno), deploy on every push | GitHub Actions | `.github/workflows/supabase.yml` |
-| Fallback: container image and AWS infrastructure | Docker, Terraform | `Dockerfile`, `.github/workflows/deploy.yml` (manual), [lastpick-terraform](https://github.com/prudhvisuryalastpick/lastpick-terraform) |
-| AI agents: CI/CD and deployment | Claude Code | `.claude/agents/` (infra agent: in lastpick-terraform) |
+| AI agents: CI/CD and deployment | Claude Code | `.claude/agents/` |
 
 ## Planned (after we have good partners)
 
@@ -66,33 +65,26 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 - **Support:** customers and partners chat with the LastPick team in the app (Help & support); admins and moderators answer in Admin → Support chats. Formal complaints keep their own ticket system.
 - **Rules:** a plain-language "How LastPick works & rules" page plus the full Terms. They say LastPick is only a platform, takes no responsibility for the deal, and acts on providers through reviews and reports.
 
-## How each requirement is covered (AWS fallback setup; on Cloudflare, HTTPS, scaling and patching are handled by Cloudflare)
+## How each requirement is covered
 
 | Need | How |
 |---|---|
-| **Encryption** | HTTPS for users (CloudFront). CloudFront reaches the load balancer through a **VPC origin** over AWS's private network; the load balancer and database have no public address. Database connections use TLS and the server checks the RDS certificate. Data at rest is encrypted (RDS, ECR images, logs). Secrets live in AWS Secrets Manager and are injected into the containers by ECS, never in code, images or GitHub. Passwords are hashed with scrypt. |
-| **Rate limiting** | Per IP, on every request (in memory in each container, stops floods). Per user, in the database, shared by all containers: 60 numbers viewed/hour, 30 shared/hour, 30 offers/day (plus 3 posts/day per business), 10 reviews/day, 5 complaints/day, login 10 failed tries per 15 min. Uploads max 600 KB. Optional later: AWS WAF on CloudFront (about $6+/month). |
-| **Queuing** | Background job queue in PostgreSQL with retries and backoff (`jobs` table, `FOR UPDATE SKIP LOCKED`), so any number of containers can share the work. Scheduled tasks (hourly plan expiry, photo cleanup, nightly archive at 02:30 IST) run once even with many containers. No extra AWS service to pay for. |
-| **Caching** | CloudFront caches app files for a year and public feeds for 30–60 s at the edge. Each container caches feeds and the city list in memory, and identical requests share one database query. Redis is left out on purpose: about $15+/month even when idle. |
-| **Scaling** | **Automatic:** customer grows from 1 to 4 containers and partner from 1 to 3 when CPU stays above 60%, and shrinks back when quiet. Extra copies run on Fargate Spot (about 70% cheaper). Bigger containers or limits: change `services` in `terraform.tfvars`. The database grows its disk by itself up to 100 GB. |
-| **Reliability** | The load balancer checks every container every 15 s (`/healthz`, which includes the database) and ECS replaces any that fail. **Zero-downtime deploys:** new containers start next to the old ones and take traffic only when healthy; a bad version is **rolled back automatically**. Containers spread over 2 availability zones. The first copy of each service and admin always run on regular (non-Spot) Fargate. Database failover: `db_multi_az = true` (doubles the database cost). E-mail alarms: service down, errors, CPU/memory, database. |
-| **Read replica** | A live read-only copy of the database. Feeds, offer pages, reviews, dashboards and admin stats read from it, so heavy reading never slows down posting, logins or contacts. If it's unavailable the app reads from the main database automatically. |
-| **Backup** | RDS: daily automatic backups with **point-in-time restore** for 7 days, plus a weekly AWS Backup snapshot kept 5 weeks. A final snapshot is taken if the database is ever deleted (deletion protection is also on). Containers keep no data; the last 20 images stay in ECR. |
-| **Patching** | No servers to patch: AWS patches the Fargate hosts. The image is **rebuilt every Monday 02:00 IST** from the newest Node.js/Alpine base and redeployed, and ECR scans every image for known vulnerabilities. RDS minor versions update automatically in a Sunday-night window. |
+| **Encryption** | HTTPS everywhere (Cloudflare for the sites, Supabase for the API). Database storage is encrypted at Supabase. Passwords are hashed with scrypt. Secrets live in GitHub Actions secrets and Supabase function secrets, never in code. |
+| **Data API locked** | Supabase's open data API can't read any table: row-level security on every table and no grants for its public roles. Only the LastPick functions reach the data. |
+| **Rate limiting** | Per IP on every request, plus per user in the database: 60 numbers viewed/hour, 30 shared/hour, 3 posts/day per business, 10 reviews/day, 5 complaints/day, login 10 failed tries per 15 min. |
+| **Queuing** | Background job queue in PostgreSQL with retries (`jobs` table); pg_cron runs scheduled tasks every 5 minutes (plan expiry, nightly archive at 02:30 IST). |
+| **Scaling** | Supabase starts more copies of a function when busy; Cloudflare serves the web apps from its global network. Bigger database: Supabase compute size. |
+| **Backup** | Supabase Pro: daily backups. Free plan: none (use Pro at launch). |
+| **E-mail** | Sign-up codes through Brevo (300 a day free) once `BREVO_API_KEY` and `MAIL_FROM` are set. |
 
-Also: no SSH and no servers to log in to, the containers accept traffic only from the load balancer, the load balancer only from CloudFront with a secret header (checked again by the app), containers run as a non-root user, the admin panel only lets admins and moderators log in (optionally only from your IPs: `admin_allowed_ips`), and there's an audit log (1 year) of number views, shares, offers, reviews, admin actions, exports and deletions.
-
-## AWS fallback
-
-The AWS version (three ECS Fargate services + RDS, about ₹8,500/month) still works: create it with lastpick-terraform, then run **Actions → Deploy to AWS** by hand. See lastpick-terraform's README.
+Also: the admin panel only lets admins and moderators log in, and there's an audit log (1 year) of number views, offers, reviews, admin actions, exports and deletions.
 
 ## AI agents (Claude Code)
 
 | Agent | Where | Does |
 |---|---|---|
 | `cicd` | `.claude/agents/cicd.md` | Keeps the pipeline green: runs tests, reads failed GitHub Actions runs, fixes the workflow or code, explains the cause |
-| `deploy` | `.claude/agents/deploy.md` | Deploys and checks the app: starts the workflow, watches the ECS rollout, checks `/healthz` and logs, seeds test accounts, rolls back |
-| `infra` | lastpick-terraform `.claude/agents/infra.md` | Creates, checks, changes and destroys the AWS infrastructure with Terraform |
+| `deploy` | `.claude/agents/deploy.md` | Deploys and checks the app: starts the workflow, checks `/healthz` and logs, seeds test accounts, rolls back |
 
 ### Optional repository variables
 
@@ -100,12 +92,10 @@ The AWS version (three ECS Fargate services + RDS, about ₹8,500/month) still w
 
 ## Day to day
 
-- **Logs**: CloudWatch → Log groups → `/lastpick/customer`, `/lastpick/partner`, `/lastpick/admin` (kept 30 days).
-- **Status of the containers**: ECS → Clusters → `lastpick` → Services (running count, deployments, events).
-- **Roll back by hand**: ECS → service → *Update* → *Force new deployment* after re-tagging an older image as `latest` in ECR, or re-run an older successful GitHub Actions deploy.
-- **Restore the database to a point in time**: RDS → `lastpick` → *Actions* → *Restore to point in time* (creates a new database; then point the containers at it, ask for help).
+- **Logs**: Supabase → Edge Functions → customer / partner / admin → Logs.
+- **Roll back**: re-run an older successful "Deploy (Supabase + Cloudflare pages)" run, or revert the change and push.
+- **Database**: Supabase → Table editor / SQL editor (Pro plan: restore from a daily backup).
 - **Make someone an admin or moderator**: Admin panel → Team.
-- **Free launch mode** (default: no payments, everyone has access): Admin → Overview.
 
 ## Run locally
 
@@ -121,11 +111,11 @@ Local test accounts use the password `LocalTest1234`. Server tests: `cd server &
 
 ## Not done yet (planned order)
 
-1. **Android apps (APK)**: build the customer and partner apps with Capacitor, pointed at their servers (`VITE_API_URL`).
-2. **Play Store** bundles (AAB), signing, Data safety form.
+1. **Android apps**: release APK + Play Store bundle are built by GitHub Actions; they use the live API once Supabase is connected.
+2. **Play Store**: permanent signing key, store listing, Data safety form.
 3. **Login and registration**: one-time codes by SMS and e-mail (the screens exist; the server side is switched off, `VITE_OTP_LOGIN`). Until then, only test accounts can log in (`SIGNUP=closed`).
 4. **Payments** (Razorpay / Google Play Billing). Until then admins switch plans on by hand.
-5. **Domain**: after you buy one, point `lastpick.in` / `business.` / `admin.` at the three CloudFront distributions (free ACM certificates), and turn on HTTPS between CloudFront and the load balancer (ACM certificate).
+5. **Domain**: lastpick.in on Cloudflare; the deploy creates customer./partner./admin. automatically.
 
 ## Privacy and legal (India)
 

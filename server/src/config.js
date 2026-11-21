@@ -1,4 +1,4 @@
-// All settings come from environment variables (on ECS Fargate: the task definition, secrets from Secrets Manager).
+// All settings come from environment variables (on Supabase: function secrets; locally: your shell or docker-compose).
 const env = process.env;
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -11,8 +11,8 @@ export const INSTANCE_ID = env.INSTANCE_ID || `${SERVICE}-${env.HOSTNAME || "wor
 
 // Database: DATABASE_URL, or the standard PGHOST / PGUSER / PGPASSWORD / PGDATABASE variables.
 export const DATABASE_URL = env.DATABASE_URL || "";
-export const DB_SSL = env.DB_SSL || (PRODUCTION ? "verify" : "off"); // off | require | verify
-export const DB_CA_FILE = env.DB_CA_FILE || "/etc/lastpick/rds-ca.pem";
+export const DB_SSL = env.DB_SSL || "off"; // off | require | verify
+export const DB_CA_FILE = env.DB_CA_FILE || ""; // certificate file, only for DB_SSL=verify
 export const DB_POOL_MAX = Number(env.DB_POOL_MAX || 10);
 // Optional read replica: feeds, offer pages, dashboards and admin stats read from it, so they never slow down writes.
 // Empty = everything uses the main database.
@@ -31,10 +31,9 @@ export const WEB_DIR = env.WEB_DIR || "";
 // Background jobs and scheduled tasks. Safe to run on every server: jobs are claimed with SKIP LOCKED.
 export const RUN_WORKER = env.RUN_WORKER !== "0";
 
-// CloudFront adds this header to every request it sends to the server. When set, requests without it are refused,
-// so nobody can skip CloudFront (and its caching and TLS) by calling the server directly.
+// Optional: a proxy in front of the server adds this header to every request. When set, requests without it are refused.
 export const ORIGIN_SECRET = env.ORIGIN_SECRET || "";
-// Proxies in front of the server that each add one X-Forwarded-For entry: CloudFront = 1, CloudFront + load balancer = 2.
+// Proxies in front of the Node server that each add one X-Forwarded-For entry.
 export const PROXY_HOPS = Math.max(1, Number(env.PROXY_HOPS || 1));
 // The admin server can additionally be limited to some IP addresses (comma separated). Empty = anyone may try to log in.
 export const ADMIN_ALLOWED_IPS = list(env.ADMIN_ALLOWED_IPS);
@@ -44,8 +43,8 @@ export const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS || "https://localhost,ca
 // Sign-up through the API. "closed" (default) = test accounts only, until the real login/registration is built.
 export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
 export const LOG_LEVEL = env.LOG_LEVEL || "info";
-// E-mail one-time codes (Amazon SES). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
+// E-mail one-time codes (Brevo). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
 export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
-export const AWS_REGION = env.AWS_REGION || env.AWS_DEFAULT_REGION || "ap-south-1";
+export const BREVO_API_KEY = env.BREVO_API_KEY || "";

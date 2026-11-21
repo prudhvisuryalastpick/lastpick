@@ -1,4 +1,4 @@
-// Live backend: the LastPick API on AWS. Each app talks to its own server
+// Live backend: the LastPick API on Supabase. Each app talks to its own function
 // (customer site -> customer server, partner site -> partner server, admin panel -> admin server).
 // Same-origin by default; the Android apps set VITE_API_URL to their server's address.
 import { CONSENT_VERSION, IS_ADMIN_APP, IS_CUSTOMER_APP } from "../lib/config.js";
