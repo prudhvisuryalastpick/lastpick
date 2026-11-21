@@ -128,6 +128,9 @@ jobs:
           VITE_APP_VARIANT=admin VITE_API_URL=$API/admin npx vite build --outDir dist-admin
           node ../server/scripts/cloudflare/headers.mjs dist-customer dist-partner dist-admin
 
+      - name: Check Cloudflare access
+        run: node server/scripts/cloudflare/check.mjs
+
       - name: Publish the web apps on Cloudflare (free)
         run: |
           for e in customer partner admin; do npx --yes wrangler@4 deploy --env $e; done
