@@ -21,7 +21,7 @@ const TEMPLATES = {
   }),
   business_received: (n, d) => ({
     subject: "We received your business registration",
-    text: `Hi ${n},\n\nThanks for registering ${d.business} on LastPick Business. Our team will check your details, usually within one working day. We'll e-mail you as soon as your business is approved.${sign}`,
+    text: `Hi ${n},\n\nThanks for registering ${d.business} on LastPick Business. Our team will check your details, usually within one working day. We'll message you as soon as your business is approved.${sign}`,
   }),
   business_verified: (n, d) => ({
     subject: `${d.business} is approved on LastPick`,
@@ -33,11 +33,11 @@ const TEMPLATES = {
   }),
   business_suspended: (n, d) => ({
     subject: `${d.business} is paused on LastPick`,
-    text: `Hi ${n},\n\nWe've paused ${d.business} on LastPick, so its offers aren't shown right now.${d.note ? `\n\nReason: ${d.note}` : ""}\n\nIf you think this is a mistake, reply to this e-mail and we'll look into it.${sign}`,
+    text: `Hi ${n},\n\nWe've paused ${d.business} on LastPick, so its offers aren't shown right now.${d.note ? `\n\nReason: ${d.note}` : ""}\n\nIf you think this is a mistake, write to us and we'll look into it.${sign}`,
   }),
   plan_active: (n, d) => ({
     subject: `Payment received: ${d.planName} is active`,
-    text: `Hi ${n},\n\nThank you. We've received your payment and your ${d.planName} is active.\n\nPlan: ${d.planName}\nPeriod: ${d.months} month${d.months === 1 ? "" : "s"}\nAmount: ${rupees(d.amount)}\nActive until: ${day(d.until)}\n\nKeep this e-mail as your receipt.${sign}`,
+    text: `Hi ${n},\n\nThank you. We've received your payment and your ${d.planName} is active.\n\nPlan: ${d.planName}\nPeriod: ${d.months} month${d.months === 1 ? "" : "s"}\nAmount: ${rupees(d.amount)}\nActive until: ${day(d.until)}\n\nKeep this message as your receipt.${sign}`,
   }),
   plan_ended: (n, d) => ({
     subject: `Your ${d.planName} has ended`,
