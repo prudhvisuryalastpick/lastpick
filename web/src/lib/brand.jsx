@@ -1,4 +1,4 @@
-// The "tap pin" logo: a map pin tapping the ground (near you + one tap).
+// The "LP" monogram logo: L and P in white, with a price-tag hole in the P.
 // Same mark in each app's own colour, so the apps never look the same:
 //   customer: teal tile, lime dot · partner: gold tile, cream dot · admin: slate tile, blue dot
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP } from "./config.js";
@@ -8,15 +8,15 @@ const VARIANT = IS_ADMIN_APP ? "admin" : IS_OWNER_APP ? "partner" : "customer";
 const MARKS = {
   customer: {
     bg: ["#13867F", "#06373A"], label: APP_NAME, sub: "Deals near you", theme: "#06373A",
-    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#D9F99D"/>`,
+    art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#D9F99D"/>`,
   },
   partner: {
     bg: ["#F2B654", "#8A3B0E"], label: `${APP_NAME} Business`, sub: "For partners", theme: "#3B1606",
-    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#FFF1D6"/>`,
+    art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#FFF1D6"/>`,
   },
   admin: {
     bg: ["#475569", "#0F172A"], label: `${APP_NAME} Admin`, sub: "Team only", theme: "#0F172A",
-    art: `<ellipse cx="32" cy="50" rx="19" ry="5.5" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35"/><ellipse cx="32" cy="50" rx="10.5" ry="3" fill="none" stroke="#fff" stroke-width="2.4" opacity=".75"/><path d="M32 9c-7.7 0-14 6-14 13.4C18 32 32 46 32 46s14-14 14-23.6C46 15 39.7 9 32 9z" fill="#fff"/><circle cx="32" cy="22.5" r="6" fill="#93C5FD"/>`,
+    art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#93C5FD"/>`,
   },
 };
 export const BRAND = MARKS[VARIANT];
