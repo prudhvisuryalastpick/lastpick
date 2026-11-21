@@ -131,6 +131,9 @@ jobs:
       - name: Check Cloudflare access
         run: node server/scripts/cloudflare/check.mjs
 
+      - name: Free the site addresses (remove old AWS DNS records)
+        run: node server/scripts/cloudflare/free-hostnames.mjs
+
       - name: Publish the web apps on Cloudflare (free)
         run: |
           for e in customer partner admin; do npx --yes wrangler@4 deploy --env $e; done
