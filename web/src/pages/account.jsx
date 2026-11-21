@@ -2,7 +2,7 @@ import { Logo } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
-import { BackButton, Empty, NeedLogin, PlanCard, Spinner, useLive } from "../components.jsx";
+import { BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, savePct, categoryOf } from "../lib/config.js";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -134,7 +134,7 @@ function AdminInner() {
   const [tab, setTab] = useState("overview");
   if (!isStaff) return <Empty icon="⛔" title="Admins only">Your account doesn't have admin access.</Empty>;
   const tabs = isAdmin
-    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"], ["plans", "Plans"], ["team", "Team"]]
+    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"]]
     : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"]];
   return (
     <>
@@ -151,8 +151,6 @@ function AdminInner() {
       {tab === "complaints" && isAdmin && <AdminComplaints toast={toast} />}
       {tab === "users" && isAdmin && <AdminUsers toast={toast} />}
       {tab === "revenue" && isAdmin && <AdminRevenue toast={toast} />}
-      {tab === "plans" && isAdmin && <AdminPlans toast={toast} />}
-      {tab === "team" && isAdmin && <AdminTeam toast={toast} />}
     </>
   );
 }
@@ -163,27 +161,6 @@ function PaymentsNote() {
       <span style={{ fontSize: 24 }}>💳</span>
       <div className="grow"><b>No free version</b>
         <div className="muted small">Customers need the Customer Pass and partners need Business Pro. Until the payment gateway is added, turn plans on in Plans after you receive the payment.</div></div>
-    </div>
-  );
-}
-
-// Combos (hotel room + food + pickup & drop + ironing in one offer): off until LastPick has enough good partners.
-// Switching on shows them to partners (to post) and customers (to see) straight away.
-function ComboSwitch({ toast }) {
-  const { refresh } = useApp();
-  const [on, setOn] = useState(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { api.adminSettings().then((x) => setOn(!!x.combos)).catch(() => setOn(false)); }, []);
-  const flip = async (v) => {
-    setBusy(true);
-    try { const r = await api.setAdminSettings({ combos: v }); setOn(r.combos); toast(r.combos ? "Combos are on for partners and customers" : "Combos are off"); refresh?.(); } catch (e) { toast(errText(e)); }
-    setBusy(false);
-  };
-  return (
-    <div className="panel switchrow" style={{ margin: "4px 16px 12px" }}>
-      <div><b>Combos</b> {on ? <span className="pill p-ok">On</span> : <span className="pill p-mute">Off</span>}
-        <div className="muted small">Hotel room + food + pickup & drop + ironing in one offer. When on, partners can post combos and customers see a Combos section.</div></div>
-      {on == null ? <span className="muted small">…</span> : <button type="button" aria-label="Combos on or off" aria-pressed={on} className={"sw " + (on ? "on" : "")} disabled={busy} onClick={() => flip(!on)} />}
     </div>
   );
 }
@@ -220,7 +197,6 @@ function AdminOverview({ toast, go }) {
   return (
     <>
       {isAdmin && <PaymentsNote />}
-      {isAdmin && <ComboSwitch toast={toast} />}
       {isAdmin && <SingleDeviceSwitch toast={toast} />}
       {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>
@@ -408,56 +384,178 @@ function AdminComplaints({ toast }) {
   );
 }
 
+// Customers and partners in two separate tables, each with search and a CSV download.
 function AdminUsers({ toast }) {
-  const [q, setQ] = useState("");
-  const [list, setList] = useState(null);
-  const search = (term, first = true) => { if (first) setList(null); api.adminFindUsers(term).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
-  const qRef = useRef(""); qRef.current = q;
-  useLive((first) => search(qRef.current.trim(), first));
-  const plan = (s) => !s ? <span className="pill p-mute">none</span> : s.active ? <span className="pill p-ok">till {day(s.until)}</span> : <span className="pill p-bad">{s.status}</span>;
+  const [kind, setKind] = useState("customers");
   return (
     <>
-      <form className="form" style={{ paddingBottom: 8 }} onSubmit={(e) => { e.preventDefault(); search(q.trim()); }}>
-        <div className="gap"><input style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 12, padding: "11px 12px" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Email, phone number or name" aria-label="Search users" />
-          <button className="btn dark sm">Search</button></div>
-        <div className="muted small">Leave empty to see the newest 50 sign-ups. Phone numbers and e-mails are hidden; tapping Show is recorded in the audit log.</div>
-      </form>
-      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🔍" title="No users found" /> : list.map((u) => (
-        <div className="panel" key={u.id}>
-          <div className="row"><b>{u.name || "(no name)"}</b>{u.role !== "user" && <span className="pill p-new">{u.role}</span>}</div>
-          <div className="muted small">{u.phone || u.email
-            ? <Reveal masked={`${u.email || "no e-mail"} · ${u.phone || "no phone"}`} load={() => api.revealUser(u.id)} render={(c) => <span>{c.email || "no e-mail"} · {c.phone ? prettyPhone(c.phone) : "no phone"}</span>} />
-            : "no contact details"}{u.createdAt ? " · joined " + day(u.createdAt) : ""}</div>
-          <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="small">Customer Pass:</span> {plan(u.customer)}
-            <span className="small">Business Pro:</span> {plan(u.owner)}
-          </div>
-          {u.business && <div className="muted small" style={{ marginTop: 6 }}>🏪 {u.business.name} · {u.business.city}, {u.business.state} · {u.business.status}</div>}
-        </div>
-      ))}
+      <div className="tabs" role="tablist" style={{ margin: "4px 16px 10px" }}>
+        <button role="tab" aria-selected={kind === "customers"} className={kind === "customers" ? "on" : ""} onClick={() => setKind("customers")}>Customers</button>
+        <button role="tab" aria-selected={kind === "partners"} className={kind === "partners" ? "on" : ""} onClick={() => setKind("partners")}>Partners</button>
+      </div>
+      <UserTable key={kind} kind={kind} toast={toast} />
     </>
   );
 }
 
-function AdminPlans({ toast }) {
-  const [f, setF] = useState({ email: "", plan: "customer", months: 1 });
+const csvCell = (v) => { const t = v == null ? "" : String(v); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+const dt = (t) => (t ? new Date(t).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
+const planText = (s) => (!s ? "none" : s.active ? `active till ${day(s.until)}` : s.status);
+
+function UserTable({ kind, toast }) {
+  const partners = kind === "partners";
+  const [q, setQ] = useState("");
+  const [list, setList] = useState(null);
   const [busy, setBusy] = useState(false);
-  const submit = async () => {
+  const qRef = useRef(""); qRef.current = q;
+  const search = (term, first = true) => { if (first) setList(null); api.adminUsers(kind, term).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  useLive((first) => search(qRef.current.trim(), first), [kind]);
+  const download = async () => {
     setBusy(true);
-    try { await api.adminSetPlan(f.email.trim(), f.plan, Number(f.months)); toast(Number(f.months) > 0 ? "Plan activated" : "Plan ended"); setF({ ...f, email: "" }); }
+    try {
+      const rows = await api.adminExportUsers(kind);
+      const head = partners
+        ? ["Name", "E-mail", "Mobile", "Business", "Category", "Area", "City", "State", "Pincode", "Verification", "Business Pro", "Joined", "Last login", "Last device", "Partner terms version", "Partner terms accepted at"]
+        : ["Name", "E-mail", "Mobile", "Customer Pass", "Joined", "Last login", "Last device", "Terms version", "Terms accepted at"];
+      const lines = rows.map((u) => (partners
+        ? [u.name, u.email, u.phone, u.business?.name, categoryOf(u.business?.category)?.label || u.business?.category, u.business?.area, u.business?.city, u.business?.state, u.business?.pincode, u.business?.status, planText(u.owner), dt(u.createdAt), dt(u.lastLoginAt), u.lastLoginDevice, u.partnerConsentVersion, dt(u.partnerConsentAt)]
+        : [u.name, u.email, u.phone, planText(u.customer), dt(u.createdAt), dt(u.lastLoginAt), u.lastLoginDevice, u.consentVersion, dt(u.consentAt)]).map(csvCell).join(","));
+      // a byte-order mark so Excel opens the file as UTF-8 (₹ and Indian names show correctly)
+      const blob = new Blob(["\uFEFF" + [head.join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `lastpick-${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast(`Downloaded ${rows.length} ${kind}`);
+    } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  const pill = (s) => (!s ? <span className="pill p-mute">none</span> : s.active ? <span className="pill p-ok">till {day(s.until)}</span> : <span className="pill p-bad">{s.status}</span>);
+  return (
+    <>
+      <form className="form" style={{ paddingBottom: 8 }} onSubmit={(e) => { e.preventDefault(); search(q.trim()); }}>
+        <div className="gap" style={{ flexWrap: "wrap" }}>
+          <input style={{ flex: 1, minWidth: 200, border: "1px solid var(--line)", borderRadius: 12, padding: "11px 12px" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder={partners ? "Name, business, e-mail or phone" : "Name, e-mail or phone"} aria-label={`Search ${kind}`} />
+          <button className="btn dark sm">Search</button>
+          <button type="button" className="btn ghost sm" disabled={busy} onClick={download}>{busy ? "Preparing…" : "⬇ Download CSV"}</button>
+        </div>
+        <div className="muted small">Newest first. Phone numbers and e-mails are hidden here; tapping Show and downloading the CSV (which has full details) are recorded in the audit log.</div>
+      </form>
+      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🔍" title={`No ${kind} found`} /> : (
+        <div className="tablewrap">
+          <table className="admin users">
+            <thead><tr>
+              <th>Name</th><th>Contact</th>
+              {partners ? <><th>Business</th><th>Location</th><th>Status</th><th>Business Pro</th></> : <th>Customer Pass</th>}
+              <th>Joined</th><th>Last login</th><th>Terms accepted</th>
+            </tr></thead>
+            <tbody>{list.map((u) => (
+              <tr key={u.id}>
+                <td><b>{u.name || "(no name)"}</b></td>
+                <td className="small">{u.phone || u.email
+                  ? <Reveal masked={`${u.email || "no e-mail"} · ${u.phone || "no phone"}`} load={() => api.revealUser(u.id)} render={(c) => <span>{c.email || "no e-mail"} · {c.phone ? prettyPhone(c.phone) : "no phone"}</span>} />
+                  : "none"}</td>
+                {partners ? <>
+                  <td>{u.business?.name}<div className="muted small">{categoryOf(u.business?.category)?.label || u.business?.category}</div></td>
+                  <td className="small">{[u.business?.area, u.business?.city].filter(Boolean).join(", ")}<div className="muted">{u.business?.state} {u.business?.pincode}</div></td>
+                  <td><span className={"pill " + (u.business?.status === "verified" ? "p-ok" : u.business?.status === "pending" ? "p-new" : "p-bad")}>{u.business?.status}</span></td>
+                  <td>{pill(u.owner)}</td>
+                </> : <td><CustomerPass u={u} toast={toast} onDone={() => search(qRef.current.trim(), false)} /></td>}
+                <td className="small">{day(u.createdAt)}</td>
+                <td className="small">{u.lastLoginAt ? dt(u.lastLoginAt) : "never"}<div className="muted">{u.lastLoginDevice}</div></td>
+                <td className="small"><ConsentCell u={u} partners={partners} /></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Terms acceptance: version and date, plus the full record (exact text accepted, time, device, network address)
+// that can be downloaded and shown if there is ever a dispute.
+function ConsentCell({ u, partners }) {
+  const [open, setOpen] = useState(false);
+  const v = partners ? u.partnerConsentVersion : u.consentVersion;
+  const at = partners ? u.partnerConsentAt : u.consentAt;
+  return (
+    <>
+      {v ? <span>v{v}<div className="muted">{dt(at)}</div></span> : <span className="pill p-bad">not accepted</span>}
+      <div><button className="link small" onClick={() => setOpen(true)}>Record</button></div>
+      {open && <ConsentRecord id={u.id} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function ConsentRecord({ id, onClose }) {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => { api.adminConsents(id).then(setData).catch((e) => setErr(errText(e))); }, [id]);
+  const download = (c) => {
+    const u = data.user;
+    const text = [
+      `${APP_NAME}: record of acceptance`,
+      "",
+      `Name:            ${u.name || ""}`,
+      `E-mail:          ${u.email}`,
+      `Mobile:          ${u.phone}`,
+      `Account ID:      ${u.id}`,
+      `Accepted as:     ${c.kind === "partner" ? "Partner (business)" : "Customer"}`,
+      `Terms version:   ${c.version}`,
+      `Accepted at:     ${dt(c.at)} (India time) · ${new Date(c.at).toISOString()} (UTC)`,
+      `Read in full:    ${c.readFull ? "Yes (scrolled to the end before agreeing)" : "Not recorded (older acceptance)"}`,
+      `Device:          ${c.device}`,
+      `Network address: ${c.ip || "not recorded"}`,
+      `Text fingerprint (SHA-256): ${c.hash || "not recorded"}`,
+      "",
+      "=============== Exact text accepted ===============",
+      "",
+      c.text || "(The exact text was not stored for this older acceptance.)",
+    ].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    a.download = `lastpick-consent-${(u.email || u.id).replace(/[^a-z0-9]+/gi, "-")}-${c.version}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  return (
+    <Sheet onClose={onClose}>
+      <h2 style={{ margin: "0 0 4px" }}>Terms acceptance record</h2>
+      {err ? <div className="error">{err}</div> : !data ? <Spinner /> : (
+        <>
+          <div className="muted small" style={{ marginBottom: 10 }}>{data.user.name} · {data.user.email} · viewing this is recorded in the audit log</div>
+          {data.consents.length === 0 ? <div className="panel small">No acceptance recorded yet.</div> : data.consents.map((c, i) => (
+            <div className="panel" key={i} style={{ margin: "0 0 10px" }}>
+              <div className="row"><b>{c.kind === "partner" ? "Partner terms" : "Customer terms"} · v{c.version}</b>{c.readFull ? <span className="pill p-ok">read in full</span> : <span className="pill p-mute">older</span>}</div>
+              <div className="muted small">{dt(c.at)} · {c.device}{c.ip ? ` · ${c.ip}` : ""}</div>
+              {c.hash && <div className="muted small" style={{ wordBreak: "break-all" }}>Fingerprint: {c.hash}</div>}
+              <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => download(c)}>⬇ Download record</button>
+            </div>
+          ))}
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+// Customer Pass: shows the plan and lets an admin activate or extend it by one month (payment collected outside the app).
+function CustomerPass({ u, toast, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const s = u.customer;
+  const active = !!s?.active;
+  const go = async (months) => {
+    setBusy(true);
+    try { await api.adminSetPlanFor(u.id, "customer", months); toast(months ? (active ? "Customer Pass extended by 1 month" : "Customer Pass activated for 1 month") : "Customer Pass ended"); onDone(); }
     catch (e) { toast(errText(e)); }
     setBusy(false);
   };
   return (
-    <div className="form">
-      <div className="muted">Activate or extend a plan by hand, e.g. for testers or when someone paid outside the app.</div>
-      <div className="fld"><label>User's email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
-      <div className="two">
-        <div className="fld"><label>Plan</label><select value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value })}><option value="customer">{PLANS.customer.name}</option><option value="owner">{PLANS.owner.name}</option></select></div>
-        <div className="fld"><label>Length</label><select value={f.months} onChange={(e) => setF({ ...f, months: e.target.value })}>
-          {[1, 3, 6, 12].map((m) => <option key={m} value={m}>{planLabel(m)} ({rupee(PLANS[f.plan].options.find((o) => o.months === m).price)})</option>)}<option value={0}>End the plan now</option></select></div>
-      </div>
-      <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Apply"}</button>
+    <div className="gap" style={{ alignItems: "center", flexWrap: "wrap" }}>
+      {active ? <span className="pill p-ok">till {day(s.until)}</span> : <span className="pill p-mute">{s?.status || "none"}</span>}
+      <button className="btn ghost sm" disabled={busy} onClick={() => go(1)}>{active ? "Extend" : "Activate"} · {rupee(PLANS.customer.price)}</button>
+      {active && <button className="link small" disabled={busy} onClick={() => go(0)}>End</button>}
     </div>
   );
 }
@@ -470,54 +568,3 @@ function Reveal({ masked, load, render }) {
   return <span>{masked} <button className="link small" disabled={busy} onClick={async () => { setBusy(true); try { setFull(await load()); } catch { setBusy(false); } }}>{busy ? "…" : "Show"}</button></span>;
 }
 
-function AdminTeam({ toast }) {
-  const empty = { email: "", role: "moderator", regions: [], cities: "", pincodes: "" };
-  const [f, setF] = useState(empty);
-  const [busy, setBusy] = useState(false);
-  const [team, setTeam] = useState(null);
-  const loadTeam = () => api.adminTeam().then(setTeam).catch(() => setTeam([]));
-  useEffect(() => { loadTeam(); }, []);
-  const toggle = (st) => setF((p) => ({ ...p, regions: p.regions.includes(st) ? p.regions.filter((x) => x !== st) : [...p.regions, st] }));
-  const split = (v) => v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
-  const pinsOk = split(f.pincodes).every((x) => /^[1-9]\d{5}$/.test(x));
-  const submit = async () => {
-    if (f.role === "moderator" && f.regions.length === 0) return toast("Pick at least one state for the area agent");
-    if (!pinsOk) return toast("Pincodes must be 6 digits, separated by commas");
-    setBusy(true);
-    try {
-      await api.adminSetRole(f.email.trim(), f.role, f.regions, split(f.cities), split(f.pincodes));
-      toast(`Saved: ${f.email} is now ${f.role === "moderator" ? "an area agent" : f.role}`); setF(empty); loadTeam();
-    } catch (e) { toast(errText(e)); }
-    setBusy(false);
-  };
-  const areaText = (u) => [u.regions?.join(", "), u.areaCities?.length ? "cities: " + u.areaCities.join(", ") : "", u.areaPincodes?.length ? "pincodes: " + u.areaPincodes.join(", ") : ""].filter(Boolean).join(" · ");
-  return (
-    <>
-      <div className="form">
-        <div className="muted">An <b>area agent</b> (moderator) verifies businesses and handles reports only in their area: the states you pick, optionally narrowed to some cities or pincodes. Admins see all of India. The person must have signed up first.</div>
-        <div className="fld"><label>Email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="agent@example.com" /></div>
-        <div className="fld"><label>Role</label>
-          <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
-            <option value="moderator">Area agent (moderator)</option><option value="admin">Admin (all of India)</option><option value="user">Normal user (remove access)</option>
-          </select></div>
-        {f.role === "moderator" && <>
-          <div className="fld"><label>States ({f.regions.length} selected)</label>
-            <div className="statepick">{INDIAN_STATES.map((st) => <button type="button" key={st} className={"chip " + (f.regions.includes(st) ? "on" : "")} onClick={() => toggle(st)}>{st}</button>)}</div></div>
-          <div className="fld"><label>Only these cities (optional)</label><input value={f.cities} onChange={(e) => setF({ ...f, cities: e.target.value })} placeholder="e.g. Hyderabad, Secunderabad" />
-            <span className="hint">Leave empty for the whole state.</span></div>
-          <div className="fld"><label>Only these pincodes (optional)</label><input inputMode="numeric" value={f.pincodes} onChange={(e) => setF({ ...f, pincodes: e.target.value })} placeholder="e.g. 500081, 500032" />
-            <span className="hint" style={{ color: pinsOk ? undefined : "var(--bad)" }}>{pinsOk ? "Leave empty for the whole city or state." : "Each pincode must be 6 digits."}</span></div>
-        </>}
-        <button className="btn dark" disabled={busy || !f.email} onClick={submit}>{busy ? "Saving…" : "Save"}</button>
-      </div>
-      <div className="sect"><h3>Your team</h3></div>
-      {!team ? <Spinner /> : team.length === 0 ? <div className="panel small muted">No admins or area agents yet.</div> : team.map((u) => (
-        <div className="item" key={u.id}>
-          <div className="grow"><b style={{ fontSize: 14 }}>{u.name || u.email}</b> <span className="pill p-new">{u.role === "moderator" ? "area agent" : u.role}</span>
-            <div className="muted small">{u.role === "admin" ? "All of India" : areaText(u) || "No area yet"}</div></div>
-          <button className="btn ghost sm" onClick={() => setF({ email: u.email, role: u.role, regions: u.regions || [], cities: (u.areaCities || []).join(", "), pincodes: (u.areaPincodes || []).join(", ") })}>Edit</button>
-        </div>
-      ))}
-    </>
-  );
-}

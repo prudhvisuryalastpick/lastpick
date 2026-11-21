@@ -91,7 +91,6 @@ export const CAT_STYLE = {
   appliances: { icon: "tv", tint: "#EEF0F6", ink: "#3B4654", short: "Appliances" },
   shops: { icon: "store", tint: "#E8F6EC", ink: "#0F7A43", short: "Shops" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
-  combo: { icon: "spark", tint: "#FFF0E3", ink: "#B4410E", short: "Combos" },
   other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Other" },
 };
 // any unknown category shows as Others

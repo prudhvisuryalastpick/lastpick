@@ -11,10 +11,6 @@ export async function setSetting(key, value, by) {
            ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()`, [key, JSON.stringify(value), by]);
 }
 
-// ---- Combos: one offer that bundles services. Off until an admin switches it on. ----
-export const COMBO_ITEMS = ["stay", "food", "pickup", "ironing"];
-export const COMBO_24x7 = ["stay", "pickup"]; // a combo with a hotel room or pickup & drop runs 24×7 like hotels and travel
-export const combosOn = async () => (await getSetting("combos", false)) === true;
 
 // ---- One device at a time for customers. On unless an admin switches it off. ----
 // (Partner and admin logins are always one device at a time.)

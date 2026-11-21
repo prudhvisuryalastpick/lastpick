@@ -1,7 +1,8 @@
+import { TermsBox } from "./privacy.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { COMBO_ITEMS, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, COMBO_TEMPLATES, categoryOf } from "../lib/config.js";
+import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -175,8 +176,17 @@ export function OwnerOffers() {
       <div className="tabs"><button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>Current</button><button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button></div>
       {tab === "history" ? (
         <>
-          <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here {RETENTION.endedOfferVisibleDays} days after they end and are kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
-          {!history ? <Spinner /> : history.length === 0 ? <Empty icon="🗄️" title="No history yet">Ended offers appear here.</Empty> : history.map((h) => (
+          <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here as soon as they end (every offer closes by 11 PM, except hotels and travel). Kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
+          {(offers || []).filter((o) => !(o.status === "live" && o.endsAt > now)).map((o) => (
+            <div className="item" key={o.id}>
+              <OfferImage offer={o} className="ic" />
+              <div className="grow"><b style={{ fontSize: 14 }}>{o.title}</b>
+                <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s> · seen by {o.views || 0}</div>
+                <div className="muted small">{o.status === "removed" ? "Removed by LastPick for breaking the rules" : `Ended ${day(Math.min(o.endsAt, now))}`}</div></div>
+              <span className="pill p-mute">{o.status === "removed" ? "Removed" : "Ended"}</span>
+            </div>
+          ))}
+          {!history ? <Spinner /> : history.length === 0 && !(offers || []).some((o) => !(o.status === "live" && o.endsAt > now)) ? <Empty icon="🗄️" title="No history yet">Ended offers appear here.</Empty> : history.map((h) => (
             <div className="item" key={h.id}>
               <OfferImage offer={{ ...h, photoUrl: null }} className="ic" />
               <div className="grow"><b style={{ fontSize: 14 }}>{h.title}</b>
@@ -185,8 +195,8 @@ export function OwnerOffers() {
             </div>
           ))}
         </>
-      ) : !offers ? <Spinner /> : offers.length === 0 ? <Empty icon="🗂️" title="No offers yet" action={<a className="btn main" href="#/owner/post">Post your first offer</a>}>Anything you need to move: rooms, seats, halls, slots, stock…</Empty>
-        : offers.map((o) => {
+      ) : !offers ? <Spinner /> : !offers.some((o) => o.status === "live" && o.endsAt > now) ? <Empty icon="🗂️" title="No live offers" action={<a className="btn main" href="#/owner/post">Post an offer</a>}>Ended offers are in History. Anything you need to move: rooms, seats, halls, slots, stock…</Empty>
+        : offers.filter((o) => o.status === "live" && o.endsAt > now).map((o) => {
           const live = o.status === "live" && o.endsAt > now;
           const label = live ? (o.visible === false ? "Waiting" : "Live") : o.status === "removed" ? "Removed" : "Ended";
           return (
@@ -222,14 +232,14 @@ export function PostOffer() {
   const { business, toast, config } = useApp();
   // a partner posts ONLY in its own registered categories (a bakery posts bakery offers), plus job openings at its shop
   const own = business?.categories?.length ? business.categories : [business?.category || "other"];
-  const allowed = [...new Set([...own, "jobs", ...(config?.combos ? ["combo"] : [])])];
+  const allowed = [...new Set([...own, "jobs"])];
   const [postedToday, setPostedToday] = useState(null);
   useEffect(() => {
     const dayStart = Math.floor((Date.now() + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000;
     api.myOffers().then((l) => setPostedToday(l.filter((o) => o.createdAt >= dayStart).length)).catch(() => setPostedToday(0));
   }, []);
   const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
-  const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6, comboItems: [] });
+  const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6 });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const now = useNow(60000);
@@ -237,9 +247,8 @@ export function PostOffer() {
   const job = f.category === "jobs";
   // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels and travel.
   // Posting is open only from 4 AM to 11 PM.
-  // Hotels and travel (and combos with a room or pickup & drop): post any time, run up to 24 hours.
-  const combo = f.category === "combo";
-  const allDay = runs24x7(f.category, f.comboItems);
+  // Hotels and travel: post any time, run up to 24 hours.
+  const allDay = runs24x7(f.category);
   const dayStart = istDayStart(now);
   const closing = allDay ? now + 24 * 3600000 : dayStart + HOURS.close * 3600000;
   const hourNow = (now - dayStart) / 3600000; // hours since midnight, India time
@@ -249,9 +258,8 @@ export function PostOffer() {
   const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, allDay ? Date.now() + 24 * 3600000 : closing));
   const closeLabel = allDay ? "24 hours" : "11 PM";
   const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
-  const toggleItem = (id) => setF((p) => ({ ...p, comboItems: p.comboItems.includes(id) ? p.comboItems.filter((x) => x !== id) : [...p.comboItems, id] }));
-  const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...(config?.combos ? COMBO_TEMPLATES : []), ...JOB_TEMPLATES];
-  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours, comboItems: t.comboItems || [] }));
+  const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...JOB_TEMPLATES];
+  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
   // the % off is worked out from the prices, and any "40% off" in the title is kept in step automatically
   const setPrice = (k, v) => setF((p) => {
@@ -271,13 +279,12 @@ export function PostOffer() {
     if (!(price >= 0) || f.price === "") problems.push("the offer price");
     else if (orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
   }
-  if (combo && f.comboItems.length < 2) problems.push("at least 2 things in the combo");
   const realPct = !job && orig > 0 && f.price !== "" && price >= 0 && price < orig ? Math.round((1 - price / orig) * 100) : null;
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
     title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: null,
-    origPrice: orig || 0, price: f.price === "" ? null : price, comboItems: combo ? f.comboItems : [], quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
+    origPrice: orig || 0, price: f.price === "" ? null : price, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   const submit = async () => {
@@ -286,7 +293,7 @@ export function PostOffer() {
     try {
       await api.createOffer({
         title: f.title.trim(), description: f.description.trim(), category: f.category, emoji: f.emoji,
-        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours), comboItems: combo ? f.comboItems : undefined,
+        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours),
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
       navigate("/owner/offers");
@@ -327,13 +334,9 @@ export function PostOffer() {
           <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
-            : combo ? "A combo bundles things customers book together, at one price. With a hotel room or pickup & drop it runs 24×7."
             : allDay
               ? "Hotels and travel run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
-        {combo && <div className="fld"><label>What's in the combo? (pick 2 or more)</label>
-          <div className="gap" style={{ flexWrap: "wrap", gap: 6 }}>{COMBO_ITEMS.map((c) => (
-            <button type="button" key={c.id} className={"chip " + (f.comboItems.includes(c.id) ? "on" : "")} onClick={() => toggleItem(c.id)}>{f.comboItems.includes(c.id) ? "✓ " : ""}{c.label}</button>))}</div></div>}
         <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
         <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
         <div className="two">
@@ -384,6 +387,7 @@ function BusinessForm({ first = false }) {
   }));
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [termsDoc, setTermsDoc] = useState(null); // set once the partner has scrolled through the whole Terms
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
   // Pincode first: a valid pincode fills state, city and the list of areas (post offices) for that pincode.
@@ -437,7 +441,8 @@ function BusinessForm({ first = false }) {
   if (f.lat == null) missing.push("your shop's location (tap Detect my shop location while at your shop)");
   else if (!validPincode(f.pincode)) missing.push("the pincode (tap Detect my shop location again)");
   if (!validPhone(f.phone)) missing.push("a valid Indian contact number");
-  if (needsConsent && !f.agree) missing.push("agreement to the business terms");
+  if (needsConsent && !termsDoc) missing.push("reading the whole Terms and Conditions (scroll to the end)");
+  else if (needsConsent && !f.agree) missing.push("agreement to the Terms and Conditions");
 
   const save = async () => {
     if (missing.length) return;
@@ -446,7 +451,7 @@ function BusinessForm({ first = false }) {
       const city = f.city.trim().replace(/\s+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
       const categories = [f.category];
       await api.saveBusiness({ ...business, ...f, whatsapp: false, categories, name: f.name.trim(), area: f.area.trim(), city, phone: f.phone.trim() });
-      if (needsConsent) await api.recordConsent("partner", { items: ["genuine-offers", "categories", "licences", "number-visible", "customer-data-use"] });
+      if (needsConsent) await api.recordConsent("partner", { items: ["genuine-offers", "categories", "licences", "number-visible", "customer-data-use"], readFull: true, docText: termsDoc.text, docHash: termsDoc.hash });
       await refresh();
       toast(first ? "Business created. Next: choose your plan." : "Business details saved");
       if (!first) navigate("/owner");
@@ -483,9 +488,10 @@ function BusinessForm({ first = false }) {
             : <input value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Your locality, e.g. Nizampet" />}</div>
         <div className="fld"><label>Address</label><input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Shop number, building, street" /></div>
         <div className="fld"><label>About (optional)</label><textarea rows="2" maxLength={500} value={f.about} onChange={(e) => set("about", e.target.value)} placeholder="What you do, opening hours…" /></div>
+        {needsConsent && <TermsBox read={!!termsDoc} onRead={setTermsDoc} />}
         {needsConsent && (
           <label className="toggle" style={{ cursor: "pointer", justifyContent: "flex-start", alignItems: "flex-start" }}>
-            <input type="checkbox" aria-label="I agree to the business terms" checked={f.agree} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
+            <input type="checkbox" aria-label="I agree to the business terms" disabled={!termsDoc} checked={f.agree && !!termsDoc} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
             <span className="small">I confirm these details are true and I'm allowed to run this business. My offers will be genuine, at real prices, in my categories only, and I hold the licences my business needs (e.g. FSSAI for food).
               I agree my business contact number is shown to logged-in customers, and I'll use customers' numbers only to reply about their offer. I'm responsible for my offers; {APP_NAME} only connects me with customers. <a className="link" href="#/terms">Business terms</a></span>
           </label>

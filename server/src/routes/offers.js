@@ -5,7 +5,6 @@ import { many, one, q, rmany, rone } from "../db.js";
 import { freeMode, planActive } from "../plans.js";
 import { limit } from "../ratelimit.js";
 import { audit, mapOffer, needConsent, offerSelect, offerSummary, visibleSql } from "../shared.js";
-import { combosOn } from "../settings.js";
 import { ALWAYS_OPEN, BUSINESS_HOURS, runs24x7, bad, denied, isNight, needUuid, notFound, precondition, str } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -26,10 +25,9 @@ async function offerFor(ctx, id) {
 }
 
 // After working hours only hotels and travel stay listed.
-// Combos with a hotel room or pickup & drop count as 24×7 too. Combos are hidden while switched off.
-const hoursSql = () => (isNight() ? `(o.category IN (${ALWAYS_OPEN.map((c) => `'${c}'`).join(", ")}) OR (o.category = 'combo' AND o.combo_items && ARRAY['stay','pickup']))` : "true");
+const hoursSql = () => (isNight() ? `o.category IN (${ALWAYS_OPEN.map((c) => `'${c}'`).join(", ")})` : "true");
 function needOpen(o) {
-  if (isNight() && !runs24x7(o.category, o.comboItems)) {
+  if (isNight() && !runs24x7(o.category)) {
     const e = precondition(`This business is closed for the night. Contact them after ${BUSINESS_HOURS.open} AM. Hotels and travel stay open 24×7.`);
     e.code = "closed_for_night";
     throw e;
@@ -39,11 +37,10 @@ function needOpen(o) {
 async function feed(where, params, cacheKey) {
   const free = await freeMode();
   const night = isNight();
-  const combos = await combosOn();
-  return cached(`feed:${free}:${night}:${combos}:${cacheKey}`, 30000, async () => {
+  return cached(`feed:${free}:${night}:${cacheKey}`, 30000, async () => {
     const rows = await rmany(
       `SELECT ${offerSelect(free)} FROM offers o JOIN businesses b ON b.id = o.owner_id
-       WHERE ${visibleSql(free)} AND ${hoursSql()} AND ${combos ? "true" : "o.category <> 'combo'"} AND ${where} ORDER BY o.ends_at LIMIT 300`, params);
+       WHERE ${visibleSql(free)} AND ${hoursSql()} AND ${where} ORDER BY o.ends_at LIMIT 300`, params);
     return rows.map(mapOffer);
   });
 }

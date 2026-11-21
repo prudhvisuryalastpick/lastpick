@@ -255,6 +255,12 @@ main.main { flex: 1; padding-bottom: 100px; }
 .legal { padding: 4px 16px 24px; line-height: 1.6; font-size: 14.5px; }
 .legal h2 { font-size: 18px; margin: 22px 0 6px; }
 table.admin { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tablewrap { margin: 0 16px 16px; overflow-x: auto; background: #fff; border-radius: 16px; border: 1px solid var(--line); }
+table.admin.users { min-width: 860px; }
+table.admin.users th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--soft); white-space: nowrap; position: sticky; top: 0; }
+table.admin.users td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.admin.users tr:last-child td { border-bottom: 0; }
+table.admin.users tr:hover td { background: #FAFDFC; }
 
 /* welcome + sign-in screens */
 .welcome { min-height: 100vh; background: var(--deep); color: #F6F3EC; display: flex; flex-direction: column; padding: 28px 24px 32px; position: relative; overflow: hidden; }
@@ -408,7 +414,7 @@ table.admin { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 
 /* bottom bar with the raised centre button */
-.nav.cust { left: 0; right: 0; bottom: 0; transform: none; width: auto; max-width: 640px; margin: 0 auto; border-radius: 0; padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(11, 36, 64, .06); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; }
+.nav.cust { left: 0; right: 0; bottom: 0; transform: none; width: auto; max-width: 640px; margin: 0 auto; border-radius: 0; padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(11, 36, 64, .06); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
 .nav.cust a { min-height: 54px; font-weight: 600; }
 .nav.cust a.on { color: var(--nav-on); font-weight: 800; }
 .nav.cust a.centre { margin-top: -26px; color: var(--ink); font-weight: 700; justify-content: flex-start; }
@@ -586,8 +592,6 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .brandmark.light b { color: #fff; } .brandmark.light small { color: rgba(255,255,255,.75); }
 .pctline { margin-top: -4px; font-size: 14px; color: var(--ink); }
 .pctline b { color: var(--ok, #0F7B4F); }
-.combochips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.combochips span { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #FFF0E3; color: #B4410E; }
 .switchrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* ---------- admin: business card ---------- */
@@ -612,3 +616,24 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .bc-plan-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
 .bc-ctl { display: flex; gap: 6px; align-items: center; }
 .bc-ctl select { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: #fff; font-size: 13px; height: 36px; }
+
+/* "Turn on your location" popup */
+.locprompt { position: fixed; inset: 0; z-index: 90; background: rgba(6, 30, 32, .55); display: grid; place-items: end center; padding: 16px; animation: fadeUp .25s ease both; }
+@media (min-width: 640px) { .locprompt { place-items: center; } }
+.locprompt-card { width: min(440px, 100%); background: #fff; border-radius: 26px; padding: 26px 22px 20px; text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, .3); display: flex; flex-direction: column; }
+.locprompt-ic { width: 64px; height: 64px; border-radius: 22px; margin: 0 auto 12px; display: grid; place-items: center; font-size: 30px; background: var(--brand-soft, #E3F6EF); }
+.locprompt-card h2 { margin: 0 0 8px; font-size: 22px; }
+.locprompt-card p { margin: 0 0 12px; color: var(--muted); line-height: 1.5; font-size: 14.5px; }
+.locprompt-help { text-align: left; font-size: 13px; line-height: 1.55; background: var(--soft); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px; }
+
+/* Terms and Conditions reading box (must scroll to the end before agreeing) */
+.termsbox-wrap { border: 1px solid var(--line); border-radius: 16px; background: #fff; overflow: hidden; margin: 4px 0 6px; }
+.termsbox-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 14px; background: var(--soft); border-bottom: 1px solid var(--line); font-size: 14px; }
+.termsbox { max-height: 300px; overflow-y: auto; padding: 4px 14px 14px; font-size: 13.5px; line-height: 1.55; color: var(--ink); -webkit-overflow-scrolling: touch; }
+.termsbox h3 { font-size: 14.5px; margin: 14px 0 4px; }
+.termsbox p { margin: 6px 0; }
+.termsbox ul { margin: 6px 0; padding-left: 18px; }
+.termsbox li { margin: 4px 0; }
+.termsbox-foot { padding: 8px 14px; font-size: 12.5px; font-weight: 700; color: #8A5A00; background: #FFF8E6; border-top: 1px solid var(--line); }
+.termsbox-foot.ok { color: #0F7B4F; background: #E9F8F0; }
+.legal section h3 { font-size: 17px; margin: 20px 0 6px; }

@@ -37,17 +37,20 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 
 ## Planned (after we have good partners)
 
-- **Combos across partners:** today a combo is posted by one partner. Later: one booking that joins several partners (e.g. a cab partner's pickup + a hotel's room).
 
 ## Product rules built in
 
 - **E-mails (when Brevo is set up):** sign-up code, welcome, "registration received", business approved / rejected / paused (with the reason), payment receipt when a plan is activated or extended, plan ended, free period extended. Replies go to support@lastpick.in.
 - **Login:** e-mail + password. Sign-up checks the e-mail with a 6-digit code; **forgot password** e-mails a 6-digit code, then a new password logs out every other device. The same account works in the customer and partner apps.
 - **Customers always see offers within 30 km of their live location (GPS).** No manual pincode or city: the app asks for location, keeps it updated while open, and asks the user to turn location on if it is off. The header shows the area and pincode found from the location.
+- **Idle logout:** after 15 minutes without activity the app logs out (also when reopened after a longer break).
+- **Offers close at 11 PM automatically:** a job every 5 minutes ends offers whose time is up, and after 11 PM closes everything except hotels and travel, even if the partner forgets.
+- **Terms and Conditions (lib/terms.js):** one document for customers and partners. The Agree box unlocks only after scrolling to the end. Each acceptance stores the exact text (SHA-256 fingerprint), version, time, device and network address; Admin → Users → Terms → Record shows and downloads it. Changing the Terms: bump CONSENT_VERSION in web/src/lib/config.js and server/src/util.js.
+- **Admin users:** Customers and Partners in separate tables, each with search and a CSV download (logged). No Plans or Team tabs: Business Pro is set from Businesses, the Customer Pass from the Customers table.
 - **One device at a time:** logging in on a new device logs out the old one, and the old device says why. Admins can switch this off for customers (Admin → Overview); partner and admin logins always stay one device.
 - **Consent checked on the server:** customers can't view numbers, share theirs or review without accepting the current notice. That notice includes "LastPick is only a platform". Partners can't post without accepting the business terms.
 - **Working hours (India time):**
-  - Hotels and travel (and combos with a room or pickup & drop) are 24×7: they can post at any time, and an offer runs for up to 24 hours.
+  - Hotels and travel are 24×7: they can post at any time, and an offer runs for up to 24 hours.
   - Everyone else can post from 4 AM to 10:30 PM, so a post at 10 PM can run till 11 PM at most. Their offers are shown 4 AM to 11 PM, end by 11 PM and are removed at 12 midnight.
   - Customers are told this on the home screen.
   - Change the hours with `OPEN_HOUR` / `CLOSE_HOUR` (shown hours) and `POST_FROM_HOUR` / `POST_TILL_HOUR` (posting).
@@ -58,7 +61,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 - **Views and reviews:** partners see how many customers saw each offer, and read and reply to reviews. There is no Boost button in the partner app (featuring an offer is admin-only, under Admin → Revenue).
 - **Shop location from GPS:** the partner taps "Detect my shop location" at the shop (done automatically for a new business). It saves the map point and fills pincode, state, city and address (OpenStreetMap), then the area list from the pincode (India Post). The pincode and state can't be typed.
 - **No dashboards** for customers or partners; admins see platform totals.
-- **Combos (admin switch):** one offer bundling a hotel room, food, pickup & drop and ironing. Off by default; Admin → Overview → Combos switches it on for partners (to post) and customers (Combos tile) at once.
+- **No combos:** removed (migration 011 closes old combo offers and drops the column).
 - **Automatic discount:** the % off is worked out from the prices; any "40% off" in the title is corrected automatically (app and server).
 - **Categories:** Food, Hotels, Travel, Salon, Makeup, Fashion, Home appliances, Shops, Other, plus Hiring (job openings). Old categories are moved by migration 010.
 - **Plans (only two, monthly):** Customer Pass ₹99, Business Pro ₹499. The admin activates them until payments are added.

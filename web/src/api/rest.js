@@ -133,6 +133,10 @@ export const api = {
   // ---------- admin & moderators (admin server) ----------
   async adminStats() { return get("/api/admin/stats"); },
   async adminFindUsers(q) { return get(`/api/admin/users?q=${enc(q || "")}`); },
+  async adminUsers(kind, q) { return get(`/api/admin/users?kind=${enc(kind)}&q=${enc(q || "")}`); },
+  async adminConsents(id) { return get(`/api/admin/users/${enc(id)}/consents`); },
+  async adminExportUsers(kind) { return get(`/api/admin/users/export?kind=${enc(kind)}`); },
+  async adminSetPlanFor(userId, plan, months) { await post("/api/admin/plans", { userId, plan, months }); },
   async revealUser(id) { return post(`/api/admin/users/${enc(id)}/reveal`); },
   async revealBusiness(id) { return post(`/api/admin/businesses/${enc(id)}/reveal`); },
   async adminTeam() { return get("/api/admin/team"); },

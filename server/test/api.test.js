@@ -7,6 +7,13 @@ import { after, before, test } from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// a consent as the app sends it: the whole Terms were read and their exact text is attached
+import { createHash } from "node:crypto";
+import { CONSENT_VERSION as TERMS_V } from "../src/util.js";
+const termsDoc = () => { const docText = `LastPick Terms and Conditions\nVersion ${TERMS_V}\n\n1. About these terms\nTest text.`; return { readFull: true, docText, docHash: createHash("sha256").update(docText).digest("hex") }; };
+const fullConsent = (extra = {}) => ({ adult: true, items: ["account"], ...termsDoc(), ...extra });
+
+
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB = process.env.DATABASE_URL;
 if (!DB || !/test/.test(DB)) throw new Error("Set DATABASE_URL to a database whose name contains 'test' (it will be wiped)");
@@ -72,9 +79,9 @@ const soon = (min) => Math.min(Date.now() + min * 60000, tonightIST());
 
 test("one account per mobile number", async () => {
   const c = client("customer");
-  const a = await c.post("/api/auth/signup", { email: "phone1@test.lastpick.in", password: "longpassword", name: "Phone One", phone: "9811122233", consent: { adult: true, items: ["name"] } });
+  const a = await c.post("/api/auth/signup", { email: "phone1@test.lastpick.in", password: "longpassword", name: "Phone One", phone: "9811122233", consent: fullConsent() });
   assert.equal(a.status, 200, JSON.stringify(a.data));
-  const b = await client("customer").post("/api/auth/signup", { email: "phone2@test.lastpick.in", password: "longpassword", name: "Phone Two", phone: "+91 98111 22233", consent: { adult: true, items: ["name"] } });
+  const b = await client("customer").post("/api/auth/signup", { email: "phone2@test.lastpick.in", password: "longpassword", name: "Phone Two", phone: "+91 98111 22233", consent: fullConsent() });
   assert.equal(b.status, 409);
   assert.match(b.data.error, /already registered/);
 });
@@ -105,7 +112,7 @@ test("login rules", async () => {
   assert.equal((await client("admin").login("customer@test.lastpick.in")).status, 403);
   assert.equal((await client("admin").login("moderator@test.lastpick.in")).status, 200);
   // sign-up works on customer/partner, never on admin
-  const s = await client("customer").post("/api/auth/signup", { email: "new@test.lastpick.in", password: "longpassword", name: "New Person", phone: "9876543210", consent: { adult: true, items: ["name"] } });
+  const s = await client("customer").post("/api/auth/signup", { email: "new@test.lastpick.in", password: "longpassword", name: "New Person", phone: "9876543210", consent: fullConsent() });
   assert.equal(s.status, 200, JSON.stringify(s.data));
   assert.equal((await client("admin").post("/api/auth/signup", { email: "x@test.lastpick.in", password: "longpassword", name: "X" })).status, 403);
 });
@@ -281,7 +288,22 @@ test("consent is checked on the server", async () => {
   const r = await c.post(`/api/offers/${offerId}/reveal`);
   assert.equal(r.status, 409);
   assert.equal(r.data.code, "consent_required");
-  assert.equal((await c.post("/api/consent", { kind: "user", version: "2026-11-20", adult: true, items: ["account"] })).status, 200);
+  // agreeing without reading the whole Terms (or without the text) is refused
+  assert.equal((await c.post("/api/consent", { kind: "user", version: TERMS_V, adult: true, items: ["account"] })).status, 400);
+  assert.equal((await c.post("/api/consent", { kind: "user", version: TERMS_V, ...fullConsent({ readFull: false }) })).status, 400);
+  assert.equal((await c.post("/api/consent", { kind: "user", version: TERMS_V, ...fullConsent({ docHash: "0".repeat(64) }) })).status, 400, "the fingerprint must match the text");
+  assert.equal((await c.post("/api/consent", { kind: "user", version: TERMS_V, ...fullConsent() })).status, 200);
+  // the admin sees the record, with the exact text accepted
+  const adm = client("admin"); await adm.login("admin@test.lastpick.in");
+  const me = (await c.get("/api/me")).data;
+  const rec = await adm.get(`/api/admin/users/${me.id}/consents`);
+  assert.equal(rec.status, 200);
+  assert.ok(rec.data.consents[0].readFull && rec.data.consents[0].text.includes(`Version ${TERMS_V}`) && rec.data.consents[0].hash.length === 64);
+  // customers and partners are listed separately, and the CSV export has full contact details
+  const custs = (await adm.get("/api/admin/users?kind=customers")).data, parts = (await adm.get("/api/admin/users?kind=partners")).data;
+  assert.ok(custs.every((x) => !x.business) && parts.every((x) => x.business) && parts.length > 0);
+  const csv = (await adm.get("/api/admin/users/export?kind=partners")).data;
+  assert.ok(csv.length === parts.length && csv.every((x) => !x.masked) && csv.some((x) => x.email.includes("@")));
   // the offer ended in an earlier test, but consent no longer blocks: it fails for a different reason
   assert.notEqual((await c.post(`/api/offers/${offerId}/reveal`)).data?.code, "consent_required");
 });
@@ -381,7 +403,7 @@ test("working hours: after 11 PM only hotels and travel", async () => {
     const { fixTitlePercent, runs24x7 } = await import("../src/util.js");
     assert.equal(fixTitlePercent("Haircut slots free this evening, 40% off", 80), "Haircut slots free this evening, 80% off");
     assert.equal(fixTitlePercent("Fresh cakes", 50), "Fresh cakes");
-    assert.ok(runs24x7("stay") && runs24x7("combo", ["food", "pickup"]) && !runs24x7("combo", ["food", "ironing"]) && !runs24x7("food"));
+    assert.ok(runs24x7("stay") && runs24x7("travel") && !runs24x7("combo") && !runs24x7("food"));
   }
   const cfg = await client("customer").get("/api/config");
   assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel"]);
@@ -399,27 +421,15 @@ test("working hours: after 11 PM only hotels and travel", async () => {
   }
 });
 
-test("combos switch, automatic % in the title, 24-hour hotel offers", async () => {
+test("no combos, automatic % in the title, 24-hour hotel offers", async () => {
   const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
   const pool = new Pool({ connectionString: DB });
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'"); // lift today's post limit
   await pool.end();
   const p = client("partner"); await p.login("owner@test.lastpick.in");
-  const a = client("admin"); await a.login("admin@test.lastpick.in");
-  const combo = { title: "Room + dinner + pickup, 30% off", category: "combo", comboItems: ["stay", "food", "pickup"], origPrice: 4000, price: 2800, endsAt: soon(60) };
-  // off by default: partners can't post combos and customers don't see them
-  assert.equal((await client("customer").get("/api/config")).data.combos, false);
-  assert.equal((await p.post("/api/owner/offers", combo)).status, 403);
-  assert.equal((await a.post("/api/admin/settings", { combos: true })).data.combos, true);
-  assert.equal((await client("customer").get("/api/config")).data.combos, true);
-  assert.equal((await p.post("/api/owner/offers", { ...combo, comboItems: ["food"] })).status, 400, "a combo needs 2 or more things");
-  const made = await p.post("/api/owner/offers", combo);
-  assert.equal(made.status, 200, JSON.stringify(made.data));
-  const seen = (await client("customer").get("/api/offers?lat=12.97&lng=77.64&radius=5")).data.find((o) => o.id === made.data.id);
-  assert.deepEqual(seen.comboItems, ["stay", "food", "pickup"]);
-  // switched off again: hidden
-  await a.post("/api/admin/settings", { combos: false });
-  assert.ok(!(await client("customer").get("/api/offers?lat=12.97&lng=77.64&radius=5")).data.some((o) => o.id === made.data.id));
+  // combos are removed: a "combo" offer is refused like any other category the business isn't registered in
+  assert.equal((await p.post("/api/owner/offers", { title: "Room + dinner + pickup", category: "combo", comboItems: ["stay", "food"], origPrice: 4000, price: 2800, endsAt: soon(60) })).status, 403);
+  assert.equal((await client("customer").get("/api/config")).data.combos, undefined);
   // the % in the title is worked out from the prices: 400 -> 80 is 80% off, not 40%
   const cut = await p.post("/api/owner/offers", { title: "Cake slices, 40% off", category: "food", origPrice: 400, price: 80, endsAt: soon(30) });
   assert.equal(cut.status, 200, JSON.stringify(cut.data));

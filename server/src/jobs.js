@@ -19,6 +19,16 @@ export function registerJobs() {
     return { expired: r.rowCount };
   });
 
+  // Every 5 minutes: close offers whose time is up, even if the partner forgets. After 11 PM (India time) every offer
+  // except hotels and travel (24x7) is closed, whatever end time it had.
+  schedule("close-offers", { every: 300000 }, async () => {
+    const timeUp = await q("UPDATE offers SET status = 'ended' WHERE status = 'live' AND ends_at <= now()");
+    const night = await q(`UPDATE offers SET status = 'ended', ends_at = least(ends_at, now())
+                           WHERE status = 'live' AND category NOT IN ('stay', 'travel')
+                             AND ((now() AT TIME ZONE 'Asia/Kolkata')::time >= time '23:00' OR (now() AT TIME ZONE 'Asia/Kolkata')::time < time '04:00')`);
+    return { timeUp: timeUp.rowCount, closedAt11pm: night.rowCount };
+  });
+
   // Every 10 minutes: full photos of offers that just ended are deleted (thumbnails stay until the offer is archived).
   schedule("drop-ended-photos", { every: 600000 }, async () => {
     const r = await q(`WITH ended AS (UPDATE offers SET has_photo = false WHERE has_photo AND (ends_at < now() OR status <> 'live') RETURNING id)

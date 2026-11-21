@@ -1,6 +1,6 @@
 // Admin panel API. "admin" (super admin) sees all of India. A "moderator" (area agent) sees only their area:
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
-import { combosOn, setSetting, singleDeviceOn } from "../settings.js";
+import { setSetting, singleDeviceOn } from "../settings.js";
 import { needUser } from "../auth.js";
 import { PLAN_NAMES, notify } from "../notify.js";
 import { clearCache } from "../cache.js";
@@ -68,26 +68,58 @@ export function adminRoutes(r) {
     };
   });
 
+  // Users, split into customers (no business) and partners (have a business). ?kind=customers|partners&q=
+  const userSel = `SELECT u.*, b.name AS b_name, b.category AS b_category, b.area AS b_area, b.city AS b_city, b.state AS b_state,
+                   b.pincode AS b_pincode, b.status AS b_status, b.trial_ends_at AS b_trial,
+                   sc.status AS c_status, sc.current_period_end AS c_end, so.status AS o_status, so.current_period_end AS o_end
+                   FROM users u LEFT JOIN businesses b ON b.id = u.id
+                   LEFT JOIN subscriptions sc ON sc.user_id = u.id AND sc.plan = 'customer'
+                   LEFT JOIN subscriptions so ON so.user_id = u.id AND so.plan = 'owner'`;
+  const kindWhere = (kind) => (kind === "partners" ? "b.id IS NOT NULL" : kind === "customers" ? "b.id IS NULL AND u.role = 'user'" : "TRUE");
+  const findUsers = async (kind, s, limit) => {
+    const k = kindWhere(kind);
+    if (!s) return many(`${userSel} WHERE ${k} ORDER BY u.created_at DESC LIMIT ${limit}`);
+    if (s.includes("@")) return many(`${userSel} WHERE ${k} AND lower(u.email) = $1`, [normEmail(s)]);
+    if (/\d{6,}/.test(s.replace(/\D/g, ""))) return many(`${userSel} WHERE ${k} AND u.phone = $1 LIMIT 20`, ["+91" + s.replace(/\D/g, "").slice(-10)]);
+    return many(`${userSel} WHERE ${k} AND (lower(u.name) LIKE $1 OR lower(b.name) LIKE $1) ORDER BY u.name LIMIT 50`, ["%" + s.toLowerCase().replace(/[%_\\]/g, "\\$&") + "%"]);
+  };
+  const sub = (status, end) => (status ? { status, until: ms(end), active: subActive({ status, current_period_end: end }) } : null);
+  const userRow = (u, full = false) => ({
+    // masked: the full phone and e-mail are shown only through /reveal or the CSV export, both logged
+    id: u.id, name: u.name, phone: full ? u.phone : maskPhone(u.phone), email: full ? u.email : maskEmail(u.email), masked: !full, role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
+    createdAt: ms(u.created_at), lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
+    consentVersion: u.consent?.version || null, consentAt: u.consent?.at || null, partnerConsentVersion: u.partner_consent?.version || null, partnerConsentAt: u.partner_consent?.at || null,
+    customer: sub(u.c_status, u.c_end), owner: sub(u.o_status, u.o_end),
+    business: u.b_name ? { name: u.b_name, category: u.b_category, area: u.b_area, city: u.b_city, state: u.b_state, pincode: u.b_pincode, status: u.b_status, trialEndsAt: ms(u.b_trial) } : null,
+  });
   r.get("/api/admin/users", async (ctx) => {
     superAdmin(ctx);
-    const s = str(ctx.query.q, 80);
-    let rows;
-    const sel = `SELECT u.*, b.name AS b_name, b.city AS b_city, b.state AS b_state, b.status AS b_status,
-                 sc.status AS c_status, sc.current_period_end AS c_end, so.status AS o_status, so.current_period_end AS o_end
-                 FROM users u LEFT JOIN businesses b ON b.id = u.id
-                 LEFT JOIN subscriptions sc ON sc.user_id = u.id AND sc.plan = 'customer'
-                 LEFT JOIN subscriptions so ON so.user_id = u.id AND so.plan = 'owner'`;
-    if (!s) rows = await many(`${sel} ORDER BY u.created_at DESC LIMIT 50`);
-    else if (s.includes("@")) rows = await many(`${sel} WHERE lower(u.email) = $1`, [normEmail(s)]);
-    else if (/\d{6,}/.test(s.replace(/\D/g, ""))) rows = await many(`${sel} WHERE u.phone = $1 LIMIT 20`, ["+91" + s.replace(/\D/g, "").slice(-10)]);
-    else rows = await many(`${sel} WHERE lower(u.name) LIKE $1 ORDER BY u.name LIMIT 30`, [s.toLowerCase().replace(/[%_\\]/g, "\\$&") + "%"]);
-    const sub = (status, end) => (status ? { status, until: ms(end), active: subActive({ status, current_period_end: end }) } : null);
-    return rows.map((u) => ({
-      // masked: the full phone and e-mail are shown only through /reveal, which is logged
-      id: u.id, name: u.name, phone: maskPhone(u.phone), email: maskEmail(u.email), masked: true, role: u.role, regions: u.regions, areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [], createdAt: ms(u.created_at),
-      customer: sub(u.c_status, u.c_end), owner: sub(u.o_status, u.o_end),
-      business: u.b_name ? { name: u.b_name, city: u.b_city, state: u.b_state, status: u.b_status } : null,
-    }));
+    const rows = await findUsers(ctx.query.kind, str(ctx.query.q, 80), 500);
+    return rows.map((u) => userRow(u));
+  });
+  // Full list with contact details for the CSV download. Logged (who downloaded which list, and when).
+  r.get("/api/admin/users/export", async (ctx) => {
+    const me = superAdmin(ctx);
+    const kind = ctx.query.kind === "partners" ? "partners" : "customers";
+    const rows = await many(`${userSel} WHERE ${kindWhere(kind)} ORDER BY u.created_at DESC LIMIT 20000`);
+    audit("admin_export_users", me.id, { kind, count: rows.length });
+    return rows.map((u) => userRow(u, true));
+  });
+
+  // A user's Terms acceptances with the exact text they accepted (for disputes). Logged.
+  r.get("/api/admin/users/:id/consents", async (ctx) => {
+    const me = superAdmin(ctx);
+    const id = needUuid(ctx.params.id, "user");
+    const u = await one("SELECT id, name, email, phone, created_at FROM users WHERE id = $1", [id]);
+    if (!u) throw notFound("User not found");
+    const rows = await many(`SELECT l.kind, l.version, l.items, l.user_agent, l.ip, l.read_full, l.at, l.doc_hash, d.text
+                             FROM consent_log l LEFT JOIN consent_documents d ON d.hash = l.doc_hash
+                             WHERE l.user_id = $1 ORDER BY l.at DESC LIMIT 50`, [id]);
+    audit("admin_view_consents", me.id, { target: id });
+    return {
+      user: { id: u.id, name: u.name, email: u.email || "", phone: u.phone || "", createdAt: ms(u.created_at) },
+      consents: rows.map((r) => ({ kind: r.kind, version: r.version, items: r.items || [], device: r.user_agent, ip: r.ip, readFull: r.read_full, at: ms(r.at), hash: r.doc_hash, text: r.text || null })),
+    };
   });
 
   // Show one user's full phone and e-mail. Every reveal is written to the audit log (who, whose, when).
@@ -112,8 +144,10 @@ export function adminRoutes(r) {
     const me = superAdmin(ctx);
     const role = ctx.body.role;
     if (!["user", "moderator", "admin"].includes(role)) throw bad("Unknown role");
-    const target = await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
-    if (!target) throw notFound("No user with that email");
+    const target = ctx.body.userId
+      ? await one("SELECT id FROM users WHERE id = $1", [needUuid(ctx.body.userId, "user")])
+      : await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
+    if (!target) throw notFound("No such user");
     if (target.id === me.id && role !== "admin") throw precondition("You can't remove your own admin access");
     const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []);
     const agent = role === "moderator";
@@ -186,16 +220,15 @@ export function adminRoutes(r) {
     }
   });
 
-  // Super admins: switches such as combos (off until LastPick has enough good partners).
-  const settingsNow = async () => ({ combos: await combosOn(), singleDevice: await singleDeviceOn() });
+  // Super admins: app switches (one device at a time for customers).
+  const settingsNow = async () => ({ singleDevice: await singleDeviceOn() });
   r.get("/api/admin/settings", async (ctx) => { staff(ctx); return settingsNow(); });
   r.post("/api/admin/settings", async (ctx) => {
     const me = superAdmin(ctx);
-    const { combos, singleDevice } = ctx.body || {};
-    if (typeof combos !== "boolean" && typeof singleDevice !== "boolean") throw bad("Say which switch to turn on or off");
-    if (typeof combos === "boolean") { await setSetting("combos", combos, me.id); clearCache("feed:"); }
+    const { singleDevice } = ctx.body || {};
+    if (typeof singleDevice !== "boolean") throw bad("Say which switch to turn on or off");
     if (typeof singleDevice === "boolean") await setSetting("single_device", singleDevice, me.id);
-    audit("setting_changed", me.id, { combos, singleDevice });
+    audit("setting_changed", me.id, { singleDevice });
     return settingsNow();
   });
 

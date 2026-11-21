@@ -103,9 +103,35 @@ export function AppProvider({ children }) {
 
   useEffect(() => { refresh(); return api.onAuthChange(refresh); }, [refresh]);
 
+  const loggedIn = !!state.session;
+  // Idle timeout: after 15 minutes without any tap, typing or scrolling, log out automatically (also when the app is
+  // reopened after more than 15 minutes). The last activity time is shared by all tabs of the app.
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const KEY = "lastpick-last-active";
+    const IDLE_MS = 15 * 60 * 1000;
+    const mark = () => { try { localStorage.setItem(KEY, String(Date.now())); } catch { /* ignore */ } };
+    const last = () => { try { return Number(localStorage.getItem(KEY)) || Date.now(); } catch { return Date.now(); } };
+    const check = async () => {
+      if (Date.now() - last() < IDLE_MS) return;
+      try { localStorage.setItem("lastpick-logout-reason", "You were logged out after 15 minutes without activity. Please log in again."); localStorage.removeItem(KEY); } catch { /* ignore */ }
+      await api.signOut();
+      navigate("/login", { replace: true });
+    };
+    check();          // reopened after a long break
+    mark();
+    let lastMark = 0;
+    const onActivity = () => { const n = Date.now(); if (n - lastMark > 15000) { lastMark = n; mark(); } };
+    const events = ["pointerdown", "keydown", "scroll", "touchstart", "wheel"];
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    const onShow = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onShow);
+    const i = setInterval(check, 30000);
+    return () => { clearInterval(i); events.forEach((e) => window.removeEventListener(e, onActivity)); document.removeEventListener("visibilitychange", onShow); };
+  }, [loggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // One device at a time: every 30 seconds, and whenever the app comes back to the screen, check the login is still
   // valid. If it was ended (logged in on another device), log out here and show why on the login screen.
-  const loggedIn = !!state.session;
   useEffect(() => {
     if (!loggedIn) return undefined;
     let busy = false;

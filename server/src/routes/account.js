@@ -1,6 +1,6 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
 import { Buffer } from "node:buffer";
-import { combosOn, singleDeviceOn } from "../settings.js";
+import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
@@ -35,12 +35,21 @@ async function profile(id) {
   };
 }
 
-async function recordConsent(client, uid, body, userAgent) {
+// Records an acceptance of the Terms. The person must have scrolled through the whole document (readFull), and the
+// exact text they saw is stored (once per text, by its SHA-256 fingerprint) with time, device and network address.
+async function recordConsent(client, uid, body, userAgent, ip = "") {
   const kind = body?.kind === "partner" ? "partner" : "user";
-  if (body?.version !== CONSENT_VERSION) throw precondition("Please update the app to see the latest privacy notice");
+  if (body?.version !== CONSENT_VERSION) throw precondition("Please update the app to see the latest Terms and Conditions");
   if (kind === "user" && body?.adult !== true) throw bad("You must be 18 or older to use LastPick");
+  if (body?.readFull !== true) throw bad("Please read the whole Terms and Conditions (scroll to the end) before agreeing");
+  const text = typeof body?.docText === "string" ? body.docText : "";
+  if (!text || text.length > 200000 || !text.includes(`Version ${CONSENT_VERSION}`)) throw bad("Please update the app to see the latest Terms and Conditions");
+  const hash = crypto.createHash("sha256").update(text, "utf8").digest("hex");
+  if (body?.docHash && body.docHash !== hash) throw bad("The Terms didn't arrive complete. Please try again.");
   const items = Array.isArray(body?.items) ? body.items.map((x) => str(x, 60)).filter(Boolean).slice(0, 10) : [];
-  await client.query("INSERT INTO consent_log (user_id, kind, version, items, user_agent) VALUES ($1, $2, $3, $4, $5)", [uid, kind, CONSENT_VERSION, items, userAgent]);
+  await client.query("INSERT INTO consent_documents (hash, version, text) VALUES ($1, $2, $3) ON CONFLICT (hash) DO NOTHING", [hash, CONSENT_VERSION, text]);
+  await client.query("INSERT INTO consent_log (user_id, kind, version, items, user_agent, doc_hash, read_full, ip) VALUES ($1, $2, $3, $4, $5, $6, true, $7)",
+    [uid, kind, CONSENT_VERSION, items, userAgent, hash, String(ip || "").slice(0, 64)]);
   await client.query(`UPDATE users SET ${kind === "partner" ? "partner_consent" : "consent"} = $2, updated_at = now() WHERE id = $1`,
     [uid, { version: CONSENT_VERSION, at: new Date().toISOString() }]);
 }
@@ -139,7 +148,7 @@ export function accountRoutes(r) {
       const { rows } = await c.query(
         `INSERT INTO users (email, password_hash, name, phone, trial_ends_at) VALUES ($1, $2, $3, $4, now() + make_interval(days => $5))
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);
-      if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent);
+      if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
@@ -214,7 +223,7 @@ export function accountRoutes(r) {
       // one account per mobile number (mobile login sends the code to that account's e-mail)
       if (phone && (await c.query("SELECT 1 FROM users WHERE phone = $1 AND id <> $2", [phone, u.id])).rows.length) throw precondition("This mobile number is already registered. Log in with it instead.");
       await c.query("UPDATE users SET name = $2, phone = COALESCE(NULLIF($3, ''), phone), updated_at = now() WHERE id = $1", [u.id, name, phone]);
-      if (ctx.body.consent) await recordConsent(c, u.id, { kind: "user", version: CONSENT_VERSION, ...ctx.body.consent }, ctx.userAgent);
+      if (ctx.body.consent) await recordConsent(c, u.id, { kind: "user", version: CONSENT_VERSION, ...ctx.body.consent }, ctx.userAgent, ctx.ip);
     });
     return profile(u.id);
   });
@@ -232,13 +241,13 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, combos: await combosOn(),
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN,
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------
   r.post("/api/consent", async (ctx) => {
     const u = needUser(ctx);
-    await tx((c) => recordConsent(c, u.id, ctx.body, ctx.userAgent));
+    await tx((c) => recordConsent(c, u.id, ctx.body, ctx.userAgent, ctx.ip));
     return { ok: true, version: CONSENT_VERSION };
   });
 

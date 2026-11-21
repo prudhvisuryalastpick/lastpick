@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, PLANS, categoryOf, comboLabel } from "./lib/config.js";
+import { APP_NAME, PLANS, categoryOf } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
@@ -39,7 +39,6 @@ export function OfferCard({ offer, preview = false }) {
           <div className="price">{isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{offer.price == null ? "₹ –" : offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.price != null && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pct">{discount(offer)}% off</span></>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
-        {offer.category === "combo" && offer.comboItems?.length > 0 && <div className="combochips">{offer.comboItems.map((x) => <span key={x}>{comboLabel(x)}</span>)}</div>}
         <OfferQuote offer={offer} />
         {!(isCustomer || preview) && <div className="lock">Number locked · get the Customer Pass</div>}
       </div>
@@ -139,34 +138,63 @@ export const Disclaimer = () => (
 );
 
 // Leaflet map, loaded only when shown.
+// Map of offers around the customer. Built ONCE, then only the markers and centre are updated, so it doesn't flash
+// or lose its tiles when the list refreshes. Re-measures itself when its box changes size (the usual reason a
+// Leaflet map shows grey or half-loaded tiles).
 export function MapView({ offers, center }) {
   const ref = useRef(null);
+  const mapRef = useRef(null);   // { L, map, layer, me }
+  const fitted = useRef(false);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    let map, cancelled = false;
+    let cancelled = false, ro = null;
     (async () => {
       try {
         const L = (await import("leaflet")).default;
         await import("leaflet/dist/leaflet.css");
         if (cancelled || !ref.current) return;
-        map = L.map(ref.current, { zoomControl: true }).setView([center.lat, center.lng], 12);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
-        L.circleMarker([center.lat, center.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#2f7bff", fillOpacity: 1 }).addTo(map);
-        const pts = [];
-        offers.filter((o) => o.business?.lat != null).forEach((o) => {
-          const icon = L.divIcon({ className: "", html: `<div class="price-pin">${o.emoji || ""} ${rupee(o.price)}</div>`, iconSize: null });
-          L.marker([o.business.lat, o.business.lng], { icon }).addTo(map).on("click", () => navigate("/offer/" + o.id));
-          pts.push([o.business.lat, o.business.lng]);
-        });
-        if (pts.length) map.fitBounds([...pts, [center.lat, center.lng]], { padding: [40, 40], maxZoom: 14 });
+        const map = L.map(ref.current, { zoomControl: true }).setView([center.lat, center.lng], 12);
+        const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
+        let errors = 0;
+        tiles.on("tileerror", () => { errors += 1; if (errors > 20) setFailed(true); });
+        tiles.on("load", () => { errors = 0; });
+        tiles.addTo(map);
+        const layer = L.layerGroup().addTo(map);
+        const me = L.circleMarker([center.lat, center.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#2f7bff", fillOpacity: 1 }).addTo(map);
+        mapRef.current = { L, map, layer, me };
+        // measure again once the page has laid out, and whenever the box resizes
+        requestAnimationFrame(() => map.invalidateSize());
+        setTimeout(() => map.invalidateSize(), 400);
+        if (typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(ref.current); }
+        setReady(true);
       } catch (e) {
         console.error(e);
         setFailed(true);
       }
     })();
-    return () => { cancelled = true; if (map) map.remove(); };
-  }, [offers, center.lat, center.lng]);
-  if (failed) return <Empty icon="🗺️" title="Map couldn't load">Check your internet connection.</Empty>;
+    return () => { cancelled = true; if (ro) ro.disconnect(); if (mapRef.current) { mapRef.current.map.remove(); mapRef.current = null; } };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // markers: replaced when the offers change, without rebuilding the map
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!ready || !m) return;
+    m.layer.clearLayers();
+    m.me.setLatLng([center.lat, center.lng]);
+    const pts = [];
+    (offers || []).filter((o) => o.business?.lat != null).forEach((o) => {
+      const icon = m.L.divIcon({ className: "", html: `<div class="price-pin">${rupee(o.price)}</div>`, iconSize: null });
+      m.L.marker([o.business.lat, o.business.lng], { icon }).addTo(m.layer).on("click", () => navigate("/offer/" + o.id));
+      pts.push([o.business.lat, o.business.lng]);
+    });
+    // zoom to fit only the first time, so a refresh doesn't jump the map while someone is looking around
+    if (!fitted.current) {
+      if (pts.length) m.map.fitBounds([...pts, [center.lat, center.lng]], { padding: [40, 40], maxZoom: 14 });
+      else m.map.setView([center.lat, center.lng], 12);
+      fitted.current = true;
+    }
+  }, [ready, offers, center.lat, center.lng]);
+  if (failed) return <Empty icon="🗺️" title="Map couldn't load" action={<button className="btn ghost" onClick={() => window.location.reload()}>Try again</button>}>Check your internet connection and try again.</Empty>;
   return <div className="map-box" ref={ref} />;
 }
 

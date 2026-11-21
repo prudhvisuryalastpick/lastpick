@@ -15,7 +15,7 @@ export const TRIAL_DAYS = 0;
 export const POSTS_PER_DAY = 3;
 // Every offer must be completed within 24 hours: LastPick is only for same-day offers and discounts.
 export const MAX_OFFER_MS = DAY;
-export const CONSENT_VERSION = "2026-11-20";
+export const CONSENT_VERSION = "2026-11-21";
 export const PLANS = ["customer", "owner"];
 export const STATUSES = ["pending", "verified", "rejected", "suspended"];
 // How long things are kept (DPDP Rules 2025: logs of number exchange for 1 year).
@@ -35,8 +35,8 @@ export const isNight = (now = Date.now()) => { const h = istHour(now); return h 
 // midnight today in India (UTC+05:30)
 const IST = 5.5 * 3600000;
 export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY) * DAY - IST;
-// hotels, travel, and combos that include a room or pickup & drop, run 24×7
-export const runs24x7 = (category, comboItems = []) => ALWAYS_OPEN.includes(category) || (category === "combo" && comboItems.some((x) => ["stay", "pickup"].includes(x)));
+// hotels and travel run 24×7
+export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // "Haircut slots, 40% off" with prices 400 -> 80 becomes "Haircut slots, 80% off"
 export function fixTitlePercent(title, pct) {
   if (!(pct > 0)) return title;

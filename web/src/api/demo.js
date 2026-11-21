@@ -180,8 +180,7 @@ const ALWAYS_OPEN = ["stay", "travel"];
 const LOCAL_ONLY = ["jobs"];
 const tonight = () => Math.floor((Date.now() + 5.5 * H) / D) * D - 5.5 * H + D;
 const night = () => { const h = new Date(Date.now() + 5.5 * H).getUTCHours(); return h < 4 || h >= 23; };
-const combosOnIn = (db) => !!db.settings?.combos;
-const openNow = (o) => (o.category !== "combo" || combosOnIn(load())) && (!night() || runs24x7(o.category, o.comboItems));
+const openNow = (o) => !night() || runs24x7(o.category);
 const snapOf = (db, c) => c.snap || (() => { const o = db.offers.find((x) => x.id === c.offerId); return o ? { title: o.title, category: o.category, price: o.price, origPrice: o.origPrice, businessId: o.businessId } : null; })();
 const monthsBack = (rows, field) => {
   const out = []; const d0 = new Date();
@@ -317,13 +316,12 @@ export const api = {
       .filter((o) => o.business?.pincode === String(pin) && bizVisible(db, db.businesses.find((b) => b.id === o.businessId)))
       .sort((a, b) => a.endsAt - b.endsAt);
   },
-  async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN, combos: combosOnIn(load()) }; },
-  async adminSettings() { const db = load(); staff(db); return { combos: combosOnIn(db), singleDevice: db.settings?.singleDevice !== false }; },
+  async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
+  async adminSettings() { const db = load(); staff(db); return { singleDevice: db.settings?.singleDevice !== false }; },
   async setAdminSettings(v) {
     const db = load(); staff(db, true); const s = { ...(db.settings || {}) };
-    if (typeof v.combos === "boolean") s.combos = v.combos;
     if (typeof v.singleDevice === "boolean") s.singleDevice = v.singleDevice;
-    db.settings = s; save(db); return { combos: !!s.combos, singleDevice: s.singleDevice !== false };
+    db.settings = s; save(db); return { singleDevice: s.singleDevice !== false };
   },
   async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
@@ -357,12 +355,8 @@ export const api = {
     if (b.status !== "verified") throw new Error("Only verified partners can post. Our team checks every business, usually within 1 working day.");
     if (!hasPlan(db, u.id, "owner")) throw new Error("Business Pro is not active. Pick a plan to post offers (there is no free version).");
     const allowed = b.categories?.length ? b.categories : [b.category || "other"];
-    const items = o.category === "combo" ? [...new Set(o.comboItems || [])] : [];
-    if (o.category === "combo") {
-      if (!combosOnIn(db)) throw new Error("Combos are not open yet.");
-      if (items.length < 2) throw new Error("Pick at least 2 things for a combo");
-    } else if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
-    const allDay = runs24x7(o.category, items);
+    if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
+    const allDay = runs24x7(o.category);
     const h = (Date.now() + 5.5 * H) % D / H;
     if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels and travel can post any time.");
     if (o.category === "jobs") {
@@ -378,7 +372,7 @@ export const api = {
     if (db.offers.filter((x) => x.businessId === b.id && x.createdAt >= dayStart).length >= 3) throw new Error("You can post 3 offers a day. You can post again after midnight.");
     const id = rid();
     db.offers.push({ id, businessId: b.id, title: o.title, description: o.description, category: o.category, emoji: o.emoji, photoUrl: o.photoThumb || null,
-      hasPhoto: !!o.photo, origPrice: o.origPrice, price: o.price, quantity: o.quantity, endsAt: o.endsAt, status: "live", views: 0, createdAt: Date.now(), comboItems: items,
+      hasPhoto: !!o.photo, origPrice: o.origPrice, price: o.price, quantity: o.quantity, endsAt: o.endsAt, status: "live", views: 0, createdAt: Date.now(),
       flags: o.category !== "jobs" && 1 - o.price / o.origPrice >= 0.9 ? ["very-high-discount"] : [] });
     if (o.photo) { db.photos = db.photos || {}; db.photos[id] = o.photo; }
     save(db);
@@ -556,6 +550,16 @@ export const api = {
         customer: sub(u, "customer"), owner: sub(u, "owner"), business: b ? { name: b.name, city: b.city, state: b.state, status: b.status } : null };
     });
   },
+  async adminUsers(kind, q) {
+    const all = await this.adminFindUsers(q);
+    return all.filter((u) => (kind === "partners" ? !!u.business : !u.business && u.role === "user"));
+  },
+  async adminExportUsers(kind) {
+    const db = load(); staff(db, true);
+    const list = await this.adminUsers(kind, "");
+    return list.map((u) => { const full = db.users.find((x) => x.id === u.id) || {}; return { ...u, email: full.email || "", phone: full.phone || "", masked: false }; });
+  },
+  async adminSetPlanFor(userId, plan, months) { const db = load(); const u = db.users.find((x) => x.id === userId); if (!u) throw new Error("No such user"); return this.adminSetPlan(u.email, plan, months); },
   async revealUser(id) { const db = load(); staff(db, true); const u = db.users.find((x) => x.id === id); if (!u) throw new Error("User not found"); return { phone: u.phone || "", email: u.email || "" }; },
   async revealBusiness(id) { const db = load(); const s = staff(db); const b = db.businesses.find((x) => x.id === id); if (!b) throw new Error("Business not found"); if (!s.canSee(b)) throw new Error("This business is outside your area"); return { phone: b.phone || "" }; },
   async adminTeam() { const db = load(); staff(db, true); return db.users.filter((u) => ["admin", "moderator"].includes(u.role)).map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, regions: u.regions || [], areaCities: u.areaCities || [], areaPincodes: u.areaPincodes || [] })); },

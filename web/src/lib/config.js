@@ -31,9 +31,10 @@ export const LEGAL = {
   grievanceOfficer: env.VITE_GRIEVANCE_OFFICER || "",
   grievanceEmail: env.VITE_GRIEVANCE_EMAIL || SUPPORT_EMAIL,
   grievancePhone: env.VITE_GRIEVANCE_PHONE || "",
+  jurisdiction: env.VITE_LEGAL_JURISDICTION || "", // courts for disputes; default in lib/terms.js: Hyderabad, Telangana
 };
 // Bump when the privacy notice or terms change: everyone is asked to accept again. Keep in sync with functions/index.js.
-export const CONSENT_VERSION = "2026-11-20";
+export const CONSENT_VERSION = "2026-11-21";
 // A business picks a main category plus up to 2 more, and can post only in those (plus job openings at its shop).
 export const MAX_CATEGORIES = 3;
 // Each business can post this many offers per day (India time). Keep in sync with functions/index.js.
@@ -85,15 +86,8 @@ export const CATEGORIES = [
 // Not a business category: any shop can post a job opening for workers at its own shop. Shown only to
 // customers in that local area (10 km / same pincode), like an advertisement.
 export const JOB_CATEGORY = { id: "jobs", label: "Job opening at my shop", icon: "📣" };
-export const normCategory = (id) => (id === "jobs" || id === "combo" ? id : CATEGORIES.some((c) => c.id === id) ? id : "other");
-// Combos: one offer that bundles services (hotel room + food + pickup & drop + ironing).
-// Shown only while an admin has switched combos on (config.combos). Keep in sync with server/src/settings.js.
-export const COMBO_CATEGORY = { id: "combo", label: "Combos", icon: "🎁" };
-export const COMBO_ITEMS = [
-  { id: "stay", label: "Hotel room" }, { id: "food", label: "Food" }, { id: "pickup", label: "Pickup & drop" }, { id: "ironing", label: "Ironing" },
-];
-export const comboLabel = (id) => COMBO_ITEMS.find((x) => x.id === id)?.label || id;
-export const categoryOf = (id) => (id === "jobs" ? JOB_CATEGORY : id === "combo" ? COMBO_CATEGORY : CATEGORIES.find((c) => c.id === normCategory(id)));
+export const normCategory = (id) => (id === "jobs" ? id : CATEGORIES.some((c) => c.id === id) ? id : "other");
+export const categoryOf = (id) => (id === "jobs" ? JOB_CATEGORY : CATEGORIES.find((c) => c.id === normCategory(id)));
 
 export const TINTS = {
   food: "#fff1e6", grocery: "#ecf8e6", stay: "#e9f0ff", travel: "#e8f7f1", sports: "#eef8e3", beauty: "#f4ecff",
@@ -110,8 +104,8 @@ export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing
 // Everything is removed at 12 midnight.
 export const ALWAYS_OPEN = ["stay", "travel"];
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
-// Hotels and travel (and combos with a room or pickup & drop) run 24×7: post any time, up to 24 hours.
-export const runs24x7 = (category, comboItems = []) => ALWAYS_OPEN.includes(category) || (category === "combo" && comboItems.some((x) => x === "stay" || x === "pickup"));
+// Hotels and travel run 24×7: post any time, up to 24 hours.
+export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // The % in a title always matches the prices: "40% off" with 400 -> 80 becomes "80% off". Same rule as the server.
 export function fixTitlePercent(title, pct) {
   if (!(pct > 0)) return title;
@@ -147,11 +141,6 @@ export const TEMPLATES = [
   { label: "Pet grooming", category: "pets", emoji: "🐾", title: "Dog bath & grooming 40% off today", origPrice: 1000, price: 600, quantity: "6 slots", hours: 9 },
   { label: "Cake orders", category: "food", emoji: "🎂", title: "Custom cakes 25% off for orders placed today", origPrice: 1200, price: 900, quantity: "10 orders", hours: 10 },
   { label: "Event seats", category: "other", emoji: "🎟️", title: "Seats left for tonight's event, 50% off", origPrice: 400, price: 200, quantity: "30 seats", hours: 6 },
-];
-// Combo templates (only while combos are switched on).
-export const COMBO_TEMPLATES = [
-  { label: "Stay combo", category: "combo", emoji: "🎁", comboItems: ["stay", "food", "pickup"], title: "Room + dinner + pickup & drop, 30% off", origPrice: 4000, price: 2800, quantity: "3 combos", hours: 12 },
-  { label: "Stay + ironing", category: "combo", emoji: "🎁", comboItems: ["stay", "ironing"], title: "Room tonight + free ironing of 5 clothes, 25% off", origPrice: 2400, price: 1800, quantity: "4 rooms", hours: 12 },
 ];
 // Job opening templates (any shop can use these). price = pay in rupees; same day only.
 export const JOB_TEMPLATES = [

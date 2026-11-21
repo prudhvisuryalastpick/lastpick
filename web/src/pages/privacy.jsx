@@ -2,11 +2,12 @@
 // Written to follow India's DPDP Act 2023 + DPDP Rules 2025 (notice, consent, rights, retention, grievance),
 // the IT (Intermediary Guidelines) Rules 2021, the Consumer Protection (E-Commerce) Rules 2020 and Google Play's
 // account-deletion policy. Template text: have a lawyer review it before launch.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { BackButton, NeedLogin, Sheet, Spinner } from "../components.jsx";
 import { APP_NAME, CONSENT_VERSION, GRIEVANCE_TYPES, LEGAL, PLANS, RETENTION, SUPPORT_EMAIL, WEBSITE_URL } from "../lib/config.js";
 import { day, errText, rupee } from "../lib/format.js";
+import { TERMS_SECTIONS, TERMS_TITLE, sha256Hex, termsText } from "../lib/terms.js";
 import { navigate, useApp } from "../state.jsx";
 
 const Back = () => <div style={{ position: "relative", height: 62 }}><BackButton /></div>;
@@ -32,11 +33,50 @@ function NoticeList() {
   );
 }
 
-// Unticked boxes; both must be ticked to continue (free, specific, informed consent).
+// The full Terms and Conditions in a scrolling box. Calls onRead({ text, hash }) once the reader reaches the end.
+export function TermsBox({ onRead, read }) {
+  const ref = useRef(null);
+  const [pct, setPct] = useState(0);
+  const done = useRef(false);
+  const check = async () => {
+    const el = ref.current;
+    if (!el || done.current) return;
+    const max = el.scrollHeight - el.clientHeight;
+    setPct(max <= 0 ? 100 : Math.min(100, Math.round((el.scrollTop / max) * 100)));
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+      done.current = true;
+      const text = termsText();
+      onRead({ text, hash: await sha256Hex(text) });
+    }
+  };
+  useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="termsbox-wrap">
+      <div className="termsbox-head"><b>{TERMS_TITLE}</b><span className="muted small">Version {CONSENT_VERSION}</span></div>
+      <div className="termsbox" ref={ref} onScroll={check} tabIndex={0} aria-label="Terms and Conditions (scroll to read all of it)">
+        <TermsBody />
+        <p className="muted small" style={{ marginTop: 16 }}>End of the Terms and Conditions. Our <a className="link" href="#/privacy" target="_blank" rel="noreferrer">Privacy notice</a> is part of these Terms.</p>
+      </div>
+      <div className={"termsbox-foot" + (read ? " ok" : "")}>{read ? "✓ You have read the whole document" : `Scroll to the end to continue · ${pct}% read`}</div>
+    </div>
+  );
+}
+function TermsBody() {
+  return TERMS_SECTIONS.map(([h, parts]) => (
+    <section key={h}>
+      <h3>{h}</h3>
+      {parts.map((p, i) => (Array.isArray(p) ? <ul key={i}>{p.map((b) => <li key={b}>{b}</li>)}</ul> : <p key={i}>{p}</p>))}
+    </section>
+  ));
+}
+
+// Unticked boxes; all must be ticked to continue (free, specific, informed consent). The agreement box unlocks only
+// after the whole Terms document has been scrolled through.
 export function ConsentBoxes({ value, onChange }) {
   const set = (k, v) => onChange({ ...value, [k]: v });
   return (
     <>
+      <TermsBox read={!!value.read} onRead={(doc) => onChange({ ...value, read: true, doc })} />
       <label className="toggle" style={{ cursor: "pointer", justifyContent: "flex-start", alignItems: "flex-start" }}>
         <input type="checkbox" aria-label="I am 18 or older" checked={!!value.adult} onChange={(e) => set("adult", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
         <span className="small">I am 18 years or older.</span>
@@ -46,13 +86,13 @@ export function ConsentBoxes({ value, onChange }) {
         <span className="small">I understand {APP_NAME} only connects me with businesses and people. The deal, payment and service are between us, and {APP_NAME} is not responsible for them. <a className="link" href="#/rules">How it works & rules</a></span>
       </label>
       <label className="toggle" style={{ cursor: "pointer", justifyContent: "flex-start", alignItems: "flex-start" }}>
-        <input type="checkbox" aria-label="I agree to the privacy notice" checked={!!value.agree} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
-        <span className="small">I have read the <a className="link" href="#/privacy">privacy notice</a> and <a className="link" href="#/terms">terms</a>, and I agree to {APP_NAME} using my details for the purposes listed. I can withdraw this anytime by deleting my account.</span>
+        <input type="checkbox" aria-label="I agree to the Terms and Conditions" disabled={!value.read} checked={!!value.agree && !!value.read} onChange={(e) => set("agree", e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
+        <span className="small">{value.read ? "" : "(Read the whole document above first.) "}I have read the entire {APP_NAME} Terms and Conditions above and the <a className="link" href="#/privacy">Privacy notice</a>, and I agree to them. I can withdraw by deleting my account.</span>
       </label>
     </>
   );
 }
-export const consentPayload = (c) => ({ adult: !!c.adult, items: CONSENT_ITEMS });
+export const consentPayload = (c) => ({ adult: !!c.adult, items: CONSENT_ITEMS, readFull: !!c.read, docText: c.doc?.text, docHash: c.doc?.hash });
 
 // Shown to anyone logged in who hasn't accepted the current notice (new accounts, older accounts, after a notice change).
 export function ConsentGate() {
@@ -66,12 +106,12 @@ export function ConsentGate() {
   };
   return (
     <div className="pad" style={{ paddingTop: 30 }}>
-      <h1 className="title">Your privacy on {APP_NAME}</h1>
-      <p className="muted">Before you continue, please read what we collect and why. This is version {CONSENT_VERSION} of our notice.</p>
+      <h1 className="title">Terms and privacy</h1>
+      <p className="muted">Before you continue, please read the {APP_NAME} Terms and Conditions (version {CONSENT_VERSION}) to the end, and what we collect and why.</p>
       <NoticeList />
       <div className="form" style={{ padding: 0 }}>
         <ConsentBoxes value={c} onChange={setC} />
-        <button className="btn main" disabled={busy || !c.adult || !c.agree || !c.platform} onClick={accept}>{busy ? "Saving…" : "Agree and continue"}</button>
+        <button className="btn main" disabled={busy || !c.adult || !c.agree || !c.platform || !c.read} onClick={accept}>{busy ? "Saving…" : "Agree and continue"}</button>
         <div className="gap" style={{ justifyContent: "space-between" }}>
           <a className="link small" href="#/account/privacy">Delete my account instead</a>
           <button className="link small" onClick={async () => { await api.signOut(); navigate("/"); }}>Log out</button>
@@ -145,36 +185,11 @@ export function Terms() {
     <>
       <Back />
       <div className="legal">
-        <h1 className="title">Terms of use & disclaimer</h1>
+        <h1 className="title">{TERMS_TITLE}</h1>
         <p className="muted">Version {CONSENT_VERSION}. Template text: have a lawyer review it before launch.</p>
-        <div className="banner warn" style={{ margin: "0 0 12px" }}>⚠️<span>{APP_NAME} is only a platform that connects customers with businesses and people. We are not a party to any deal and take no responsibility for it. We act on providers based on reviews and reports. <a className="link" href="#/rules">Short version</a></span></div>
-        <h2>1. What {APP_NAME} is</h2>
-        <p>{APP_NAME} is an online platform (an intermediary under the IT Act, 2000) run by {operator}. Verified local businesses and people ("providers") post same-day offers and discounts (food, hotels, travel, salons, laundry, shops, clinics, schools and other everyday local businesses); customers nearby see them and contact the provider directly. {APP_NAME} does not sell, book, deliver, employ, treat, admit, transport, collect payment for, or guarantee anything posted.</p>
-        <h2>2. The deal is between customer and provider. We take no responsibility for it</h2>
-        <p>Any agreement, payment, delivery, service, treatment, admission, journey or job happens directly between the customer and the provider. {APP_NAME} is not a party to it. To the extent the law allows, {APP_NAME} is not responsible for the quality, safety, legality, accuracy or availability of anything posted, for the conduct of any user, or for any loss, injury or dispute arising from a deal. Check the provider before you pay or travel. This doesn't limit any right you have under Indian consumer law.</p>
-        <h2>3. Who can use {APP_NAME}</h2>
-        <p>You must be 18 or older and in India. Give true details and keep your login safe. One account per person; one business profile per account. For security, LastPick can limit an account to <b>one device at a time</b>: when this is on, logging in on a new device logs out the previous one. Business and admin accounts are always limited to one device.</p>
-        <h2>4. Rules for providers (business partners)</h2>
-        <ul>
-          <li>Post only genuine offers you can honour. The "normal price" must be the real price you usually charge; the offer price is the final price, with no hidden charges.</li>
-          <li>Only verified businesses with an active Business Pro plan can post, up to 3 posts a day. You may post only in the category you registered (a bakery posts only bakery offers). Offers must be real discounts and are valid for that day only: they end by 11 PM and are removed at 12 midnight, and businesses can post them between 4 AM and 10:30 PM (India time). Only hotels and travel are available 24×7: they can post at any time, and their offers can run for up to 24 hours. The discount shown is worked out from the normal and offer prices. Not allowed: movie tickets, hall bookings and selling personal items.</li>
-          <li>Any business may post a job opening for workers at its own shop, with the real pay. It is shown only to customers nearby (about 10 km, or the same pincode) and ends the same day. No agencies, fees from job seekers or jobs at other places.</li>
-          <li>Paid features (boosted offers, sponsored banners) only make a post more visible. They don't mean {APP_NAME} checked, recommends or guarantees it.</li>
-          <li>Hold the licences your work needs and follow the law: e.g. FSSAI for food; recognition or affiliation for schools and colleges, with fees and discounts stated truthfully; valid permits for bus and travel operators; labour laws (including minimum wages) for job openings.</li>
-          <li>Not allowed: alcohol, tobacco, drugs, prescription medicines, weapons, explosives, gambling or lottery, adult content, wildlife, counterfeit or stolen goods, financial schemes, or anything illegal or unsafe.</li>
-          <li>Use a customer's number only to reply about the request they shared it for. No spam, marketing lists or resale.</li>
-          <li>Don't post, buy or arrange fake reviews, and don't offer rewards for reviews.</li>
-        </ul>
-        <h2>5. Rules for customers</h2>
-        <p>Check an offer and the provider before paying or travelling. Never pay an advance to someone you haven't verified. Use providers' numbers only to ask about their posts. Reviews must be your own honest experience.</p>
-        <h2>6. Reviews, reports and action on providers</h2>
-        <p>Only customers who contacted a provider through {APP_NAME} can review it, and reviews are marked "Contacted via {APP_NAME}". Providers can reply but can't remove reviews. When a provider fails to honour a post, misleads customers, behaves badly or breaks these rules, customers can report it. We review reports, reviews and ratings and may warn the provider, hide or remove its posts, suspend or permanently remove it. We remove reviews that are fake, abusive, off-topic or contain personal information.</p>
-        <h2>7. Plans and payments</h2>
-        <p>There is no free version. The Customer Pass is {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) is {rupee(PLANS.owner.price)}/month. See <a className="link" href="#/plans">Plans</a>. You're never charged without choosing a plan and confirming the payment, and you can cancel anytime. See the <a className="link" href="#/refund">refund policy</a>.</p>
-        <h2>8. Verification, reports and removal</h2>
-        <p>Verification is not a guarantee. Anyone can report an offer or review. We may remove content or suspend accounts that break these terms or the law, and we act on valid orders from courts and government agencies.</p>
-        <h2>9. Complaints and law</h2>
-        <p>Raise a ticket at <a className="link" href="#/grievance">Complaints</a> or e-mail our Grievance Officer at {LEGAL.grievanceEmail}. These terms follow the laws of India.</p>
+        <div className="banner warn" style={{ margin: "0 0 12px" }}>⚠️<span>{APP_NAME} is only a platform that connects customers with businesses. We are not a party to any deal and take no responsibility for it. <a className="link" href="#/rules">Short version</a></span></div>
+        <TermsBody />
+        <p className="muted small">Questions about these Terms: <a className="link" href="#/contact">Contact us</a> · <a className="link" href="#/privacy">Privacy notice</a> · <a className="link" href="#/refund">Refund policy</a></p>
       </div>
     </>
   );

@@ -8,7 +8,7 @@ import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
 import { ConsentGate, Contact, DeleteAccountInfo, Grievance, Privacy, PrivacyCenter, Terms } from "./pages/privacy.jsx";
 import { OwnerReviews } from "./pages/reviews.jsx";
 import { BusinessInsights, Rules, Savings, Support, SupportThread } from "./pages/impact.jsx";
-import { CONSENT_VERSION } from "./lib/config.js";
+import { APP_NAME, CONSENT_VERSION } from "./lib/config.js";
 import { match, navigate, useApp, useRoute } from "./state.jsx";
 import { IS_ADMIN_APP, IS_OWNER_APP } from "./lib/config.js";
 import { Icon as LineIcon } from "./lib/icons.jsx";
@@ -25,7 +25,7 @@ const I = {
 };
 const Icon = ({ d }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 // customer bottom bar: Home, Map, raised "Near me" button, History (businesses contacted), Account
-const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["near", "near", "Near me"], ["/contacts", "phone", "History"], ["/account", "user", "Account"]];
+const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["/contacts", "phone", "History"], ["/account", "user", "Account"]];
 const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"]];
 // pages anyone can open without accepting the privacy notice first
 const OPEN_PAGES = ["/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
@@ -88,7 +88,7 @@ function LoadError() {
 
 export default function App() {
   const { path, query, at } = useRoute();
-  const { loading, mode, setMode, session, profile, retryLocation } = useApp();
+  const { loading, mode, setMode, session, profile } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
   const firstVisit = !loading && !session && !IS_OWNER_APP && !IS_ADMIN_APP && path === "/" && !welcomed();
@@ -106,7 +106,6 @@ export default function App() {
 
   const biz = IS_OWNER_APP || ownerArea || (mode === "owner" && ["/account", "/plans"].includes(path));
   const nav = biz ? OWNER_NAV : CUSTOMER_NAV;
-  const nearMe = (e) => { e.preventDefault(); retryLocation(); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const fullScreen = path === "/login" || path === "/welcome" || firstVisit || needsProfile;
   const showNav = !fullScreen && !IS_ADMIN_APP;
 
@@ -115,11 +114,10 @@ export default function App() {
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
       {!IS_ADMIN_APP && biz && !fullScreen && !loading && <QuoteStrip partner />}
       <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>
+      {!IS_ADMIN_APP && !loading && !fullScreen && <LocationPrompt partner={biz} />}
       {showNav && !needsConsent && !biz && (
         <nav className="nav cust" aria-label="Main">
-          {CUSTOMER_NAV.map(([to, icon, label]) => to === "near"
-            ? <a key={to} href="#/" className="centre" onClick={nearMe}><span className="cb"><LineIcon d={icon} size={26} stroke={2} /></span>{label}</a>
-            : <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}><LineIcon d={icon} size={22} />{label}</a>)}
+          {CUSTOMER_NAV.map(([to, icon, label]) => <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}><LineIcon d={icon} size={22} />{label}</a>)}
         </nav>
       )}
       {showNav && !needsConsent && biz && (
@@ -135,3 +133,30 @@ export default function App() {
     </div>
   );
 }
+
+// Location is off or blocked: a popup explaining that LastPick works on location, with a button to turn it on.
+// "Not now" hides it for this visit; it comes back next time the app opens.
+function LocationPrompt({ partner }) {
+  const { locationStatus, retryLocation } = useApp();
+  const [hidden, setHidden] = useState(() => { try { return sessionStorage.getItem("lastpick-loc-later") === "1"; } catch { return false; } });
+  if (hidden || locationStatus === "granted" || locationStatus === "asking") return null;
+  const later = () => { try { sessionStorage.setItem("lastpick-loc-later", "1"); } catch { /* ignore */ } setHidden(true); };
+  const denied = locationStatus === "denied";
+  return (
+    <div className="locprompt" role="dialog" aria-modal="true" aria-labelledby="locp-title">
+      <div className="locprompt-card">
+        <div className="locprompt-ic" aria-hidden="true">📍</div>
+        <h2 id="locp-title">Turn on your location</h2>
+        <p>{APP_NAME} works based on your location. {partner
+          ? "We use it to place your shop on the map and show your offers to customers within 30 km."
+          : "We use it to show you offers from businesses within 30 km of where you are."} Without it, the app can't show {partner ? "your shop to customers" : "offers near you"}.</p>
+        {denied && <div className="locprompt-help">Location is blocked for {APP_NAME}.<br /><b>Phone app:</b> Settings → Apps → {APP_NAME} → Permissions → Location → Allow.<br /><b>Browser:</b> tap the lock icon next to the address → Location → Allow.</div>}
+        {!denied && <div className="locprompt-help">Turn on Location (GPS) on your phone, then tap the button below.</div>}
+        <button className="btn main" onClick={retryLocation}>Turn on location</button>
+        <button className="link" style={{ marginTop: 10 }} onClick={later}>Not now</button>
+        <div className="muted small" style={{ marginTop: 10 }}>Your location stays on your phone and is never saved.</div>
+      </div>
+    </div>
+  );
+}
+
