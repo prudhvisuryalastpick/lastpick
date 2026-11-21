@@ -79,6 +79,11 @@ export const api = {
   async resetPassword(email) { await post("/api/auth/reset", { email }); },
   async signOut() { clearCache(); setToken(null); },
   async getProfile() { return get("/api/me"); },
+  // is this login still valid? false = it was ended (e.g. logged in on another device), and the app is now logged out
+  async checkSession() {
+    if (!token) return true;
+    try { await get("/api/me"); return true; } catch (e) { return e.status !== 401; }
+  },
   async updateProfile({ name, phone }) { await call("PATCH", "/api/me", { name, phone }); },
 
   // ---------- plans (payments are on hold; admins switch plans on by hand) ----------

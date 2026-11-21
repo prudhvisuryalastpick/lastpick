@@ -98,6 +98,26 @@ export function AppProvider({ children }) {
 
   useEffect(() => { refresh(); return api.onAuthChange(refresh); }, [refresh]);
 
+  // One device at a time: every 30 seconds, and whenever the app comes back to the screen, check the login is still
+  // valid. If it was ended (logged in on another device), log out here and show why on the login screen.
+  const loggedIn = !!state.session;
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState === "hidden") return;
+      busy = true;
+      const ok = await api.checkSession();
+      busy = false;
+      if (!ok) navigate("/login", { replace: true });
+    };
+    const i = setInterval(check, 30000);
+    const onShow = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", check);
+    return () => { clearInterval(i); document.removeEventListener("visibilitychange", onShow); window.removeEventListener("focus", check); };
+  }, [loggedIn]);
+
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) { setLocationStatus("unavailable"); return; }
     navigator.geolocation.getCurrentPosition(

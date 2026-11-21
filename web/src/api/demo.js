@@ -249,6 +249,7 @@ export const api = {
     save(db); emit();
   },
   async signOut() { const db = load(); db.session = null; save(db); emit(); },
+  async checkSession() { return true; },
   async getProfile() {
     const u = me(load());
     if (u.needsProfile) return { id: u.id, needsProfile: true, name: "", phone: u.phone || "", email: u.email || "", role: "user", regions: [] };
