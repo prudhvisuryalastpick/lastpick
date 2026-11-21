@@ -12,8 +12,6 @@ name: Deploy (Supabase + Cloudflare pages)
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
 #   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
 #                             MAIL_FROM = a sender verified in Brevo, e.g. "LastPick <support@lastpick.in>"
-#   SMS_SENDER                optional: mobile-number codes by SMS through Brevo (needs SMS credits in Brevo).
-#                             The sender name, up to 11 letters/digits, e.g. LASTPK. Remove the secret to switch SMS off.
 on:
   push:
     branches: [main]
@@ -101,12 +99,8 @@ jobs:
           if [ -n "${{ secrets.BREVO_API_KEY }}" ] && [ -n "${{ secrets.MAIL_FROM }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
-          # mobile codes by SMS (Brevo): on while the SMS_SENDER secret exists, off when it is removed
-          if [ -n "${{ secrets.SMS_SENDER }}" ]; then
-            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "SMS_SENDER=${{ secrets.SMS_SENDER }}" >/dev/null
-          else
-            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
-          fi
+          # SMS codes were removed: make sure the old setting is gone
+          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "::add-mask::$(grep CRON_SECRET "$GITHUB_ENV" | cut -d= -f2)"
 

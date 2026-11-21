@@ -4,8 +4,8 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER } from "../config.js";
-import { sendEmail, sendSms } from "../mail.js";
+import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
+import { sendEmail } from "../mail.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -13,7 +13,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, ms, normEmail, notFound, precondition, str, validEmail,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -67,18 +67,26 @@ async function startSession(u, userAgent, how) {
 
 export function accountRoutes(r) {
   // ---------- login ----------
+  // Log in with e-mail OR mobile number, plus password (same account in the customer and partner apps).
   r.post("/api/auth/login", async ({ body, ip, userAgent }) => {
-    const email = normEmail(body.email);
-    if (!validEmail(email) || typeof body.password !== "string") throw bad("Wrong email or password");
+    const id = String(body.login ?? body.email ?? "").trim();
+    const byEmail = id.includes("@");
+    const email = byEmail ? normEmail(id) : "";
+    const phone = byEmail ? "" : indianPhone(id);
+    const wrong = "Wrong e-mail / mobile number or password";
+    if ((byEmail ? !validEmail(email) : !phone) || typeof body.password !== "string") throw bad(wrong);
+    const key = byEmail ? "email:" + email : "phone:" + phone;
     // only wrong passwords count: 10 per account or 30 per network in 15 minutes, then a 15-minute lockout
     const busy = "Too many wrong attempts. Try again in 15 minutes";
-    if ((await overLimit("email:" + email, "loginFail", 10, 900)) || (await overLimit("ip:" + ip, "loginFail", 30, 900))) throw tooMany(busy);
-    const u = await one("SELECT id, email, role, password_hash, token_version FROM users WHERE lower(email) = $1", [email]);
+    if ((await overLimit(key, "loginFail", 10, 900)) || (await overLimit("ip:" + ip, "loginFail", 30, 900))) throw tooMany(busy);
+    const u = byEmail
+      ? await one("SELECT id, email, role, password_hash, token_version FROM users WHERE lower(email) = $1", [email])
+      : await one("SELECT id, email, role, password_hash, token_version FROM users WHERE phone = $1 ORDER BY created_at LIMIT 1", [phone]);
     const ok = await checkPassword(body.password, u?.password_hash);
     if (!u || !ok) {
-      await limit("email:" + email, "loginFail", 10, 900, busy);
+      await limit(key, "loginFail", 10, 900, busy);
       await limit("ip:" + ip, "loginFail", 30, 900, busy);
-      throw bad("Wrong email or password");
+      throw bad(wrong);
     }
     // the admin server lets only admins and moderators in
     if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
@@ -88,17 +96,17 @@ export function accountRoutes(r) {
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
   const checkCode = async (email, code) => {
-    const sms = String(email).startsWith("sms:");
-    const what = sms ? "mobile (SMS)" : "e-mail";
+    const what = "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
     if (!row || new Date(row.expires_at) < new Date()) throw bad(`The ${what} code has expired. Ask for a new one.`);
     if (row.attempts > 5) throw bad(`Too many wrong tries for the ${what} code. Ask for a new one.`);
     const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
-    if (!ok) throw bad(sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
+    if (!ok) throw bad("The e-mail code is not right. Please check the e-mail and try again.");
     await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
   // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
   const codeEmail = async (body) => {
+    if (body.login !== undefined) { const id = String(body.login).trim(); body = id.includes("@") ? { email: id } : { phone: id }; }
     if (body.phone !== undefined && body.phone !== null && body.phone !== "") {
       const p = indianPhone(body.phone);
       if (!p) throw bad("Please enter a valid Indian mobile number");
@@ -124,23 +132,6 @@ export function accountRoutes(r) {
     return { sent: true, to: maskEmail(email), expiresIn: 600 };
   }, { limit: "auth" });
 
-  // Mobile number check at sign-up: a 6-digit code by SMS (Brevo). Stored like the e-mail codes, under "sms:+91…".
-  r.post("/api/auth/otp/send-sms", async ({ body, ip }) => {
-    if (!SMS_SENDER) throw precondition("SMS codes aren't switched on yet.");
-    const phone = indianPhone(body?.phone);
-    if (!phone) throw bad("Please enter a valid Indian mobile number");
-    if (await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
-    await limit("ip:" + ip, "sms", 10, 3600);
-    await limit("phone:" + phone, "sms", 4, 3600, "Too many codes for this number. Try again in an hour.");
-    const code = String(crypto.randomInt(100000, 1000000));
-    const key = "sms:" + phone;
-    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
-             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
-      [key, codeHash(key, code)]);
-    await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`);
-    return { sent: true, to: maskPhone(phone), expiresIn: 600 };
-  }, { limit: "auth" });
-
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
     if (SERVICE === "admin") throw denied("Admin accounts are created by another admin");
     if (SIGNUP === "closed") throw denied("Sign-up opens soon. Please use a test account.");
@@ -155,9 +146,8 @@ export function accountRoutes(r) {
     // say "already registered" BEFORE using up the e-mail code, so a mistake doesn't waste the code
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
-    if (SMS_SENDER && !phone) throw bad("Please enter your mobile number");
+    if (!phone) throw bad("Please enter your mobile number");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
-    if (SMS_SENDER) await checkCode("sms:" + phone, body.phoneOtp); // and the mobile number with an SMS code
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -209,12 +199,12 @@ export function accountRoutes(r) {
   // Logs out every other device and logs in here.
   r.post("/api/auth/reset", async ({ body, ip, userAgent }) => {
     if (!MAIL_FROM) throw precondition("Password reset needs e-mail, which isn't switched on yet. Please contact support.");
-    const email = normEmail(body.email);
-    if (!validEmail(email)) throw bad("Please enter a valid email");
+    const id = String(body.login ?? body.email ?? "").trim();
+    const email = await codeEmail(id.includes("@") ? { email: id } : { phone: id });
     if (typeof body.password !== "string" || body.password.length < 8) throw bad("Password must be at least 8 characters");
     await limit("ip:" + ip, "reset", 10, 3600);
     const u = await one("SELECT id, email, role, token_version FROM users WHERE lower(email) = $1", [email]);
-    if (!u) throw notFound("No account with this e-mail. Please sign up.");
+    if (!u) throw notFound("No account with this e-mail or mobile number. Please sign up.");
     if (SERVICE === "admin" && !isStaff(u)) throw denied("This account has no admin access");
     await checkCode(email, body.code);
     // a new password always ends every other login (even when customers may use several devices)
@@ -262,7 +252,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, smsCodes: !!SMS_SENDER,
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM,
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

@@ -62,10 +62,13 @@ export const api = {
     catch (e) { if (e.status === 401) return null; throw e; }
   },
   onAuthChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-  async signIn(email, password) { const r = await post("/api/auth/login", { email: email.trim(), password }); clearCache(); setToken(r.token); },
-  async signUp({ email, password, name, phone, consent, otp, phoneOtp }) {
+  // log in with e-mail OR mobile number + password
+  async signIn(login, password) { const r = await post("/api/auth/login", { login: String(login || "").trim(), password }); clearCache(); setToken(r.token); },
+  // forgot password: a code to the e-mail (for a mobile number: to the e-mail on that account)
+  async sendResetCode(login) { return post("/api/auth/otp/send", { login: String(login || "").trim() }); },
+  async signUp({ email, password, name, phone, consent, otp }) {
     // consent goes as is: it carries the Terms text the person read (readFull, docText, docHash)
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneOtp, consent: consent || undefined });
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, consent: consent || undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },
@@ -73,13 +76,12 @@ export const api = {
   async sendPhoneOtp(phone) { return post("/api/auth/otp/send", { phone: String(phone || "").trim() }); },
   async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/otp/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
-  async sendSmsOtp(phone) { return post("/api/auth/otp/send-sms", { phone: String(phone || "").trim() }); },
   async verifyEmailOtp(email, code) { const r = await post("/api/auth/otp/verify", { email: String(email || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async completeProfile({ name, phone, consent }) {
     await post("/api/me/complete-profile", { name, phone, consent });
   },
   // forgot password: code from sendEmailOtp + new password -> logged in here, other devices logged out
-  async resetPassword(email, code, password) { const r = await post("/api/auth/reset", { email, code, password }); clearCache(); setToken(r.token); },
+  async resetPassword(login, code, password) { const r = await post("/api/auth/reset", { login, code, password }); clearCache(); setToken(r.token); },
   async signOut() { clearCache(); setToken(null); },
   async getProfile() { return get("/api/me"); },
   // is this login still valid? false = it was ended (e.g. logged in on another device), and the app is now logged out

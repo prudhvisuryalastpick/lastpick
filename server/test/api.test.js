@@ -89,10 +89,10 @@ test("one account per mobile number", async () => {
 test("e-mail codes: refused cleanly while e-mail isn't set up", async () => {
   const r = await client("customer").post("/api/auth/otp/send", { email: "someone@test.lastpick.in" });
   assert.equal(r.status, 409);
-  // SMS codes for mobile numbers are off until SMS_SENDER is set; the app learns this from /api/config
-  assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 409);
+  // there are no SMS codes (removed); only e-mail codes, off here because e-mail isn't set up in tests
+  assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 404);
   const cfg = (await client("customer").get("/api/config")).data;
-  assert.equal(cfg.smsCodes, false);
+  assert.equal(cfg.smsCodes, undefined);
   assert.equal(cfg.emailCodes, false);
 });
 
@@ -120,6 +120,14 @@ test("login rules", async () => {
   const s = await client("customer").post("/api/auth/signup", { email: "new@test.lastpick.in", password: "longpassword", name: "New Person", phone: "9876543210", consent: fullConsent() });
   assert.equal(s.status, 200, JSON.stringify(s.data));
   assert.equal((await client("admin").post("/api/auth/signup", { email: "x@test.lastpick.in", password: "longpassword", name: "X" })).status, 403);
+  // log in with the mobile number instead of the e-mail (any format), and a wrong password is refused
+  const byPhone = await client("customer").post("/api/auth/login", { login: "+91 98765 43210", password: "longpassword" });
+  assert.equal(byPhone.status, 200, JSON.stringify(byPhone.data));
+  assert.equal((await client("partner").post("/api/auth/login", { login: "9876543210", password: "longpassword" })).status, 200, "same account works in the partner app");
+  assert.equal((await client("customer").post("/api/auth/login", { login: "9876543210", password: "wrongpassword" })).status, 400);
+  assert.equal((await client("customer").post("/api/auth/login", { login: "9000000000", password: "longpassword" })).status, 400, "unknown number");
+  // a second account can't use the same mobile number
+  assert.equal((await client("customer").post("/api/auth/signup", { email: "dup@test.lastpick.in", password: "longpassword", name: "Dup Person", phone: "98765 43210", consent: fullConsent() })).status, 409);
 });
 
 let offerId, bizId;
