@@ -83,7 +83,9 @@ function OwnerWelcome({ go }) {
 // ------------------------------------------------------------------ Sign in
 export function Login({ next = "/" }) {
   const { session, profile, toast, refresh, config } = useApp();
-  const [step, setStep] = useState(OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset
+  // customers and partners: mobile number + WhatsApp code (no password, no e-mail). Admin panel: e-mail + password.
+  const WA = !IS_ADMIN_APP;
+  const [step, setStep] = useState(WA || OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset
   const [method, setMethod] = useState("phone");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -200,24 +202,24 @@ export function Login({ next = "/" }) {
     <div className="auth">
       <div id="otp-captcha" />
       <div className="row">
-        <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !OTP_LOGIN ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
+        <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !(OTP_LOGIN || WA) ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
         {!IS_ADMIN_APP && <span className="trialpill">{IS_OWNER_APP ? "🛡️ Verified partners only" : "⏱️ Deals for today only"}</span>}
       </div>
       <Brand style={{ marginTop: 16 }} />
 
       {step === "enter" && <>
         <h1>{IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
-        <p className="lead">{IS_OWNER_APP ? "Turn empty rooms, halls, seats, slots and leftover stock into sales. Log in or sign up with a one-time code." : "Log in or create an account with a one-time code. No password to remember."}</p>
-        <div className="tabs" role="tablist" aria-label="Sign in with" style={{ margin: "24px 0 0" }}>
+        <p className="lead">{IS_OWNER_APP ? "Turn empty rooms, halls, seats, slots and leftover stock into sales. Log in or sign up with your mobile number." : "Log in or create an account with your mobile number. We send a 6-digit code on WhatsApp. No password to remember."}</p>
+        {!WA && <div className="tabs" role="tablist" aria-label="Sign in with" style={{ margin: "24px 0 0" }}>
           <button role="tab" aria-selected={method === "phone"} className={method === "phone" ? "on" : ""} onClick={() => { setMethod("phone"); setErr(""); }}>Mobile number</button>
           <button role="tab" aria-selected={method === "email"} className={method === "email" ? "on" : ""} onClick={() => { setMethod("email"); setErr(""); }}>E-mail</button>
-        </div>
+        </div>}
         <form onSubmit={send} style={{ marginTop: 18, animation: "fadeUp .35s ease both" }} key={method}>
           {method === "phone" ? <>
             <label htmlFor="otp-phone" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>Mobile number</label>
             <div className="bigfield"><b style={{ fontSize: 17 }}>+91</b><span style={{ width: 1, height: 26, background: "var(--line)" }} />
               <input id="otp-phone" inputMode="tel" autoComplete="tel-national" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98765 43210" /></div>
-            <div className="note">We'll e-mail a 6-digit code to the address on your account.</div>
+            <div className="note">{WA ? "We'll send a 6-digit code to this number on WhatsApp. New here? Your account is created when you enter the code." : "We'll e-mail a 6-digit code to the address on your account."}</div>
           </> : <>
             <label htmlFor="otp-email" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>E-mail address</label>
             <div className="bigfield"><span aria-hidden="true">✉️</span>
@@ -231,7 +233,7 @@ export function Login({ next = "/" }) {
           <div className="trust"><span className="ti" style={{ background: "var(--ok-soft)" }}>🛡️</span><div><b style={{ fontSize: 14 }}>Your number stays private</b><div className="muted small">A business sees it only when you tap "Share my number".</div></div></div>
           <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month` : `${PLANS.customer.name} from ${rupee(PLANS.customer.price)}/month`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
         </div>
-        <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>
+        {!WA && <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>}
         {!isLive && <div style={{ marginTop: 18 }}>
           <div className="label-up" style={{ padding: "0 0 8px" }}>Demo accounts (demo mode only)</div>
           {DEMO_ACCOUNTS.map((a) => <button key={a.email} className="btn ghost" style={{ marginBottom: 8, justifyContent: "space-between" }} disabled={busy} onClick={() => demoLogin(a)}><span>{a.label}</span><span className="muted small">{a.email}</span></button>)}
@@ -239,9 +241,9 @@ export function Login({ next = "/" }) {
       </>}
 
       {step === "code" && <>
-        <div style={{ width: 64, height: 64, borderRadius: 20, background: "var(--deep)", display: "grid", placeItems: "center", fontSize: 30, marginTop: 24 }}>{method === "phone" ? "📱" : "✉️"}</div>
+        <div style={{ width: 64, height: 64, borderRadius: 20, background: WA ? "#25D366" : "var(--deep)", display: "grid", placeItems: "center", fontSize: 30, marginTop: 24 }}>{method === "phone" ? "💬" : "✉️"}</div>
         <h1>Enter the code</h1>
-        <p className="lead">{method === "phone" ? <>For <b style={{ color: "var(--ink)" }}>{target}</b>, we e-mailed the code to <b style={{ color: "var(--ink)" }}>{sentTo || "the e-mail on your account"}</b>.</> : <>Sent by e-mail to <b style={{ color: "var(--ink)" }}>{target}</b>.</>} Check spam if you don't see it. <button className="link" onClick={() => setStep("enter")}>Change</button></p>
+        <p className="lead">{WA ? <>Sent on <b style={{ color: "var(--ink)" }}>WhatsApp</b> to <b style={{ color: "var(--ink)" }}>{target}</b>. Open WhatsApp and tap "Copy code", or type it below.</> : method === "phone" ? <>For <b style={{ color: "var(--ink)" }}>{target}</b>, we e-mailed the code to <b style={{ color: "var(--ink)" }}>{sentTo || "the e-mail on your account"}</b>. Check spam if you don't see it.</> : <>Sent by e-mail to <b style={{ color: "var(--ink)" }}>{target}</b>. Check spam if you don't see it.</>} <button className="link" onClick={() => setStep("enter")}>Change</button></p>
         {!isLive && <div className="banner ok" style={{ margin: "14px 0 0" }}>Demo mode: the code is 123456</div>}
         <div className="otpboxes">
           {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} aria-hidden="true" className={i < code.length ? "f" : i === code.length ? "c" : ""}>{code[i] || ""}</span>)}
@@ -251,10 +253,10 @@ export function Login({ next = "/" }) {
         <div className="row" style={{ marginTop: 14, fontSize: 13.5 }}>
           {wait > 0 ? <span className="muted">Resend in <b style={{ color: "var(--ink)" }}>0:{String(wait).padStart(2, "0")}</b></span>
             : <button className="link" onClick={send}>Resend code</button>}
-          <button className="link" style={{ color: "var(--muted)" }} onClick={() => { setMethod(method === "phone" ? "email" : "phone"); setStep("enter"); setErr(""); }}>Use {method === "phone" ? "e-mail" : "mobile"} instead</button>
+          {!WA && <button className="link" style={{ color: "var(--muted)" }} onClick={() => { setMethod(method === "phone" ? "email" : "phone"); setStep("enter"); setErr(""); }}>Use {method === "phone" ? "e-mail" : "mobile"} instead</button>}
         </div>
         {err && <div className="error" style={{ marginTop: 12 }}>{err}</div>}
-        <div className="box small" style={{ marginTop: 20 }}>🔒 Never share this code. {APP_NAME} and businesses will never ask for it.</div>
+        <div className="box small" style={{ marginTop: 20 }}>🔒 Never share this code. {APP_NAME} and businesses will never ask for it.{WA ? " The code expires in 10 minutes." : ""}</div>
         <button className="btn main" style={{ marginTop: "auto" }} disabled={busy || code.length !== 6} onClick={() => verify()}>{busy ? "Checking…" : "Verify and continue"}</button>
       </>}
 
@@ -327,13 +329,12 @@ export function CompleteProfile() {
     e.preventDefault(); setErr("");
     if (!name.trim()) return setErr("Please enter your name");
     if (!viaPhone && mobileProblem(other)) return setErr(mobileProblem(other));
-    if (viaPhone && other.trim() && !/^\S+@\S+\.\S+$/.test(other)) return setErr("Please enter a valid e-mail address, or leave it empty");
     if (!consent.adult) return setErr(`You must be 18 or older to use ${APP_NAME}`);
     if (!consent.agree) return setErr("Please read and agree to the privacy notice to continue");
     if (!consent.platform) return setErr(`Please confirm you understand ${APP_NAME} only connects you with businesses`);
     setBusy(true);
     try {
-      await api.completeProfile({ name: name.trim(), phone: viaPhone ? profile.phone : other.trim(), email: viaPhone ? other.trim() : profile.email, consent: consentPayload(consent) });
+      await api.completeProfile({ name: name.trim(), phone: viaPhone ? profile.phone : other.trim(), email: viaPhone ? "" : profile.email, consent: consentPayload(consent) });
       await refresh();
       toast(`Welcome to ${APP_NAME} 🎉`);
     } catch (x) { setErr(errText(x)); setBusy(false); }
@@ -350,9 +351,7 @@ export function CompleteProfile() {
       <p className="lead">{viaPhone ? `Verified ${prettyPhone(profile.phone)}.` : `Verified ${profile?.email}.`} This is how businesses will know you.</p>
       <div className="form" style={{ padding: "16px 0 0" }}>
         <div className="fld"><label htmlFor="cp-name">Your name</label><input id="cp-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        {viaPhone
-          ? <div className="fld"><label htmlFor="cp-email">E-mail (optional)</label><input id="cp-email" type="email" autoComplete="email" value={other} onChange={(e) => setOther(e.target.value)} placeholder="For receipts and account help" /></div>
-          : <div className="fld"><label htmlFor="cp-phone">Mobile number (India)</label><input id="cp-phone" inputMode="tel" autoComplete="tel" value={other} onChange={(e) => setOther(e.target.value)} placeholder="+91 98765 43210" />
+        {!viaPhone && <div className="fld"><label htmlFor="cp-phone">Mobile number (India)</label><input id="cp-phone" inputMode="tel" autoComplete="tel" value={other} onChange={(e) => setOther(e.target.value)} placeholder="+91 98765 43210" />
             <span className="hint">Never shown to businesses.</span></div>}
         <details className="box small"><summary style={{ cursor: "pointer", fontWeight: 600 }}>What we collect and why</summary>
           {NOTICE_ITEMS.map((n) => <div key={n.data} style={{ paddingTop: 6 }}><b>{n.data}</b><div className="muted">{n.why}</div></div>)}</details>

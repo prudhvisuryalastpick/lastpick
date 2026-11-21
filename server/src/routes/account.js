@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
 import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER } from "../config.js";
 import { sendEmail, sendSms } from "../mail.js";
+import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -13,7 +14,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -96,13 +97,13 @@ export function accountRoutes(r) {
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
   const checkCode = async (email, code) => {
-    const sms = String(email).startsWith("sms:");
-    const what = sms ? "mobile (SMS)" : "e-mail";
+    const sms = String(email).startsWith("sms:"), wa = String(email).startsWith("wa:");
+    const what = wa ? "WhatsApp" : sms ? "mobile (SMS)" : "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
     if (!row || new Date(row.expires_at) < new Date()) throw bad(`The ${what} code has expired. Ask for a new one.`);
     if (row.attempts > 5) throw bad(`Too many wrong tries for the ${what} code. Ask for a new one.`);
     const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
-    if (!ok) throw bad(sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
+    if (!ok) throw bad(wa ? "That WhatsApp code is not right. Please check the message and try again." : sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
     await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
   // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
@@ -216,6 +217,52 @@ export function accountRoutes(r) {
     if (isNew && SERVICE === "customer") await notify(u.id, "welcome");
     return { token, isNew, user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
+  // ---------- log in with mobile number + WhatsApp code (customers and partners; no password, no e-mail) ----------
+  // Step 1: a random 6-digit code to the number on WhatsApp. Works for new and existing accounts.
+  r.post("/api/auth/wa/send", async ({ body, ip }) => {
+    if (!whatsappOn()) throw precondition("WhatsApp login isn't switched on yet.");
+    const problem = mobileProblem(body?.phone);
+    if (problem) throw bad(problem);
+    const phone = indianPhone(body.phone);
+    if (SERVICE === "admin") {
+      const staffUser = await one("SELECT role FROM users WHERE phone = $1", [phone]);
+      if (!isStaff(staffUser)) throw denied("This number has no admin access");
+    }
+    await limit("ip:" + ip, "wa", 20, 3600);
+    await limit("phone:" + phone, "wa", 5, 3600, "Too many codes for this number. Try again in an hour.");
+    const code = String(crypto.randomInt(100000, 1000000));
+    const key = "wa:" + phone;
+    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
+             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
+      [key, codeHash(key, code)]);
+    try { await sendWhatsAppCode(phone, code); }
+    catch (e) { log.error("whatsapp code failed", { error: e.message }); throw precondition("We couldn't send the WhatsApp code right now. Check the number has WhatsApp, and try again in a minute."); }
+    return { sent: true, to: maskPhone(phone), expiresIn: 600 };
+  }, { limit: "auth" });
+
+  // Step 2: the code is right -> logged in. A new number creates the account (the app then asks for name + Terms).
+  r.post("/api/auth/wa/verify", async ({ body, ip, userAgent }) => {
+    if (!whatsappOn()) throw precondition("WhatsApp login isn't switched on yet.");
+    const phone = indianPhone(body?.phone);
+    if (!phone || mobileProblem(body.phone)) throw bad("Enter a valid 10-digit Indian mobile number");
+    await limit("ip:" + ip, "waVerify", 40, 900);
+    await checkCode("wa:" + phone, body.code);
+    let u = await one("SELECT id, email, role, token_version FROM users WHERE phone = $1", [phone]);
+    let isNew = false;
+    if (!u) {
+      if (SERVICE === "admin") throw denied("This number has no admin access");
+      if (SIGNUP === "closed") throw denied("Sign-up opens soon.");
+      u = await one(`INSERT INTO users (phone, name, trial_ends_at) VALUES ($1, '', now() + make_interval(days => $2))
+                     ON CONFLICT (phone) WHERE phone <> '' DO NOTHING RETURNING id, email, role, token_version`, [phone, TRIAL_DAYS])
+        || await one("SELECT id, email, role, token_version FROM users WHERE phone = $1", [phone]);
+      isNew = true;
+      audit("signup", u.id, { service: SERVICE, how: "whatsapp" });
+    }
+    if (SERVICE === "admin" && !isStaff(u)) throw denied("This number has no admin access");
+    const token = await startSession(u, userAgent, "whatsapp");
+    return { token, isNew, user: { id: u.id, phone } };
+  }, { limit: "auth" });
+
   // Forgot password: step 1 = /api/auth/otp/send with the e-mail; step 2 = this, with the code and a new password.
   // Logs out every other device and logs in here.
   r.post("/api/auth/reset", async ({ body, ip, userAgent }) => {
@@ -252,12 +299,15 @@ export function accountRoutes(r) {
     if (name.length < 2) throw bad("Please enter your name");
     const phone = indianPhone(ctx.body.phone) || "";
     if (ctx.body.phone && mobileProblem(ctx.body.phone)) throw bad(mobileProblem(ctx.body.phone));
+    const before = await one("SELECT name FROM users WHERE id = $1", [u.id]);
     await tx(async (c) => {
       // one account per mobile number (mobile login sends the code to that account's e-mail)
       if (phone && (await c.query("SELECT 1 FROM users WHERE phone = $1 AND id <> $2", [phone, u.id])).rows.length) throw precondition("This mobile number is already registered. Log in with it instead.");
-      await c.query("UPDATE users SET name = $2, phone = COALESCE(NULLIF($3, ''), phone), updated_at = now() WHERE id = $1", [u.id, name, phone]);
+      // the verified login number stays; a number is only added when the account has none (older e-mail accounts)
+      await c.query("UPDATE users SET name = $2, phone = CASE WHEN phone = '' THEN COALESCE(NULLIF($3, ''), phone) ELSE phone END, updated_at = now() WHERE id = $1", [u.id, name, phone]);
       if (ctx.body.consent) await recordConsent(c, u.id, { kind: "user", version: CONSENT_VERSION, ...ctx.body.consent }, ctx.userAgent, ctx.ip);
     });
+    if (!before?.name && SERVICE === "customer") await notify(u.id, "welcome"); // first time the account gets a name
     return profile(u.id);
   });
 
@@ -274,7 +324,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!SMS_SENDER,
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!SMS_SENDER, whatsappLogin: whatsappOn(),
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

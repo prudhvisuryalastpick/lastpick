@@ -13,6 +13,9 @@ name: Deploy (Supabase + Cloudflare pages)
 #   SMS_SENDER                optional: mobile number check at sign-up by SMS code (Brevo SMS credits). The sender name,
 #                             up to 11 letters/digits, e.g. LASTPK. Only used when the repository VARIABLE SMS_ON is
 #                             "true" (Settings -> Secrets and variables -> Actions -> Variables). Off by default.
+#   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta): login codes for customer and partner apps.
+#                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
+#                             Optional VARIABLES: WA_OTP_TEMPLATE (default lastpick_otp), WA_UPDATE_TEMPLATE (account updates), WA_LANG (default en)
 #   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
 #                             MAIL_FROM = a sender verified in Brevo, e.g. "LastPick <support@lastpick.in>"
 on:
@@ -107,6 +110,16 @@ jobs:
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "SMS_SENDER=${{ secrets.SMS_SENDER }}" >/dev/null
           else
             $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
+          fi
+          # WhatsApp login codes (Meta Cloud API), only when both secrets are saved in GitHub
+          if [ -n "${{ secrets.WA_PHONE_NUMBER_ID }}" ] && [ -n "${{ secrets.WA_ACCESS_TOKEN }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "WA_PHONE_NUMBER_ID=${{ secrets.WA_PHONE_NUMBER_ID }}" "WA_ACCESS_TOKEN=${{ secrets.WA_ACCESS_TOKEN }}" \
+              "WA_OTP_TEMPLATE=${{ vars.WA_OTP_TEMPLATE || 'lastpick_otp' }}" "WA_LANG=${{ vars.WA_LANG || 'en' }}" >/dev/null
+          fi
+          if [ -n "${{ vars.WA_UPDATE_TEMPLATE }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "WA_UPDATE_TEMPLATE=${{ vars.WA_UPDATE_TEMPLATE }}" >/dev/null
+          else
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" WA_UPDATE_TEMPLATE >/dev/null 2>&1 || true
           fi
           $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" FIREBASE_PROJECT_ID >/dev/null 2>&1 || true
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"

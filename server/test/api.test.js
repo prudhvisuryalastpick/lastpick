@@ -20,6 +20,10 @@ if (!DB || !/test/.test(DB)) throw new Error("Set DATABASE_URL to a database who
 const PASSWORD = "TestPass1234";
 const procs = [];
 const PORTS = { all: 18080, customer: 18081, partner: 18082, admin: 18083, night: 18084 };
+// a fake WhatsApp Cloud API: records every message the servers send (login codes, updates)
+const WA_PORT = 18090;
+const waSent = [];
+const WA_ENV = { WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
 
 async function sh(cmd, args, env = {}) {
   return new Promise((resolve, reject) => {
@@ -36,7 +40,7 @@ async function startServer(service) {
   const target = process.env.LP_TEST_TARGET;
   const entry = target === "worker" ? "test/worker-bridge.js" : target === "edge" || target === "deno" ? "test/edge-bridge.js" : "src/index.js";
   const [cmd, args] = target === "deno" ? ["deno", ["run", "-A", "--config", "deno.json", entry]] : [process.execPath, [entry]];
-  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
+  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, ...WA_ENV, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
   procs.push(p);
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(`http://localhost:${PORTS[service]}/healthz`)).ok) return; } catch { /* starting */ }
@@ -70,6 +74,13 @@ before(async () => {
   await pool.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
   await pool.end();
   await sh(process.execPath, ["scripts/seed.js"], { SEED_PASSWORD: PASSWORD });
+  const http = await import("node:http");
+  const wa = http.createServer((req, res) => {
+    let b = ""; req.on("data", (d) => (b += d));
+    req.on("end", () => { waSent.push({ url: req.url, auth: req.headers.authorization, body: JSON.parse(b || "{}") }); res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"messages":[{"id":"wamid.test"}]}'); });
+  });
+  await new Promise((r) => wa.listen(WA_PORT, r));
+  procs.push({ kill: () => wa.close() });
   await Promise.all(Object.keys(PORTS).map(startServer));
 });
 after(() => procs.forEach((p) => p.kill("SIGTERM")));
@@ -568,3 +579,43 @@ test("rate limits and safety", async () => {
   assert.ok(res.headers.get("strict-transport-security"));
 });
 
+
+test("log in with mobile number + WhatsApp code (no password, no e-mail)", async () => {
+  const c = client("customer");
+  assert.equal((await c.get("/api/config")).data.whatsappLogin, true);
+  // fake numbers are refused before anything is sent
+  assert.equal((await c.post("/api/auth/wa/send", { phone: "9999999999" })).status, 400);
+  const n0 = waSent.length;
+  const sent = await c.post("/api/auth/wa/send", { phone: "+91 91234 56781" });
+  assert.equal(sent.status, 200, JSON.stringify(sent.data));
+  const msg = waSent[n0];
+  assert.match(msg.url, /\/123456\/messages$/);
+  assert.equal(msg.auth, "Bearer test-token");
+  assert.equal(msg.body.to, "919123456781");
+  assert.equal(msg.body.template.name, "lastpick_otp");
+  const code = msg.body.template.components[0].parameters[0].text;
+  assert.match(code, /^\d{6}$/);
+  assert.equal(msg.body.template.components[1].parameters[0].text, code, "same code in the Copy code button");
+  // wrong code refused, right code logs in and creates the account (no e-mail, no password)
+  assert.equal((await c.post("/api/auth/wa/verify", { phone: "9123456781", code: code === "111111" ? "222222" : "111111" })).status, 400);
+  const ok = await c.post("/api/auth/wa/verify", { phone: "9123456781", code });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  assert.equal(ok.data.isNew, true);
+  c.setToken?.(ok.data.token);
+  const me = await fetch(`http://localhost:18081/api/me`, { headers: { Authorization: `Bearer ${ok.data.token}` } }).then((r) => r.json());
+  assert.equal(me.phone, "+919123456781");
+  assert.equal(me.email, "");
+  assert.equal(me.needsProfile, true, "the app asks for the name next");
+  // the code works once only
+  assert.equal((await c.post("/api/auth/wa/verify", { phone: "9123456781", code })).status, 400);
+  // logging in again (partner app, same account): not new
+  const p = client("partner");
+  const n1 = waSent.length;
+  assert.equal((await p.post("/api/auth/wa/send", { phone: "9123456781" })).status, 200);
+  const code2 = waSent[n1].body.template.components[0].parameters[0].text;
+  const again = await p.post("/api/auth/wa/verify", { phone: "9123456781", code: code2 });
+  assert.equal(again.status, 200);
+  assert.equal(again.data.isNew, false);
+  // the admin panel doesn't accept numbers that aren't staff
+  assert.equal((await client("admin").post("/api/auth/wa/send", { phone: "9123456781" })).status, 403);
+});

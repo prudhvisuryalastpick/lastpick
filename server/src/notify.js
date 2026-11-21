@@ -3,8 +3,10 @@
 import { BREVO_API_KEY, MAIL_FROM } from "./config.js";
 import { one } from "./db.js";
 import { sendEmail } from "./mail.js";
+import { sendWhatsAppUpdate, updatesOn } from "./whatsapp.js";
 
 export const mailOn = () => !!(MAIL_FROM && BREVO_API_KEY);
+const anyOn = () => mailOn() || updatesOn();
 const SUPPORT = "support@lastpick.in";
 const PARTNER_URL = "https://partner.lastpick.in";
 const CUSTOMER_URL = "https://customer.lastpick.in";
@@ -48,12 +50,21 @@ const TEMPLATES = {
 };
 export const PLAN_NAMES = { customer: "Customer Pass", owner: "Business Pro" };
 
+// Sends an account update: on WhatsApp (customers and partners log in with their mobile number), or by e-mail for
+// accounts that have one (the admin). The WhatsApp version is the same message without the greeting and signature.
 export async function notify(userId, kind, data = {}) {
-  if (!mailOn() || !TEMPLATES[kind]) return false;
+  if (!anyOn() || !TEMPLATES[kind]) return false;
   try {
-    const u = await one("SELECT email, name FROM users WHERE id = $1", [userId]);
-    if (!u?.email) return false;
-    const t = TEMPLATES[kind](String(u.name || "there").split(" ")[0], data);
+    const u = await one("SELECT email, name, phone FROM users WHERE id = $1", [userId]);
+    if (!u) return false;
+    const first = String(u.name || "there").split(" ")[0];
+    const t = TEMPLATES[kind](first, data);
+    if (updatesOn() && u.phone) {
+      const body = t.text.replace(/^Hi [^,\n]*,\s*/, "").split(sign)[0].replace(/\s+/g, " ").trim();
+      await sendWhatsAppUpdate(u.phone, first, `${t.subject}. ${body} Questions: ${SUPPORT}`);
+      return true;
+    }
+    if (!mailOn() || !u.email) return false;
     await sendEmail(u.email, t.subject, t.text);
     return true;
   } catch (e) {

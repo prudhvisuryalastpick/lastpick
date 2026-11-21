@@ -16,7 +16,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 
 // What we collect and why: shown at sign-up, in the consent gate and in the full notice.
 export const NOTICE_ITEMS = [
-  { data: "Name, mobile number and e-mail", why: "To create your account and log you in. Your e-mail is checked with an e-mailed code. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
+  { data: "Name and mobile number", why: "To create your account and log you in. Your number is checked with a one-time code sent on WhatsApp. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
   { data: "Your location", why: "Needed to show offers within 30 km of you. Sent only rounded to about 1 km to find offers, and to OpenStreetMap to show your area name and pincode. We don't store it." },
   { data: "Activity: offers you open or contact, numbers you share, reviews and reports", why: "For your contacts list, a business's leads, reviews, and to stop fraud and misuse." },
@@ -136,7 +136,7 @@ export function Privacy() {
         <NoticeList />
         <h2>Who can see or receive your data</h2>
         <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
-        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Brevo (sends code and account e-mails), and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
+        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Meta (WhatsApp Business: sends login codes and account updates to your WhatsApp number; it receives only your number and the message), and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
           <tbody>
@@ -228,7 +228,7 @@ export function Grievance() {
         <div className="muted">Every complaint gets a ticket number. We acknowledge within 24 hours and resolve within 15 days.</div></div>
       <div className="pad" style={{ paddingTop: 0 }}><GrievanceOfficer /></div>
       {session ? <GrievanceForm /> : <div className="pad"><a className="btn main" href={`#/login?next=${encodeURIComponent("/grievance")}`}>Log in to raise a ticket</a>
-        <div className="note">Or e-mail {LEGAL.grievanceEmail} with your registered e-mail address.</div></div>}
+        <div className="note">Or e-mail {LEGAL.grievanceEmail} and include your registered mobile number.</div></div>}
     </>
   );
 }
@@ -328,11 +328,11 @@ export function DeleteAccountInfo() {
         <p>You can delete your {APP_NAME} or {APP_NAME} Business account and its data at any time. You don't need to reinstall the app.</p>
         <h2>How</h2>
         <ol>
-          <li>{session ? "You're logged in. Tap the button below." : "Log in below with the e-mail and password of the account."}</li>
+          <li>{session ? "You're logged in. Tap the button below." : "Log in below with the mobile number of the account (we send a WhatsApp code)."}</li>
           <li>Go to Privacy & your data → Delete my account, type DELETE and confirm.</li>
         </ol>
         <p>{session ? <a className="btn danger" href="#/account/privacy">Delete my account</a> : <a className="btn main" href={`#/login?next=${encodeURIComponent("/account/privacy")}`}>Log in to delete</a>}</p>
-        <p className="muted small">Can't log in? E-mail {LEGAL.grievanceEmail} from your registered e-mail address with the subject "Delete my account". We'll do it within 7 days.</p>
+        <p className="muted small">Can't log in? E-mail {LEGAL.grievanceEmail} with the subject "Delete my account" and your registered mobile number. We may confirm it with a WhatsApp code. We'll do it within 7 days.</p>
         <h2>What is deleted</h2>
         <p>Your login, profile, phone number, contacts list, shared numbers and reviews; for businesses also the business profile, contact number, offers, photos, leads, reviews and offer history. This happens right away; copies in backups expire within 7 days.</p>
         <h2>What is kept, and for how long</h2>

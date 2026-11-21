@@ -15,7 +15,7 @@ export const TRIAL_DAYS = 0;
 export const POSTS_PER_DAY = 3;
 // Every offer must be completed within 24 hours: LastPick is only for same-day offers and discounts.
 export const MAX_OFFER_MS = DAY;
-export const CONSENT_VERSION = "2026-11-21";
+export const CONSENT_VERSION = "2026-11-22";
 export const PLANS = ["customer", "owner"];
 export const STATUSES = ["pending", "verified", "rejected", "suspended"];
 // How long things are kept (DPDP Rules 2025: logs of number exchange for 1 year).

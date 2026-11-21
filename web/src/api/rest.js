@@ -73,8 +73,9 @@ export const api = {
     return { needsConfirmation: false };
   },
   // one-time codes: always by e-mail; for a mobile number the code goes to the e-mail on that account
-  async sendPhoneOtp(phone) { return post("/api/auth/otp/send", { phone: String(phone || "").trim() }); },
-  async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/otp/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
+  // log in with mobile number + a 6-digit code on WhatsApp (customers and partners)
+  async sendPhoneOtp(phone) { return post("/api/auth/wa/send", { phone: String(phone || "").trim() }); },
+  async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/wa/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
   async sendSmsOtp(phone) { return post("/api/auth/otp/send-sms", { phone: String(phone || "").trim() }); },
   async verifyEmailOtp(email, code) { const r = await post("/api/auth/otp/verify", { email: String(email || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },

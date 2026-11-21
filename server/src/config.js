@@ -52,5 +52,13 @@ export const BREVO_API_KEY = env.BREVO_API_KEY || "";
 // Mobile number check at sign-up: a 6-digit SMS code through Brevo (SMS credits bought in Brevo). On when SMS_SENDER
 // is set (the sender name, up to 11 letters/digits, e.g. LASTPK).
 export const SMS_SENDER = (env.SMS_SENDER || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
+// WhatsApp Cloud API (Meta): login codes and account updates for customers and partners. See src/whatsapp.js.
+export const WA_PHONE_NUMBER_ID = env.WA_PHONE_NUMBER_ID || "";
+export const WA_ACCESS_TOKEN = env.WA_ACCESS_TOKEN || "";
+export const WA_OTP_TEMPLATE = env.WA_OTP_TEMPLATE || "lastpick_otp";
+export const WA_UPDATE_TEMPLATE = env.WA_UPDATE_TEMPLATE || "";
+export const WA_LANG = env.WA_LANG || "en";
+export const WA_API_VERSION = env.WA_API_VERSION || "v23.0";
+export const WA_API_BASE = env.WA_API_BASE || "https://graph.facebook.com"; // tests point this at a fake server
 // Replies to LastPick e-mails go here.
 export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";

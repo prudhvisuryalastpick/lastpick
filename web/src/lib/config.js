@@ -40,7 +40,7 @@ export const LEGAL = {
   jurisdiction: env.VITE_LEGAL_JURISDICTION || "", // courts for disputes; default in lib/terms.js: Hyderabad, Telangana
 };
 // Bump when the privacy notice or terms change: everyone is asked to accept again. Keep in sync with functions/index.js.
-export const CONSENT_VERSION = "2026-11-21";
+export const CONSENT_VERSION = "2026-11-22";
 // A business picks a main category plus up to 2 more, and can post only in those (plus job openings at its shop).
 export const MAX_CATEGORIES = 3;
 // Each business can post this many offers per day (India time). Keep in sync with functions/index.js.
