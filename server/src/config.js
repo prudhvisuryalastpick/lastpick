@@ -59,6 +59,8 @@ export const WA_OTP_TEMPLATE = env.WA_OTP_TEMPLATE || "lastpick_otp";
 export const WA_UPDATE_TEMPLATE = env.WA_UPDATE_TEMPLATE || "";
 export const WA_LANG = env.WA_LANG || "en";
 export const WA_API_VERSION = env.WA_API_VERSION || "v23.0";
+// Most WhatsApp login codes the whole app may send in 24 hours (Meta bills each one, about Rs 0.12). Raise as you grow.
+export const WA_DAILY_CAP = Number(env.WA_DAILY_CAP || 1000);
 export const WA_API_BASE = env.WA_API_BASE || "https://graph.facebook.com"; // tests point this at a fake server
 // Replies to LastPick e-mails go here.
 export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";

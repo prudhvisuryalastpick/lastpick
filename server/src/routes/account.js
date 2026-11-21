@@ -4,7 +4,7 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER } from "../config.js";
+import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER, WA_DAILY_CAP } from "../config.js";
 import { sendEmail, sendSms } from "../mail.js";
 import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
 import { many, one, q, tx } from "../db.js";
@@ -230,6 +230,9 @@ export function accountRoutes(r) {
     }
     await limit("ip:" + ip, "wa", 20, 3600);
     await limit("phone:" + phone, "wa", 5, 3600, "Too many codes for this number. Try again in an hour.");
+    await limit("phone:" + phone, "waGap", 1, 30, "Please wait 30 seconds before asking for another code.");
+    // money guard: at most WA_DAILY_CAP WhatsApp codes a day for the whole app (each one is billed by Meta)
+    await limit("all", "waDay", WA_DAILY_CAP, 86400, "Login codes are busy right now. Please try again in a little while.");
     const code = String(crypto.randomInt(100000, 1000000));
     const key = "wa:" + phone;
     await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')

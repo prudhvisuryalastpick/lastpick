@@ -611,6 +611,10 @@ test("log in with mobile number + WhatsApp code (no password, no e-mail)", async
   // logging in again (partner app, same account): not new
   const p = client("partner");
   const n1 = waSent.length;
+  // a second code within 30 seconds is refused (each code costs money)
+  assert.equal((await p.post("/api/auth/wa/send", { phone: "9123456781" })).status, 429);
+  { const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+    const pool = new Pool({ connectionString: DB }); await pool.query("DELETE FROM rate_limits WHERE action = 'waGap'"); await pool.end(); }
   assert.equal((await p.post("/api/auth/wa/send", { phone: "9123456781" })).status, 200);
   const code2 = waSent[n1].body.template.components[0].parameters[0].text;
   const again = await p.post("/api/auth/wa/verify", { phone: "9123456781", code: code2 });
