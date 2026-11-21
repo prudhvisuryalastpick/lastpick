@@ -1,6 +1,6 @@
 // Apply database migrations and exit (the servers also do this when they start).
-import { migrate, pool } from "../src/db.js";
+import { closePools, migrate } from "../src/db.js";
 
 await migrate();
-await pool.end();
+await closePools();
 console.log("Database is up to date.");

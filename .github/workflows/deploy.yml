@@ -6,12 +6,8 @@ name: Deploy to AWS
 # a version that doesn't become healthy is rolled back by ECS automatically.
 # Every Monday the image is rebuilt and redeployed even without code changes, to pick up security fixes.
 # Needs the repo variable AWS_DEPLOY_ROLE_ARN (from `terraform output deploy_role_arn`). No AWS keys are stored in GitHub.
+# LastPick now runs on Cloudflare (cloudflare.yml). This AWS deploy is kept as a fallback and only runs by hand.
 on:
-  push:
-    branches: [main]
-    paths: ["server/**", "web/**", "Dockerfile", ".dockerignore", ".github/workflows/deploy.yml"]
-  schedule:
-    - cron: "30 20 * * 0" # Monday 02:00 India time
   workflow_dispatch:
     inputs:
       seed:

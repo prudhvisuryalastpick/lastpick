@@ -1,23 +1,39 @@
-# LastPick on AWS
+# LastPick on Cloudflare
 
-Businesses post offers on anything they need to move before it becomes a loss (empty rooms, a free hall date, unsold seats, closing-time food, clearance stock). Customers nearby see them, view the owner's number and call or WhatsApp them, or share their own number. LastPick only connects people.
+Local businesses post same-day offers and job openings; customers nearby see them and tap "I'm interested" (the partner sees only their name). LastPick only connects people.
 
-This repo runs LastPick on **AWS (Mumbai, ap-south-1)** as **three separate containers on ECS Fargate**:
+This repo runs LastPick on **Cloudflare** as **four Workers from one codebase**, with a **PostgreSQL database** (PlanetScale, Mumbai, created and billed through Cloudflare) reached via **Hyperdrive**:
 
-| Service (container) | Web app | What it does |
+| Worker | Address | What it does |
 |---|---|---|
-| **customer** | LastPick | Offers near me / by pincode / by city, map, offer pages, view number, share my number, contacts, reviews, reports |
-| **partner** | LastPick Business | Business profile, post offers (3 a day, photos), end offers, leads, reviews and replies, history |
-| **admin** | LastPick Admin | Overview, verify / reject / suspend businesses, reports, complaints, users, plans, free-launch switch, moderators by state |
+| **customer** | https://customer.lastpick.in | Customer web app + API (offers, interest, reviews); also runs the background jobs every 5 minutes |
+| **partner** | https://partner.lastpick.in | Partner web app + business API (profile, posting, leads, reviews) |
+| **admin** | https://admin.lastpick.in | Admin panel + admin API (verification, plans, reports, combos switch) |
+| **redirect** | lastpick.in, www.lastpick.in | Sends visitors to the customer site |
 
-Each service runs, scales, deploys and logs on its own. All three share **one PostgreSQL database** (Amazon RDS), so an offer a partner posts appears for customers straight away.
+The web apps are static files Cloudflare serves for free; only `/api/*` runs code. Public offer lists are cached by Cloudflare for 60 seconds.
 
 ```
-           ┌ CloudFront customer ┐                         ┌ customer containers (1–4) ┐
-  users ───┼ CloudFront partner  ┼─ VPC origin ─ private ───┼ partner containers  (1–3) ┼── RDS PostgreSQL
-           └ CloudFront admin    ┘   (AWS network)  load    └ admin container     (1)   ┘   (private, encrypted,
-                                                   balancer                                   backed up)
+  users ── Cloudflare (HTTPS, DDoS protection, free static files, 60 s cache of offer lists)
+              ├ customer Worker ┐
+              ├ partner Worker  ┼── Hyperdrive ── PostgreSQL (PlanetScale, Mumbai)
+              └ admin Worker    ┘
 ```
+
+**Cost:** Workers Paid $5/month + database from $5/month ≈ **₹1,000/month** at low traffic; about ₹15,000–25,000 a month at 10,000 people online at once.
+The previous AWS setup (ECS Fargate + RDS, `Dockerfile`, `deploy.yml`, lastpick-terraform) is kept as a fallback; its deploy now runs only by hand.
+
+## Set up Cloudflare (one time, owner, in the browser)
+
+1. cloudflare.com → **Add a site** `lastpick.in` (Free plan) → check the support@lastpick.in MX/TXT records were copied → change the **nameservers at GoDaddy** to Cloudflare's two.
+2. **Workers & Pages → Plans → Workers Paid** ($5/month).
+3. **Create the database:** Storage & Databases → PlanetScale Postgres → single node, region **Mumbai (ap-south-1)**. Copy its connection string (direct, with password).
+4. **API token** (My Profile → API Tokens → Create Custom Token): Account · Workers Scripts · Edit; Account · Hyperdrive · Edit; Zone · Workers Routes · Edit; Zone · DNS · Edit (zone lastpick.in).
+5. In this repo → Settings → Secrets and variables → Actions → **New repository secret** (never paste them in a chat):
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (dashboard home, right side), `DATABASE_URL` (step 3), `SEED_PASSWORD` (a password of your choice for the test accounts).
+6. **Actions → Deploy to Cloudflare → Run workflow**, ticking *test accounts*. After that, every push to `main` deploys automatically.
+
+Test accounts (password = your `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator@test.lastpick.in`, `owner@test.lastpick.in`, `customer@test.lastpick.in`.
 
 ## What's inside
 
@@ -26,9 +42,9 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 | Web apps (3 builds from one codebase) | React 18 + Vite | `web/` |
 | API (one codebase, `SERVICE=customer\|partner\|admin`) | Node.js 22, only one package (`pg`) | `server/` |
 | Database schema | PostgreSQL 16 migrations | `server/migrations/` |
-| Container image (server + the three web apps, ARM) | Docker | `Dockerfile` |
-| AWS infrastructure, in its own VPC | Terraform | [lastpick-terraform](https://github.com/prudhvisuryalastpick/lastpick-terraform) (with the tech-stack diagram) |
-| Tests, build and deploy on every push; weekly rebuild | GitHub Actions | `.github/workflows/deploy.yml` |
+| Cloudflare Workers (4 environments) | Wrangler | `wrangler.toml`, `server/src/worker.js` |
+| Tests (Node server + Workers code), build and deploy on every push | GitHub Actions | `.github/workflows/cloudflare.yml` |
+| Fallback: container image and AWS infrastructure | Docker, Terraform | `Dockerfile`, `.github/workflows/deploy.yml` (manual), [lastpick-terraform](https://github.com/prudhvisuryalastpick/lastpick-terraform) |
 | AI agents: CI/CD and deployment | Claude Code | `.claude/agents/` (infra agent: in lastpick-terraform) |
 
 ## Planned (after we have good partners)
@@ -61,7 +77,7 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 - **Support:** customers and partners chat with the LastPick team in the app (Help & support); admins and moderators answer in Admin → Support chats. Formal complaints keep their own ticket system.
 - **Rules:** a plain-language "How LastPick works & rules" page plus the full Terms. They say LastPick is only a platform, takes no responsibility for the deal, and acts on providers through reviews and reports.
 
-## How each requirement is covered
+## How each requirement is covered (AWS fallback setup; on Cloudflare, HTTPS, scaling and patching are handled by Cloudflare)
 
 | Need | How |
 |---|---|
@@ -77,29 +93,9 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 
 Also: no SSH and no servers to log in to, the containers accept traffic only from the load balancer, the load balancer only from CloudFront with a secret header (checked again by the app), containers run as a non-root user, the admin panel only lets admins and moderators log in (optionally only from your IPs: `admin_allowed_ips`), and there's an audit log (1 year) of number views, shares, offers, reviews, admin actions, exports and deletions.
 
-## Monthly cost (approximate, Mumbai, on-demand, ₹ at $1 = ₹94.85)
+## AWS fallback
 
-| Item | USD | ₹ |
-|---|---|---|
-| 3 Fargate containers, 0.25 vCPU + 0.5 GB each, ARM, 24×7 | 22.72 | 2,155 |
-| 3 public IPv4 addresses (outgoing calls without a $35 NAT gateway) | 10.95 | 1,039 |
-| Load balancer (internal), low traffic | ~19 | ~1,800 |
-| RDS PostgreSQL db.t4g.micro + 20 GB (main) | ~18 | ~1,720 |
-| Read replica, same size (`db_read_replica`, can be switched off) | ~18 | ~1,720 |
-| Secrets Manager (4), logs, ECR, alarms, backups; CloudFront within its free tier | ~4.6 | ~440 |
-| **Total** | **≈ 93.5** | **≈ 8,860 + 18% GST ≈ 10,460** |
-
-Without the read replica: ≈ $75 ≈ ₹7,150 + GST ≈ ₹8,430. Each extra auto-scaled copy on Spot adds about $3 for the time it runs. The budget alert (`monthly_budget_usd`, default $100) e-mails before the bill runs away. Check with the [AWS Pricing Calculator](https://calculator.aws/); new accounts get free-tier credits at first.
-
-## Set up AWS (one time, about 25 minutes)
-
-1. **Create the infrastructure** with [lastpick-terraform](https://github.com/prudhvisuryalastpick/lastpick-terraform) (steps in its README, run from AWS CloudShell in Mumbai). Use `protect_data = false` for a test setup you'll delete afterwards.
-2. **Confirm the alarm and budget e-mails** AWS sends you.
-3. **This repo → Settings → Secrets and variables → Actions → Variables**: `AWS_DEPLOY_ROLE_ARN` = `terraform output -raw deploy_role_arn`.
-4. **Actions → Deploy to AWS → Run workflow**, ticking *test accounts* (and *demo* for sample offers). After that, every push to `main` deploys automatically.
-5. **Test accounts**: Secrets Manager → `lastpick/test-accounts` → *Retrieve secret value* gives the password for
-   `admin@test.lastpick.in`, `moderator@test.lastpick.in` (Karnataka), `owner@test.lastpick.in` and `customer@test.lastpick.in`.
-6. **Done testing?** `terraform destroy` in lastpick-terraform removes everything (see its README).
+The AWS version (three ECS Fargate services + RDS, about ₹8,500/month) still works: create it with lastpick-terraform, then run **Actions → Deploy to AWS** by hand. See lastpick-terraform's README.
 
 ## AI agents (Claude Code)
 

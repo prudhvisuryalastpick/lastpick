@@ -4,7 +4,7 @@
 // Accounts: admin@test.lastpick.in, moderator@test.lastpick.in (Karnataka), owner@test.lastpick.in, customer@test.lastpick.in
 // Running it again resets their passwords and roles (the deploy does this each time); nothing else is touched.
 import { hashPassword } from "../src/auth.js";
-import { migrate, pool, q } from "../src/db.js";
+import { closePools, migrate, q } from "../src/db.js";
 import { CONSENT_VERSION } from "../src/util.js";
 
 const password = process.env.SEED_PASSWORD || "";
@@ -53,4 +53,4 @@ if (process.argv.includes("--demo")) {
   }
   console.log("Sample business 'Test Bakery & Stays' (Bengaluru) with 3 offers is ready.");
 }
-await pool.end();
+await closePools();

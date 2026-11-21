@@ -1,0 +1,118 @@
+name: Deploy to Cloudflare
+
+# Every push to main: run all tests (Node server and the Cloudflare Workers code), build the three web apps,
+# update the database, and deploy the four Workers (customer, partner, admin, redirect).
+# Repo secrets needed: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATABASE_URL (PostgreSQL, direct connection),
+# and SEED_PASSWORD only if you tick "test accounts".
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", "web/**", "wrangler.toml", ".github/workflows/cloudflare.yml"]
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Create / refresh the test accounts (uses the SEED_PASSWORD secret)"
+        type: boolean
+        default: false
+
+concurrency: { group: cloudflare-deploy, cancel-in-progress: false }
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: lastpick_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/lastpick_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+        working-directory: server
+      - name: Tests (Node server)
+        run: npm test
+        working-directory: server
+      - name: Tests (Cloudflare Workers code)
+        run: npm test
+        working-directory: server
+        env: { LP_TEST_TARGET: worker }
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: Check settings
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Add the repo secret CLOUDFLARE_API_TOKEN"; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "::error::Add the repo secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          [ -n "$DATABASE_URL" ] || { echo "::error::Add the repo secret DATABASE_URL (the PostgreSQL connection string)"; exit 1; }
+
+      - run: npm install --no-audit --no-fund
+        working-directory: server
+
+      - name: Build the three web apps
+        working-directory: web
+        env:
+          VITE_CUSTOMER_URL: https://customer.lastpick.in
+          VITE_PARTNER_URL: https://partner.lastpick.in
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:all
+          node ../server/scripts/cloudflare/headers.mjs dist-customer dist-partner dist-admin
+
+      - name: Update the database
+        working-directory: server
+        env: { DB_SSL: require }
+        run: node scripts/migrate.js
+
+      - name: Test accounts
+        if: ${{ inputs.seed }}
+        working-directory: server
+        env: { DB_SSL: require, SEED_PASSWORD: "${{ secrets.SEED_PASSWORD }}" }
+        run: node scripts/seed.js
+
+      - name: Database connection for the Workers (Hyperdrive)
+        run: node server/scripts/cloudflare/hyperdrive.mjs
+
+      - name: Deploy the Workers
+        run: |
+          for e in customer partner admin redirect; do npx --yes wrangler@4 deploy --env $e; done
+
+      - name: Sign-in secret (created once per Worker)
+        run: |
+          for e in customer partner admin; do
+            if ! npx --yes wrangler@4 secret list --env $e | grep -q JWT_SECRET; then
+              openssl rand -hex 32 | npx --yes wrangler@4 secret put JWT_SECRET --env $e
+            fi
+          done
+
+      - name: Health check
+        run: |
+          for s in customer partner admin; do
+            ok=no
+            for i in $(seq 1 20); do
+              if curl -fsS "https://$s.lastpick.in/healthz" >/dev/null 2>&1; then ok=yes; break; fi
+              sleep 15
+            done
+            echo "$s: $ok"
+            [ "$ok" = yes ] || echo "::warning::$s.lastpick.in isn't answering yet (a new custom domain can take a few minutes)"
+          done
+          {
+            echo "### LastPick on Cloudflare"
+            echo "- Customer: https://customer.lastpick.in"
+            echo "- Partner: https://partner.lastpick.in"
+            echo "- Admin: https://admin.lastpick.in"
+          } >> "$GITHUB_STEP_SUMMARY"

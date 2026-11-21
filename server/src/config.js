@@ -1,5 +1,4 @@
 // All settings come from environment variables (on ECS Fargate: the task definition, secrets from Secrets Manager).
-import os from "node:os";
 const env = process.env;
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -8,7 +7,7 @@ export const PRODUCTION = env.NODE_ENV === "production";
 export const SERVICE = ["customer", "partner", "admin", "all"].includes(env.SERVICE) ? env.SERVICE : "all";
 export const PORT = Number(env.PORT || 8080);
 // unique per container (every container is process 1, so the host name tells them apart)
-export const INSTANCE_ID = env.INSTANCE_ID || `${SERVICE}-${os.hostname()}-${process.pid}`;
+export const INSTANCE_ID = env.INSTANCE_ID || `${SERVICE}-${env.HOSTNAME || "worker"}-${process.pid || 0}`;
 
 // Database: DATABASE_URL, or the standard PGHOST / PGUSER / PGPASSWORD / PGDATABASE variables.
 export const DATABASE_URL = env.DATABASE_URL || "";
@@ -20,7 +19,10 @@ export const DB_POOL_MAX = Number(env.DB_POOL_MAX || 10);
 export const DB_READ_HOST = env.PGHOST_READ || "";
 
 export const JWT_SECRET = env.JWT_SECRET || (PRODUCTION ? "" : "dev-only-secret-change-me");
-if (PRODUCTION && JWT_SECRET.length < 32) throw new Error("JWT_SECRET must be set (32+ characters) in production");
+// On Cloudflare Workers the secret is added right after the first upload, so a missing secret there blocks sign-ins
+// (auth.js) instead of stopping the Worker from starting.
+export const ON_WORKERS = globalThis.navigator?.userAgent === "Cloudflare-Workers";
+if (PRODUCTION && JWT_SECRET.length < 32 && !ON_WORKERS) throw new Error("JWT_SECRET must be set (32+ characters) in production");
 export const TOKEN_DAYS = Number(env.TOKEN_DAYS || 30);
 
 // Built web app served by this server (web/dist-<variant>).

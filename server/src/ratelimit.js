@@ -10,7 +10,10 @@ const buckets = new Map();
 const X = Math.max(1, Number(process.env.IP_LIMIT_MULTIPLIER || 1));
 const CLASSES = { default: [240 * X, 120 * X], auth: [20 * X, 10 * X], write: [60 * X, 30 * X] };
 
+let calls = 0;
 export function ipAllow(ip, cls = "default") {
+  // tidy up old buckets now and then (no timers, so this also runs on Cloudflare Workers)
+  if (++calls % 1000 === 0) { const old = Date.now() - 10 * 60000; for (const [k, b] of buckets) if (b.at < old) buckets.delete(k); }
   const [perMin, burst] = CLASSES[cls] || CLASSES.default;
   const key = cls + "|" + ip;
   const now = Date.now();
@@ -22,10 +25,6 @@ export function ipAllow(ip, cls = "default") {
   buckets.set(key, b);
   return true;
 }
-setInterval(() => {
-  const old = Date.now() - 10 * 60000;
-  for (const [k, b] of buckets) if (b.at < old) buckets.delete(k);
-}, 60000).unref();
 
 // Has this key already used up `max` in the current window? (Reads only; for lockouts after failed logins.)
 export async function overLimit(key, action, max, windowSec) {

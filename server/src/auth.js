@@ -1,6 +1,6 @@
 // Passwords (scrypt) and sign-in tokens (JWT, HS256). Built on node:crypto, no extra packages.
 import crypto from "node:crypto";
-import { JWT_SECRET, TOKEN_DAYS } from "./config.js";
+import { JWT_SECRET, PRODUCTION, TOKEN_DAYS } from "./config.js";
 import { one } from "./db.js";
 import { unauth } from "./util.js";
 
@@ -25,7 +25,10 @@ export async function checkPassword(pw, stored) {
 }
 
 const b64u = (b) => Buffer.from(b).toString("base64url");
-const sign = (data) => crypto.createHmac("sha256", JWT_SECRET).update(data).digest("base64url");
+const sign = (data) => {
+  if (!JWT_SECRET || (PRODUCTION && JWT_SECRET.length < 32)) throw new Error("JWT_SECRET is not set"); // never sign with a weak or empty secret
+  return crypto.createHmac("sha256", JWT_SECRET).update(data).digest("base64url");
+};
 
 export function issueToken(user) {
   const now = Math.floor(Date.now() / 1000);

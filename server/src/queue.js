@@ -16,7 +16,7 @@ export async function enqueue(type, payload = {}, { delaySec = 0, maxAttempts = 
   );
 }
 
-async function runOne() {
+export async function runOne() {
   const job = await one(
     `UPDATE jobs SET locked_at = now(), locked_by = $1, attempts = attempts + 1
      WHERE id = (SELECT id FROM jobs WHERE done_at IS NULL AND run_at <= now()
@@ -57,7 +57,7 @@ function dueSince(s, now = Date.now()) {
   const slot = dayStart + (h * 60 + m) * 60000;
   return now >= slot ? new Date(slot) : null; // claim if not run since today's slot
 }
-async function runSchedules() {
+export async function runSchedules() {
   for (const s of schedules) {
     const since = dueSince(s);
     if (!since) continue;

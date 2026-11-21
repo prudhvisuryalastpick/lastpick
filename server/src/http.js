@@ -34,7 +34,7 @@ export function createRouter() {
   };
 }
 
-const SECURITY_HEADERS = {
+export const SECURITY_HEADERS = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -42,7 +42,7 @@ const SECURITY_HEADERS = {
   "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(self)",
   "Cross-Origin-Opener-Policy": "same-origin",
 };
-const CSP = [
+export const CSP = [
   "default-src 'self'", "base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'",
   "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
@@ -193,4 +193,61 @@ export function makeHandler(router, { webDir, guard } = {}) {
       if (pathname.startsWith("/api/") && (msTaken > 1000 || res.statusCode >= 500)) log.warn("slow or failed request", { reqId, method: req.method, path: pathname, status: res.statusCode, ms: msTaken });
     }
   };
+}
+
+// ---------- Cloudflare Workers: the same API on a Fetch Request -> Response ----------
+// Static files are served by Cloudflare itself (free); only /api/* reaches this.
+// Cloudflare compresses replies on its own, so nothing is compressed here.
+export async function handleFetch(router, request, { ip: givenIp, guard } = {}) {
+  const started = Date.now();
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const reqId = crypto.randomUUID();
+  const base = { ...SECURITY_HEADERS, "X-Request-Id": reqId };
+  const json = (status, body, extra = {}) => new Response(body === undefined ? "" : JSON.stringify(body), {
+    status, headers: { ...base, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...extra },
+  });
+  // a Node-style request object, for the shared helpers (login token, client address)
+  const req = { method: request.method, url: pathname + url.search, headers: Object.fromEntries(request.headers), socket: {} };
+  const ip = givenIp || request.headers.get("cf-connecting-ip") || "unknown";
+  try {
+    if (guard) { const g = guard(req, ip); if (g) return json(403, { error: g }); }
+    if (!pathname.startsWith("/api/")) return json(404, { error: "Not found" });
+
+    const cors = {};
+    const origin = request.headers.get("origin");
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      Object.assign(cors, {
+        "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE", "Access-Control-Max-Age": "600",
+      });
+    }
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...base, ...cors } });
+
+    const found = router.find(request.method, pathname);
+    if (!found) return json(404, { error: "Not found" }, cors);
+    if (found.methodNotAllowed) return json(405, { error: "Method not allowed" }, cors);
+    const { route, params } = found;
+    const cls = route.opts.limit || (request.method === "GET" ? "default" : "write");
+    if (!ipAllow(ip, "default") || (cls !== "default" && !ipAllow(ip, cls))) throw tooMany();
+
+    let body = {};
+    if (["POST", "PUT", "PATCH"].includes(request.method)) {
+      const text = await request.text();
+      if (text.length > MAX_BODY) throw new HttpError(413, "That's too large.", "invalid-argument");
+      if (text) { try { body = JSON.parse(text); } catch { throw new HttpError(400, "Bad request", "invalid-argument"); } }
+    }
+    const auth = await userFromRequest(req);
+    const res = { headersSent: false, setHeader() {} };
+    const ctx = { req, res, ip, params, body, query: Object.fromEntries(url.searchParams), user: auth.user || null, authReason: auth.reason || null, userAgent: String(request.headers.get("user-agent") || "").slice(0, 200) };
+    const out = await route.handler(ctx);
+    return json(200, out === undefined ? { ok: true } : out, { ...cors, ...(route.opts.cache ? { "Cache-Control": route.opts.cache } : {}) });
+  } catch (e) {
+    const status = e instanceof HttpError ? e.status : 500;
+    if (status >= 500) log.error("request failed", { reqId, method: request.method, path: pathname, error: e.message, stack: e.stack });
+    return json(status, { error: status >= 500 ? "Something went wrong on our side. Please try again in a minute." : e.message, code: e.code || "internal", reqId });
+  } finally {
+    const msTaken = Date.now() - started;
+    if (msTaken > 1000) log.warn("slow request", { reqId, method: request.method, path: pathname, ms: msTaken });
+  }
 }

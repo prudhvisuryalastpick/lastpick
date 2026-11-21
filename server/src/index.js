@@ -6,29 +6,13 @@
 import http from "node:http";
 import { ADMIN_ALLOWED_IPS, PORT, RUN_WORKER, SERVICE, WEB_DIR } from "./config.js";
 import { closePools, migrate, pool } from "./db.js";
-import { createRouter, makeHandler } from "./http.js";
+import { makeHandler } from "./http.js";
 import { registerJobs } from "./jobs.js";
 import { log } from "./log.js";
 import { startWorker, stopWorker } from "./queue.js";
-import { accountRoutes } from "./routes/account.js";
-import { adminRoutes } from "./routes/admin.js";
-import { offerRoutes, offerViewRoutes } from "./routes/offers.js";
-import { partnerRoutes } from "./routes/partner.js";
-import { reviewReadRoutes, reviewRoutes } from "./routes/reviews.js";
-import { insightRoutes } from "./routes/insights.js";
-import { supportRoutes } from "./routes/support.js";
-import { bannerRoutes, boostPartnerRoutes, revenueAdminRoutes } from "./routes/revenue.js";
+import { buildRouter } from "./app.js";
 
-const has = (s) => SERVICE === "all" || SERVICE === s;
-const router = createRouter();
-accountRoutes(router);
-offerViewRoutes(router);
-reviewReadRoutes(router);
-if (has("customer")) { offerRoutes(router); reviewRoutes(router); bannerRoutes(router); }
-if (has("partner")) { partnerRoutes(router); boostPartnerRoutes(router); }
-if (has("admin")) { adminRoutes(router); revenueAdminRoutes(router); }
-insightRoutes(router, { customer: has("customer"), partner: has("partner") });
-supportRoutes(router, { admin: has("admin") });
+const router = buildRouter(SERVICE);
 
 let shuttingDown = false;
 router.health = async (res) => {
