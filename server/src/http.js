@@ -1,4 +1,5 @@
 // Tiny HTTP layer on node:http: routing, JSON bodies, security headers, CORS, static files, rate limits.
+import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import zlib from "node:zlib";

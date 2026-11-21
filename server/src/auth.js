@@ -1,4 +1,5 @@
 // Passwords (scrypt) and sign-in tokens (JWT, HS256). Built on node:crypto, no extra packages.
+import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import { JWT_SECRET, PRODUCTION, TOKEN_DAYS } from "./config.js";
 import { one } from "./db.js";

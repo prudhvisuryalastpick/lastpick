@@ -1,4 +1,5 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
+import { Buffer } from "node:buffer";
 import { combosOn, singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
