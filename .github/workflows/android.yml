@@ -24,7 +24,7 @@ jobs:
             host: customer.lastpick.in
           - variant: owner
             appId: in.lastpick.partner
-            appName: LastPick Business
+            appName: LastPick Partner
             api: partner
             host: partner.lastpick.in
     defaults:

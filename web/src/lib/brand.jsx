@@ -1,4 +1,4 @@
-// The "LP" monogram logo: L and P in white, with a price-tag hole in the P.
+// The "LP" monogram logo: L and P in white, with a price-tag hole in the P (partner adds a PARTNER label).
 // Same mark in each app's own colour, so the apps never look the same:
 //   customer: teal tile, lime dot · partner: gold tile, cream dot · admin: slate tile, blue dot
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP } from "./config.js";
@@ -11,8 +11,8 @@ const MARKS = {
     art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#D9F99D"/>`,
   },
   partner: {
-    bg: ["#F2B654", "#8A3B0E"], label: `${APP_NAME} Business`, sub: "For partners", theme: "#3B1606",
-    art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#FFF1D6"/>`,
+    bg: ["#F2B654", "#8A3B0E"], label: `${APP_NAME} Partner`, sub: "For businesses", theme: "#3B1606",
+    art: `<g transform="translate(7.5 1) scale(.77)"><path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#FFF1D6"/></g><text x="32" y="55.5" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="8.6" font-weight="800" letter-spacing="1.1" fill="#fff">PARTNER</text>`,
   },
   admin: {
     bg: ["#475569", "#0F172A"], label: `${APP_NAME} Admin`, sub: "Team only", theme: "#0F172A",
