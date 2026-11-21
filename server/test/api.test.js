@@ -117,17 +117,22 @@ test("login rules", async () => {
   assert.equal((await client("admin").login("customer@test.lastpick.in")).status, 403);
   assert.equal((await client("admin").login("moderator@test.lastpick.in")).status, 200);
   // sign-up works on customer/partner, never on admin
-  const s = await client("customer").post("/api/auth/signup", { email: "new@test.lastpick.in", password: "longpassword", name: "New Person", phone: "9876543210", consent: fullConsent() });
+  const s = await client("customer").post("/api/auth/signup", { email: "new@test.lastpick.in", password: "longpassword", name: "New Person", phone: "9876543291", consent: fullConsent() });
   assert.equal(s.status, 200, JSON.stringify(s.data));
   assert.equal((await client("admin").post("/api/auth/signup", { email: "x@test.lastpick.in", password: "longpassword", name: "X" })).status, 403);
   // log in with the mobile number instead of the e-mail (any format), and a wrong password is refused
-  const byPhone = await client("customer").post("/api/auth/login", { login: "+91 98765 43210", password: "longpassword" });
+  const byPhone = await client("customer").post("/api/auth/login", { login: "+91 98765 43291", password: "longpassword" });
   assert.equal(byPhone.status, 200, JSON.stringify(byPhone.data));
-  assert.equal((await client("partner").post("/api/auth/login", { login: "9876543210", password: "longpassword" })).status, 200, "same account works in the partner app");
-  assert.equal((await client("customer").post("/api/auth/login", { login: "9876543210", password: "wrongpassword" })).status, 400);
+  assert.equal((await client("partner").post("/api/auth/login", { login: "9876543291", password: "longpassword" })).status, 200, "same account works in the partner app");
+  assert.equal((await client("customer").post("/api/auth/login", { login: "9876543291", password: "wrongpassword" })).status, 400);
   assert.equal((await client("customer").post("/api/auth/login", { login: "9000000000", password: "longpassword" })).status, 400, "unknown number");
+  // obviously fake numbers are refused
+  for (const fake of ["9999999999", "9000000000", "9876543210", "1234567890", "98765"]) {
+    const r = await client("customer").post("/api/auth/signup", { email: `fake${fake}@test.lastpick.in`, password: "longpassword", name: "Fake Person", phone: fake, consent: fullConsent() });
+    assert.equal(r.status, 400, fake);
+  }
   // a second account can't use the same mobile number
-  assert.equal((await client("customer").post("/api/auth/signup", { email: "dup@test.lastpick.in", password: "longpassword", name: "Dup Person", phone: "98765 43210", consent: fullConsent() })).status, 409);
+  assert.equal((await client("customer").post("/api/auth/signup", { email: "dup@test.lastpick.in", password: "longpassword", name: "Dup Person", phone: "98765 43291", consent: fullConsent() })).status, 409);
 });
 
 let offerId, bizId;

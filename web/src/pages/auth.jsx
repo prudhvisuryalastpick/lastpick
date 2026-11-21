@@ -6,7 +6,7 @@ import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
 import { SocialLinks, Spinner } from "../components.jsx";
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
-import { errText, indianPhone, prettyPhone, rupee, validPhone } from "../lib/format.js";
+import { errText, indianPhone, mobileProblem, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
@@ -158,7 +158,7 @@ export function Login({ next = "/" }) {
   const signUp = async (e) => {
     e.preventDefault(); setErr("");
     if (name.trim().length < 2) return setErr("Enter your name");
-    if (!/^(\+?91)?[6-9]\d{9}$/.test(mobile.replace(/[\s-]/g, ""))) return setErr("Enter a valid Indian mobile number");
+    if (mobileProblem(mobile)) return setErr(mobileProblem(mobile));
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr("Enter a valid e-mail");
     if (password.length < 8) return setErr("Password must be at least 8 characters");
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
@@ -306,7 +306,7 @@ export function CompleteProfile() {
   const save = async (e) => {
     e.preventDefault(); setErr("");
     if (!name.trim()) return setErr("Please enter your name");
-    if (!viaPhone && !validPhone(other)) return setErr("Please enter a valid Indian mobile number, so businesses can reach you when you ask them to");
+    if (!viaPhone && mobileProblem(other)) return setErr(mobileProblem(other));
     if (viaPhone && other.trim() && !/^\S+@\S+\.\S+$/.test(other)) return setErr("Please enter a valid e-mail address, or leave it empty");
     if (!consent.adult) return setErr(`You must be 18 or older to use ${APP_NAME}`);
     if (!consent.agree) return setErr("Please read and agree to the privacy notice to continue");

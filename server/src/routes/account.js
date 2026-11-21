@@ -13,7 +13,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -141,7 +141,7 @@ export function accountRoutes(r) {
     if (!validEmail(email)) throw bad("Please enter a valid email");
     if (typeof body.password !== "string" || body.password.length < 8) throw bad("Password must be at least 8 characters");
     if (name.length < 2) throw bad("Please enter your name");
-    if (body.phone && !phone) throw bad("Please enter a valid Indian mobile number");
+    if (mobileProblem(body.phone)) throw bad(mobileProblem(body.phone));
     await limit("ip:" + ip, "signup", 10, 3600);
     // say "already registered" BEFORE using up the e-mail code, so a mistake doesn't waste the code
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
@@ -230,6 +230,7 @@ export function accountRoutes(r) {
     const name = str(ctx.body.name, 80);
     if (name.length < 2) throw bad("Please enter your name");
     const phone = indianPhone(ctx.body.phone) || "";
+    if (ctx.body.phone && mobileProblem(ctx.body.phone)) throw bad(mobileProblem(ctx.body.phone));
     await tx(async (c) => {
       // one account per mobile number (mobile login sends the code to that account's e-mail)
       if (phone && (await c.query("SELECT 1 FROM users WHERE phone = $1 AND id <> $2", [phone, u.id])).rows.length) throw precondition("This mobile number is already registered. Log in with it instead.");

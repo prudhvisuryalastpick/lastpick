@@ -70,5 +70,15 @@ export function indianPhone(p) {
   if (/^0[1-9]\d{9}$/.test(d)) return "+91" + d.slice(1);
   return null;
 }
+// A mobile number for an account: must be a real-looking Indian mobile (10 digits starting 6-9), not an obvious fake
+// like 9999999999, 9000000000 or 9876543210. (Without an SMS code we can't prove ownership; this catches typos/fakes.)
+export function mobileProblem(p) {
+  const n = indianPhone(p);
+  const d = n ? n.slice(3) : "";
+  if (!/^[6-9]\d{9}$/.test(d)) return "Enter a valid 10-digit Indian mobile number (starting with 6, 7, 8 or 9)";
+  const most = Math.max(...[..."0123456789"].map((x) => d.split(x).length - 1));
+  if (most >= 8 || /(\d)\1{5}/.test(d) || "01234567890123456789".includes(d) || "98765432109876543210".includes(d)) return "This doesn't look like a real mobile number. Please enter your own mobile number";
+  return null;
+}
 export const normEmail = (e) => String(e || "").trim().toLowerCase();
 export const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) && e.length <= 120;
