@@ -2,6 +2,7 @@
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
 import { combosOn, setSetting, singleDeviceOn } from "../settings.js";
 import { needUser } from "../auth.js";
+import { PLAN_NAMES, notify } from "../notify.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, rmany, rone } from "../db.js";
 import { freeMode, setFreeMode, subActive } from "../plans.js";
@@ -168,15 +169,21 @@ export function adminRoutes(r) {
     const id = needUuid(ctx.params.id, "business");
     const status = ctx.body.status;
     if (!STATUSES.includes(status)) throw bad("Unknown status");
-    const b = await one("SELECT state, city, pincode FROM businesses WHERE id = $1", [id]);
+    const b = await one("SELECT state, city, pincode, name, status FROM businesses WHERE id = $1", [id]);
     if (!b) throw notFound("Business not found");
     if (!me.canSee(b)) throw denied("This business is outside your area");
+    const note = str(ctx.body.note, 300);
     // the business's free month starts the first time it is verified
     await q(`UPDATE businesses SET status = $2, status_note = $3, reviewed_by = $4, reviewed_at = now(),
              trial_ends_at = CASE WHEN $2 = 'verified' AND trial_ends_at IS NULL THEN now() + make_interval(days => $5) ELSE trial_ends_at END
-             WHERE id = $1`, [id, status, str(ctx.body.note, 300), me.id, TRIAL_DAYS]);
+             WHERE id = $1`, [id, status, note, me.id, TRIAL_DAYS]);
     clearCache("feed:"); clearCache("cities:");
     audit("admin_business_status", me.id, { businessId: id, status });
+    // tell the partner (only when the status really changes)
+    if (status !== b.status && status !== "pending") {
+      const after = await one("SELECT trial_ends_at FROM businesses WHERE id = $1", [id]);
+      await notify(id, "business_" + status, { business: b.name, note, trialEnds: after?.trial_ends_at });
+    }
   });
 
   // Super admins: switches such as combos (off until LastPick has enough good partners).
@@ -203,13 +210,16 @@ export function adminRoutes(r) {
       const months = Number(ctx.body.months);
       if (![1, 3, 6, 12].includes(months)) throw bad("Pick 1, 3, 6 or 12 months");
       await grantPlan(id, "owner", months, me.id);
+      await planEmail(id, "owner", months);
     } else if (action === "extendTrial") {
       const days = Number(ctx.body.days);
       if (!(days >= 1 && days <= 90)) throw bad("Extend by 1 to 90 days");
-      await q("UPDATE businesses SET trial_ends_at = greatest(now(), coalesce(trial_ends_at, now())) + make_interval(days => $2) WHERE id = $1", [id, days]);
+      const t = await one("UPDATE businesses SET trial_ends_at = greatest(now(), coalesce(trial_ends_at, now())) + make_interval(days => $2) WHERE id = $1 RETURNING trial_ends_at", [id, days]);
+      await notify(id, "trial_extended", { until: t.trial_ends_at });
     } else if (action === "end") {
       await q("UPDATE subscriptions SET status = 'expired', current_period_end = now(), updated_at = now() WHERE user_id = $1 AND plan = 'owner'", [id]);
       await q("UPDATE businesses SET trial_ends_at = now() WHERE id = $1", [id]);
+      await notify(id, "plan_ended", { planName: PLAN_NAMES.owner });
     } else throw bad("Unknown action");
     clearCache("feed:"); clearCache("cities:");
     audit("admin_business_plan", me.id, { businessId: id, action, months: ctx.body.months || null, days: ctx.body.days || null });
@@ -223,8 +233,11 @@ export function adminRoutes(r) {
     if (!PLANS.includes(plan)) throw bad("Unknown plan");
     const target = await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
     if (!target) throw notFound("No user with that email");
-    if (months > 0) await grantPlan(target.id, plan, months, me.id);
-    else await q("UPDATE subscriptions SET status = 'expired', current_period_end = now(), updated_at = now() WHERE user_id = $1 AND plan = $2", [target.id, plan]);
+    if (months > 0) { await grantPlan(target.id, plan, months, me.id); await planEmail(target.id, plan, months); }
+    else {
+      await q("UPDATE subscriptions SET status = 'expired', current_period_end = now(), updated_at = now() WHERE user_id = $1 AND plan = $2", [target.id, plan]);
+      await notify(target.id, "plan_ended", { planName: PLAN_NAMES[plan] });
+    }
     clearCache("feed:");
     audit("admin_plan", me.id, { target: target.id, plan, months });
   });
@@ -290,6 +303,12 @@ export function adminRoutes(r) {
     if (!r2.rowCount) throw notFound("Ticket not found");
     audit("admin_grievance", me.id, { ticket: ctx.params.ticket, status });
   });
+}
+
+// payment receipt e-mail after a plan is activated or extended
+async function planEmail(userId, plan, months) {
+  const s = await one("SELECT current_period_end FROM subscriptions WHERE user_id = $1 AND plan = $2", [userId, plan]);
+  await notify(userId, "plan_active", { planName: PLAN_NAMES[plan], months, amount: planPrice(plan, months), until: s?.current_period_end });
 }
 
 async function grantPlan(userId, plan, months, by) {

@@ -10,7 +10,8 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   BREVO_API_KEY, MAIL_FROM  optional: e-mail sign-up codes through Brevo (MAIL_FROM = a sender verified in Brevo)
+#   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
+#                             MAIL_FROM = a sender verified in Brevo, e.g. "LastPick <support@lastpick.in>"
 on:
   push:
     branches: [main]

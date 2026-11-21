@@ -1,6 +1,6 @@
-// Sends e-mail (sign-up codes) through Brevo's transactional e-mail API (free plan: 300 e-mails a day).
+// Sends e-mail (sign-up codes, approvals, payment receipts) through Brevo's transactional e-mail API (free plan: 300 e-mails a day).
 // Needs BREVO_API_KEY and MAIL_FROM (a sender address verified in Brevo, e.g. "LastPick <no-reply@lastpick.in>").
-import { BREVO_API_KEY, MAIL_FROM } from "./config.js";
+import { BREVO_API_KEY, MAIL_FROM, MAIL_REPLY_TO } from "./config.js";
 
 function parseFrom(from) {
   const m = String(from).match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
@@ -12,7 +12,7 @@ export async function sendEmail(to, subject, text) {
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ sender: parseFrom(MAIL_FROM), to: [{ email: to }], subject, textContent: text }),
+    body: JSON.stringify({ sender: parseFrom(MAIL_FROM), replyTo: { email: MAIL_REPLY_TO }, to: [{ email: to }], subject, textContent: text }),
   });
   if (!r.ok) throw new Error(`E-mail failed (${r.status}): ${(await r.text()).slice(0, 200)}`);
 }

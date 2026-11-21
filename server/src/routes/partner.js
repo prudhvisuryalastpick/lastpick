@@ -1,4 +1,5 @@
 // Business partner side: business profile, posting and ending offers, leads, reviews of my business.
+import { notify } from "../notify.js";
 import { needUser } from "../auth.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, tx } from "../db.js";
@@ -43,8 +44,10 @@ export function partnerRoutes(r) {
     if (pincode && pincode.length !== 6) throw bad("Enter a 6-digit pincode");
     const city = str(b.city, 80);
     const fields = [name, category, categories, str(b.about, 1000), str(b.address, 300), str(b.area, 100), city, str(b.state, 60), cityKey(city), pincode, lat, lng];
+    let isNew = false;
     await tx(async (c) => {
       const prev = (await c.query("SELECT categories FROM businesses WHERE id = $1 FOR UPDATE", [u.id])).rows[0];
+      isNew = !prev;
       if (prev) {
         const changed = [...prev.categories].sort().join() !== [...categories].sort().join();
         await c.query(`UPDATE businesses SET name = $2, category = $3, categories = $4, about = $5, address = $6, area = $7, city = $8, state = $9,
@@ -57,6 +60,7 @@ export function partnerRoutes(r) {
                      ON CONFLICT (business_id) DO UPDATE SET phone = $2, whatsapp = $3, updated_at = now()`, [u.id, phone, b.whatsapp !== false]);
     });
     clearCache("feed:"); clearCache("cities:");
+    if (isNew) await notify(u.id, "business_received", { business: name });
     return myBusiness(u.id);
   });
 

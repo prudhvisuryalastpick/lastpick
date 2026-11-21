@@ -49,3 +49,5 @@ export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
 export const BREVO_API_KEY = env.BREVO_API_KEY || "";
+// Replies to LastPick e-mails go here.
+export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";

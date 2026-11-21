@@ -1,5 +1,6 @@
 // Login (test accounts for now), profile, plans, consent, privacy rights and complaints. Served by every server.
 import { combosOn, singleDeviceOn } from "../settings.js";
+import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
 import { MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
@@ -122,6 +123,7 @@ export function accountRoutes(r) {
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
+    if (SERVICE === "customer") await notify(u.id, "welcome");
     return { token: issueToken(u), user: { id: u.id, email: u.email } };
   }, { limit: "auth" });
 
