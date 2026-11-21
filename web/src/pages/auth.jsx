@@ -7,7 +7,6 @@ import { DEMO_ACCOUNTS } from "../api/index.js";
 import { SocialLinks, Spinner } from "../components.jsx";
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, validPhone } from "../lib/format.js";
-import { confirmPhoneCode, phoneCheckOn, phoneError, sendPhoneCode } from "../lib/phoneVerify.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
@@ -109,11 +108,10 @@ export function Login({ next = "/" }) {
   const [codeSent, setCodeSent] = useState(false);
   // the e-mail code at sign-up has a 10-minute expiry and a 30-second resend wait
   const [emailSentAt, setEmailSentAt] = useState(0);
-  // mobile check (Firebase SMS code), when switched on
-  const phoneOn = phoneCheckOn();
+  // mobile check by SMS code (Brevo): only when the server says it's switched on (off for now)
+  const phoneOn = !!config?.phoneCodes;
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneSentAt, setPhoneSentAt] = useState(0);
-  const [phoneToken, setPhoneToken] = useState("");
   if (session && profile && !profile.needsProfile) { setTimeout(() => navigate(next || "/", { replace: true }), 0); return <Spinner />; }
 
   const target = method === "phone" ? prettyPhone(indianPhone(phone) || phone) : email.trim();
@@ -175,10 +173,10 @@ export function Login({ next = "/" }) {
         // A mobile number already registered is refused before any code is sent.
         const sent = await api.sendEmailOtp(email).then(() => true).catch((x) => { if (/switched on/i.test(errText(x))) return false; throw x; });
         if (sent) setEmailSentAt(Date.now());
-        // and an SMS code to the mobile (Firebase)
+        // and an SMS code to the mobile (when switched on)
         if (phoneOn) {
-          try { await sendPhoneCode(indianPhone(mobile), "su-recaptcha"); setPhoneSentAt(Date.now()); setPhoneToken(""); }
-          catch (x) { setBusy(false); return setErr(phoneError(x)); }
+          try { await api.sendSmsOtp(mobile); setPhoneSentAt(Date.now()); }
+          catch (x) { setBusy(false); return setErr(errText(x)); }
         }
         if (sent || phoneOn) {
           setCodeSent(true);
@@ -187,15 +185,9 @@ export function Login({ next = "/" }) {
         }
       } else {
         if (emailSentAt && !/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
-        if (phoneOn && !phoneToken && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the SMS"); }
+        if (phoneOn && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the SMS"); }
       }
-      // mobile: check the SMS code with Firebase (once), then send its signed proof with the sign-up
-      let token = phoneToken;
-      if (phoneOn && !token) {
-        try { token = await confirmPhoneCode(phoneCode); setPhoneToken(token); }
-        catch (x) { setBusy(false); return setErr(phoneError(x)); }
-      }
-      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneToken: token || undefined });
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
       await refresh();
       if (IS_OWNER_APP) navigate("/owner/business");
@@ -281,13 +273,11 @@ export function Login({ next = "/" }) {
             <input id="su-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             <CodeTimer sentAt={emailSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email); setOtp(""); setEmailSentAt(Date.now()); toast("New e-mail code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && phoneOn && <div className="fld"><label htmlFor="su-sms">Mobile code: 6 digits sent by SMS to {prettyPhone(indianPhone(mobile) || mobile)}</label>
-            {phoneToken ? <div className="banner ok" style={{ margin: 0 }}>✓ Mobile number verified</div> : <>
-              <input id="su-sms" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-              <CodeTimer sentAt={phoneSentAt} life={300} hint="Check the number is right." onResend={async () => { try { await sendPhoneCode(indianPhone(mobile), "su-recaptcha"); setPhoneCode(""); setPhoneSentAt(Date.now()); toast("New SMS code sent"); } catch (x) { setErr(phoneError(x)); } }} /></>}</div>}
-          {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setEmailSentAt(0); setPhoneCode(""); setPhoneSentAt(0); setPhoneToken(""); setErr(""); }}>Change e-mail or mobile number</button>}
+            <input id="su-sms" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+            <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneCode(""); setPhoneSentAt(Date.now()); toast("New SMS code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
+          {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setEmailSentAt(0); setPhoneCode(""); setPhoneSentAt(0); setErr(""); }}>Change e-mail or mobile number</button>}
           {err && <div className="error">{err}</div>}
           <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : phoneOn ? "Send codes to e-mail and mobile" : "Send verification code"}</button>
-          <div id="su-recaptcha" />
           <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
         </form>
       </>}

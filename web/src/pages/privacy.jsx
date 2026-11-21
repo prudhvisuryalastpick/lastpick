@@ -16,7 +16,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 
 // What we collect and why: shown at sign-up, in the consent gate and in the full notice.
 export const NOTICE_ITEMS = [
-  { data: "Name, mobile number and e-mail", why: "To create your account and log you in. Your e-mail is checked with an e-mailed code and your mobile with an SMS code (sent by Google Firebase). Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
+  { data: "Name, mobile number and e-mail", why: "To create your account and log you in. Your e-mail is checked with an e-mailed code. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
   { data: "Your location", why: "Needed to show offers within 30 km of you. Sent only rounded to about 1 km to find offers, and to OpenStreetMap to show your area name and pincode. We don't store it." },
   { data: "Activity: offers you open or contact, numbers you share, reviews and reports", why: "For your contacts list, a business's leads, reviews, and to stop fraud and misuse." },
@@ -136,7 +136,7 @@ export function Privacy() {
         <NoticeList />
         <h2>Who can see or receive your data</h2>
         <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
-        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Brevo (sends code and account e-mails), Google Firebase (texts the sign-up SMS code to your mobile number to check it is yours; it receives your mobile number for this) and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
+        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Brevo (sends code and account e-mails), and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
           <tbody>

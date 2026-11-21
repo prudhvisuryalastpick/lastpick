@@ -89,10 +89,11 @@ test("one account per mobile number", async () => {
 test("e-mail codes: refused cleanly while e-mail isn't set up", async () => {
   const r = await client("customer").post("/api/auth/otp/send", { email: "someone@test.lastpick.in" });
   assert.equal(r.status, 409);
-  // there are no SMS codes (removed); only e-mail codes, off here because e-mail isn't set up in tests
-  assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 404);
+  // e-mail codes are off here because e-mail isn't set up in tests
+  // SMS codes (Brevo) are off until SMS_SENDER is set
+  assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 409);
   const cfg = (await client("customer").get("/api/config")).data;
-  assert.equal(cfg.smsCodes, undefined);
+  assert.equal(cfg.phoneCodes, false);
   assert.equal(cfg.emailCodes, false);
 });
 
@@ -567,27 +568,3 @@ test("rate limits and safety", async () => {
   assert.ok(res.headers.get("strict-transport-security"));
 });
 
-test("Firebase phone token check", async () => {
-  const { verifyPhoneToken } = await import("../src/firebase.js");
-  const { generateKeyPairSync, createSign } = await import("node:crypto");
-  const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
-  const jwk = { ...publicKey.export({ format: "jwk" }), kid: "k1", alg: "RS256" };
-  const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  const now = Math.floor(Date.now() / 1000);
-  const make = (claims = {}, kid = "k1", key = privateKey) => {
-    const data = `${b64u({ alg: "RS256", kid })}.${b64u({ aud: "lp-test", iss: "https://securetoken.google.com/lp-test", sub: "u1", iat: now, exp: now + 3600, auth_time: now, phone_number: "+919876543291", ...claims })}`;
-    const sig = createSign("RSA-SHA256").update(data).sign(key).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    return `${data}.${sig}`;
-  };
-  const opts = { keys: [jwk], projectId: "lp-test" };
-  assert.equal(await verifyPhoneToken(make(), opts), "+919876543291");
-  await assert.rejects(verifyPhoneToken(make({ aud: "other" }), opts), /another project/);
-  await assert.rejects(verifyPhoneToken(make({ exp: now - 10 }), opts), /expired/);
-  await assert.rejects(verifyPhoneToken(make({ auth_time: now - 3600 }), opts), /too old/);
-  await assert.rejects(verifyPhoneToken(make({}, "nope"), opts), /unknown signing key/);
-  const other = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey;
-  await assert.rejects(verifyPhoneToken(make({}, "k1", other), opts), /bad signature/);
-  await assert.rejects(verifyPhoneToken(make({ phone_number: undefined }), opts), /no phone number/);
-  // off in tests (no FIREBASE_PROJECT_ID): the app is told, and sign-up works without it
-  assert.equal((await client("customer").get("/api/config")).data.phoneCodes, false);
-});

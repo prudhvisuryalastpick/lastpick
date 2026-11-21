@@ -66,9 +66,9 @@ export const api = {
   async signIn(login, password) { const r = await post("/api/auth/login", { login: String(login || "").trim(), password }); clearCache(); setToken(r.token); },
   // forgot password: a code to the e-mail (for a mobile number: to the e-mail on that account)
   async sendResetCode(login) { return post("/api/auth/otp/send", { login: String(login || "").trim() }); },
-  async signUp({ email, password, name, phone, consent, otp, phoneToken }) {
+  async signUp({ email, password, name, phone, consent, otp, phoneOtp }) {
     // consent goes as is: it carries the Terms text the person read (readFull, docText, docHash)
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneToken, consent: consent || undefined });
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneOtp, consent: consent || undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },
@@ -76,6 +76,7 @@ export const api = {
   async sendPhoneOtp(phone) { return post("/api/auth/otp/send", { phone: String(phone || "").trim() }); },
   async verifyPhoneOtp(phone, code) { const r = await post("/api/auth/otp/verify", { phone: String(phone || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async sendEmailOtp(email) { return post("/api/auth/otp/send", { email: String(email || "").trim() }); },
+  async sendSmsOtp(phone) { return post("/api/auth/otp/send-sms", { phone: String(phone || "").trim() }); },
   async verifyEmailOtp(email, code) { const r = await post("/api/auth/otp/verify", { email: String(email || "").trim(), code }); clearCache(); setToken(r.token); return { isNew: !!r.isNew }; },
   async completeProfile({ name, phone, consent }) {
     await post("/api/me/complete-profile", { name, phone, consent });

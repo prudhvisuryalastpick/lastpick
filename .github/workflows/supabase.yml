@@ -10,8 +10,9 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_APP_ID
-#                             optional: mobile number check at sign-up (Firebase Phone Auth SMS code)
+#   SMS_SENDER                optional: mobile number check at sign-up by SMS code (Brevo SMS credits). The sender name,
+#                             up to 11 letters/digits, e.g. LASTPK. Only used when the repository VARIABLE SMS_ON is
+#                             "true" (Settings -> Secrets and variables -> Actions -> Variables). Off by default.
 #   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
 #                             MAIL_FROM = a sender verified in Brevo, e.g. "LastPick <support@lastpick.in>"
 on:
@@ -101,14 +102,13 @@ jobs:
           if [ -n "${{ secrets.BREVO_API_KEY }}" ] && [ -n "${{ secrets.MAIL_FROM }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
-          # mobile number check (Firebase): the server verifies Firebase's proof when the project ID is set
-          if [ -n "${{ secrets.FIREBASE_PROJECT_ID }}" ] && [ -n "${{ secrets.FIREBASE_API_KEY }}" ]; then
-            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >/dev/null
+          # mobile number check by SMS code (Brevo): on only when the SMS_ON variable is "true" and SMS_SENDER is saved
+          if [ "${{ vars.SMS_ON }}" = "true" ] && [ -n "${{ secrets.SMS_SENDER }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "SMS_SENDER=${{ secrets.SMS_SENDER }}" >/dev/null
           else
-            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" FIREBASE_PROJECT_ID >/dev/null 2>&1 || true
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
           fi
-          # SMS codes through Brevo were removed: make sure the old setting is gone
-          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
+          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" FIREBASE_PROJECT_ID >/dev/null 2>&1 || true
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "::add-mask::$(grep CRON_SECRET "$GITHUB_ENV" | cut -d= -f2)"
 
@@ -132,11 +132,6 @@ jobs:
           API: https://${{ secrets.SUPABASE_PROJECT_ID || 'wgdhcseugaqbbmnkgnxv' }}.supabase.co/functions/v1
           VITE_CUSTOMER_URL: https://customer.lastpick.in
           VITE_PARTNER_URL: https://partner.lastpick.in
-          # Firebase (mobile number SMS check at sign-up). Public web settings; empty = mobile check off.
-          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: |
           npm install --no-audit --no-fund
           VITE_APP_VARIANT=customer VITE_API_URL=$API/customer npx vite build --outDir dist-customer

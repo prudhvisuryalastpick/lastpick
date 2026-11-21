@@ -4,9 +4,8 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { FIREBASE_PROJECT_ID, MAIL_FROM, SERVICE, SIGNUP } from "../config.js";
-import { verifyPhoneToken } from "../firebase.js";
-import { sendEmail } from "../mail.js";
+import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER } from "../config.js";
+import { sendEmail, sendSms } from "../mail.js";
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -97,12 +96,13 @@ export function accountRoutes(r) {
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
   const checkCode = async (email, code) => {
-    const what = "e-mail";
+    const sms = String(email).startsWith("sms:");
+    const what = sms ? "mobile (SMS)" : "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
     if (!row || new Date(row.expires_at) < new Date()) throw bad(`The ${what} code has expired. Ask for a new one.`);
     if (row.attempts > 5) throw bad(`Too many wrong tries for the ${what} code. Ask for a new one.`);
     const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
-    if (!ok) throw bad("The e-mail code is not right. Please check the e-mail and try again.");
+    if (!ok) throw bad(sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
     await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
   // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
@@ -133,6 +133,25 @@ export function accountRoutes(r) {
     return { sent: true, to: maskEmail(email), expiresIn: 600 };
   }, { limit: "auth" });
 
+  // Mobile number check at sign-up: a random 6-digit code by SMS (Brevo), stored like the e-mail codes under "sms:+91…".
+  r.post("/api/auth/otp/send-sms", async ({ body, ip }) => {
+    if (!SMS_SENDER) throw precondition("SMS codes aren't switched on yet.");
+    const bad1 = mobileProblem(body?.phone);
+    if (bad1) throw bad(bad1);
+    const phone = indianPhone(body.phone);
+    if (await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
+    await limit("ip:" + ip, "sms", 10, 3600);
+    await limit("phone:" + phone, "sms", 4, 3600, "Too many codes for this number. Try again in an hour.");
+    const code = String(crypto.randomInt(100000, 1000000));
+    const key = "sms:" + phone;
+    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
+             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
+      [key, codeHash(key, code)]);
+    try { await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`); }
+    catch (e) { log.error("sms failed", { error: e.message }); throw precondition("We couldn't send the SMS right now. Please try again in a few minutes."); }
+    return { sent: true, expiresIn: 600 };
+  }, { limit: "auth" });
+
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
     if (SERVICE === "admin") throw denied("Admin accounts are created by another admin");
     if (SIGNUP === "closed") throw denied("Sign-up opens soon. Please use a test account.");
@@ -148,13 +167,8 @@ export function accountRoutes(r) {
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     if (!phone) throw bad("Please enter your mobile number");
-    // mobile number proven with a Firebase SMS code (when switched on): the verified number must be the one entered
-    if (FIREBASE_PROJECT_ID) {
-      const verified = await verifyPhoneToken(body.phoneToken).catch((e) => { log.warn("phone token refused", { error: e.message }); return null; });
-      if (!verified) throw bad("Please verify your mobile number with the SMS code first.");
-      if (indianPhone(verified) !== phone) throw bad("The verified mobile number doesn't match the number entered. Please verify again.");
-    }
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
+    if (SMS_SENDER) await checkCode("sms:" + phone, body.phoneOtp); // and the mobile number with an SMS code (Brevo)
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -260,7 +274,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!FIREBASE_PROJECT_ID,
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!SMS_SENDER,
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

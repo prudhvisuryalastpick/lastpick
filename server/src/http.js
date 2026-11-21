@@ -47,10 +47,7 @@ export const CSP = [
   "default-src 'self'", "base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'",
   "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
-  // Firebase phone sign-in: Google's reCAPTCHA (script + frame) and the Firebase Auth APIs
-  "script-src 'self' https://checkout.razorpay.com https://www.google.com https://www.gstatic.com https://apis.google.com",
-  "connect-src 'self' https://*.supabase.co https://api.postalpincode.in https://nominatim.openstreetmap.org https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://www.google.com",
-  "frame-src https://api.razorpay.com https://www.google.com https://recaptcha.google.com https://*.firebaseapp.com",
+  "script-src 'self' https://checkout.razorpay.com", "connect-src 'self' https://*.supabase.co https://api.postalpincode.in https://nominatim.openstreetmap.org", "frame-src https://api.razorpay.com",
 ].join("; ");
 
 export function clientIp(req) {

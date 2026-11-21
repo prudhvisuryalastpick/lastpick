@@ -49,8 +49,8 @@ export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
 export const BREVO_API_KEY = env.BREVO_API_KEY || "";
-// Mobile number check with Firebase Phone Authentication: on when this is set (the Firebase project ID).
-// Then sign-up must include a Firebase-verified phone number matching the mobile number entered.
-export const FIREBASE_PROJECT_ID = env.FIREBASE_PROJECT_ID || "";
+// Mobile number check at sign-up: a 6-digit SMS code through Brevo (SMS credits bought in Brevo). On when SMS_SENDER
+// is set (the sender name, up to 11 letters/digits, e.g. LASTPK).
+export const SMS_SENDER = (env.SMS_SENDER || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
 // Replies to LastPick e-mails go here.
 export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";
