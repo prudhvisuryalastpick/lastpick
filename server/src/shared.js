@@ -27,7 +27,7 @@ export function audit(type, actor, data = {}) {
 export const visibleSql = (free) => `(o.status = 'live' AND o.ends_at > now() AND b.status = 'verified' AND ${OWNER_ACTIVE_SQL("b", free)})`;
 
 export const offerSelect = (free) => `
-  o.id, o.owner_id, o.title, o.description, o.category, o.emoji, o.photo_thumb, o.has_photo, o.combo_items,
+  o.id, o.owner_id, o.title, o.description, o.category, o.emoji, NULL::text AS photo_thumb, false AS has_photo, o.combo_items,
   o.orig_price::float8 AS orig_price, o.price::float8 AS price, o.quantity, o.ends_at, o.status, o.views, o.created_at,
   b.name AS b_name, b.area AS b_area, b.city AS b_city, b.state AS b_state, b.city_key AS b_city_key, b.pincode AS b_pincode,
   b.lat AS b_lat, b.lng AS b_lng, b.rating_avg::float8 AS b_rating_avg, b.rating_count AS b_rating_count,

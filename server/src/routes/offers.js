@@ -57,11 +57,8 @@ const LOCAL_SQL = `o.category <> 'jobs'`;
 // Read-only offer pages, used by all three apps.
 export function offerViewRoutes(r) {
   r.get("/api/offers/:id", async (ctx) => offerFor(ctx, ctx.params.id));
-  r.get("/api/offers/:id/photo", async (ctx) => {
-    await offerFor(ctx, ctx.params.id);
-    const p = await rone("SELECT data FROM offer_photos WHERE offer_id = $1", [ctx.params.id]);
-    return { photo: p?.data || null };
-  });
+  // photos are switched off (no uploads); kept so older app versions get an empty answer
+  r.get("/api/offers/:id/photo", async () => ({ photo: null }));
 }
 
 export function offerRoutes(r) {
@@ -86,7 +83,7 @@ export function offerRoutes(r) {
     const city = str(query.city, 80);
     if (!city) throw bad("Pick a city");
     return notEnded(await feed(`b.city_key = $1 AND ${LOCAL_SQL}`, [city], `city:${city}`));
-  }, { cache: "public, max-age=30" });
+  }, { cache: "public, max-age=30, s-maxage=60" }); // same for everyone: Cloudflare keeps a copy for 60 s
 
   r.get("/api/cities", async () => {
     const free = await freeMode();

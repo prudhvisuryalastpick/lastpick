@@ -14,12 +14,13 @@ function setToken(t) {
   listeners.forEach((cb) => cb());
 }
 
-async function call(method, path, body) {
+async function call(method, path, body, { anonymous = false } = {}) {
   let res;
   try {
     res = await fetch(BASE + path, {
       method,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      // public lists are fetched without the login, so Cloudflare can serve the same copy to everyone nearby
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token && !anonymous ? { Authorization: `Bearer ${token}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch { throw new Error("Can't reach LastPick right now. Check your internet and try again."); }
@@ -33,6 +34,7 @@ async function call(method, path, body) {
   return data;
 }
 const get = (p) => call("GET", p);
+const publicGet = (p) => call("GET", p, undefined, { anonymous: true });
 const post = (p, b = {}) => call("POST", p, b);
 
 // Short-lived cache for feeds and city lists, so switching tabs doesn't refetch.
@@ -88,12 +90,12 @@ export const api = {
   async saveBusiness(b) { const r = await call("PUT", "/api/business", b); clearCache(); return r.id; },
 
   // ---------- offers ----------
-  async listLive(city) { return live(await cached("city:" + city, 60000, () => get(`/api/offers?city=${enc(city)}`))); },
+  async listLive(city) { return live(await cached("city:" + city, 60000, () => publicGet(`/api/offers?city=${enc(city)}`))); },
   async listNearby(lat, lng, radiusKm) {
     const key = `near:${lat.toFixed(2)},${lng.toFixed(2)},${radiusKm}`;
-    return live(await cached(key, 60000, () => get(`/api/offers?lat=${lat.toFixed(4)}&lng=${lng.toFixed(4)}&radius=${radiusKm}`)));
+    return live(await cached(key, 60000, () => publicGet(`/api/offers?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}&radius=${radiusKm}`)));
   },
-  async listByPincode(pincode) { return live(await cached("pin:" + pincode, 60000, () => get(`/api/offers?pincode=${enc(pincode)}`))); },
+  async listByPincode(pincode) { return live(await cached("pin:" + pincode, 60000, () => publicGet(`/api/offers?pincode=${enc(pincode)}`))); },
   async getConfig() { return cached("config", 60000, () => get("/api/config").catch(() => ({ freeMode: false }))); },
   async listCities() { return cached("cities", 300000, () => get("/api/cities")); },
   async getOfferPhoto(id) { try { return (await get(`/api/offers/${enc(id)}/photo`)).photo; } catch { return null; } },

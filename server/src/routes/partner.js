@@ -115,8 +115,8 @@ export function partnerRoutes(r) {
     if (allDay) {
       if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Hotel and travel offers can run for up to 24 hours");
     } else if (!(endsAt > Date.now()) || endsAt > closingTimeIST(category)) throw bad("Offers are for the same day only: they must end by 11 PM (India time)");
-    const photoThumb = isDataImage(d.photoThumb, 30000) ? d.photoThumb : null;
-    const photo = isDataImage(d.photo, 200000) ? d.photo : null;
+    // No photo uploads: offers show their category icon. Keeps every reply small and the bill low.
+    const photoThumb = null, photo = null;
 
     await limit(u.id, "offer", 30, 86400);
     const result = await tx(async (c) => {

@@ -230,10 +230,8 @@ export function PostOffer() {
   }, []);
   const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
   const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6, comboItems: [] });
-  const [photo, setPhoto] = useState(null); // { file, url } (compressed when posting)
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const fileRef = useRef();
   const now = useNow(60000);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const job = f.category === "jobs";
@@ -278,25 +276,16 @@ export function PostOffer() {
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
-    title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: photo?.url || null,
+    title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: null,
     origPrice: orig || 0, price: f.price === "" ? null : price, comboItems: combo ? f.comboItems : [], quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
-  };
-
-  const onPhoto = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return toast("Please choose a photo");
-    if (file.size > 15 * 1024 * 1024) return toast("Photo must be under 15 MB");
-    setPhoto({ file, url: URL.createObjectURL(file) });
   };
 
   const submit = async () => {
     if (problems.length) return;
     setBusy(true); setErr("");
     try {
-      const pics = photo ? await api.uploadPhoto(photo.file) : null;
       await api.createOffer({
         title: f.title.trim(), description: f.description.trim(), category: f.category, emoji: f.emoji,
-        photoThumb: pics?.thumb || null, photo: pics?.photo || null,
         origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours), comboItems: combo ? f.comboItems : undefined,
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
@@ -334,12 +323,6 @@ export function PostOffer() {
       {(!business.state || !business.city || !business.pincode || business.lat == null) && <a className="banner warn" href="#/owner/business">📍 Add your pincode and shop location in Business profile before posting. Customers see offers near them.</a>}
       <div className="chips">{templates.map((t) => <button key={t.label} className="chip" onClick={() => useTemplate(t)}>{t.label}</button>)}</div>
       <div className="form">
-        <div className="fld"><label>Photo (optional)</label>
-          {photo
-            ? <div className="photo-prev" style={{ backgroundImage: `url("${photo.url}")` }}><button className="back" style={{ left: "auto", right: 10 }} aria-label="Remove photo" onClick={() => setPhoto(null)}>×</button></div>
-            : <div className="photo-drop" onClick={() => fileRef.current.click()}>📷 Add a photo of the offer</div>}
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files[0]); e.target.value = ""; }} />
-        </div>
         <div className="fld"><label>Category</label>
           <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job

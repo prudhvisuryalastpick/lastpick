@@ -1,6 +1,7 @@
 // Tiny HTTP layer on node:http: routing, JSON bodies, security headers, CORS, static files, rate limits.
 import crypto from "node:crypto";
 import fs from "node:fs";
+import zlib from "node:zlib";
 import path from "node:path";
 import { ALLOWED_ORIGINS, ORIGIN_SECRET, PROXY_HOPS } from "./config.js";
 import { userFromRequest } from "./auth.js";
@@ -49,18 +50,35 @@ const CSP = [
 ].join("; ");
 
 export function clientIp(req) {
+  // Behind Cloudflare: Cloudflare sets CF-Connecting-IP to the visitor's address (requests only reach us through
+  // Cloudflare: they must carry the origin secret, which Cloudflare adds).
+  const viaCloudflare = ORIGIN_SECRET && String(req.headers["cf-connecting-ip"] || "").trim();
+  if (viaCloudflare) return viaCloudflare;
   // CloudFront appends the viewer's address to X-Forwarded-For and the load balancer appends CloudFront's,
   // so the viewer is PROXY_HOPS entries from the end (anything earlier is client-supplied and ignored).
-  // API Gateway sets X-Client-IP itself (overwriting anything the visitor sent); requests only reach us with the origin secret
+  // (older setup) API Gateway set X-Client-IP itself; requests only reach us with the origin secret
   const viaGateway = ORIGIN_SECRET && String(req.headers["x-client-ip"] || "").trim();
   if (viaGateway) return viaGateway;
   const xff = String(req.headers["x-forwarded-for"] || "").split(",").map((s) => s.trim()).filter(Boolean);
   return (ORIGIN_SECRET && xff.length >= PROXY_HOPS ? xff[xff.length - PROXY_HOPS] : req.socket.remoteAddress) || "unknown";
 }
 
+// Compression: replies over 1 KB are sent brotli- or gzip-compressed (70–80% smaller), which cuts the data bill.
+function pickEncoding(req) {
+  const ae = String(req?.headers?.["accept-encoding"] || "");
+  return /\bbr\b/.test(ae) ? "br" : /\bgzip\b/.test(ae) ? "gzip" : null;
+}
+function compress(buf, enc) {
+  return enc === "br"
+    ? zlib.brotliCompressSync(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } })
+    : zlib.gzipSync(buf, { level: 6 });
+}
 function send(res, status, body, headers = {}) {
-  const data = body === undefined ? "" : JSON.stringify(body);
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers });
+  let data = Buffer.from(body === undefined ? "" : JSON.stringify(body));
+  const enc = data.length > 1024 ? pickEncoding(res.req) : null;
+  if (enc) data = compress(data, enc);
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Vary: "Accept-Encoding, Origin",
+    ...(enc ? { "Content-Encoding": enc } : {}), ...headers });
   res.end(data);
 }
 
@@ -86,6 +104,8 @@ function readBody(req) {
 }
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".json": "application/json", ".webmanifest": "application/manifest+json", ".woff2": "font/woff2", ".txt": "text/plain" };
+// Static files are compressed once and kept in memory (the three web apps are small).
+const staticCache = new Map();
 function serveStatic(webDir, pathname, res) {
   const root = path.resolve(webDir);
   let file = path.resolve(root, "." + decodeURIComponent(pathname));
@@ -94,12 +114,24 @@ function serveStatic(webDir, pathname, res) {
   if (!fs.existsSync(file)) return false;
   const ext = path.extname(file);
   const immutable = pathname.startsWith("/assets/");
+  const textual = [".html", ".js", ".css", ".svg", ".json", ".webmanifest", ".txt"].includes(ext);
+  const enc = textual ? pickEncoding(res.req) : null;
+  const key = file + ":" + (enc || "plain");
+  let data = staticCache.get(key);
+  if (!data) {
+    data = fs.readFileSync(file);
+    if (enc) data = compress(data, enc);
+    if (staticCache.size < 200) staticCache.set(key, data);
+  }
   res.writeHead(200, {
     "Content-Type": TYPES[ext] || "application/octet-stream",
-    "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
+    // hashed files never change: phones and Cloudflare keep them for a year; pages are checked each time
+    "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=0, must-revalidate",
+    Vary: "Accept-Encoding",
+    ...(enc ? { "Content-Encoding": enc } : {}),
     ...(ext === ".html" ? { "Content-Security-Policy": CSP } : {}),
   });
-  fs.createReadStream(file).pipe(res);
+  res.end(data);
   return true;
 }
 
@@ -115,7 +147,7 @@ export function makeHandler(router, { webDir, guard } = {}) {
 
     try {
       if (pathname === "/healthz") return await router.health(res);
-      // only CloudFront may call the server (it adds the secret header)
+      // only Cloudflare may call the server (it adds the secret header)
       if (ORIGIN_SECRET) {
         const got = Buffer.from(String(req.headers["x-origin-verify"] || ""));
         const want = Buffer.from(ORIGIN_SECRET);

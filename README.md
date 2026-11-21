@@ -53,6 +53,8 @@ Each service runs, scales, deploys and logs on its own. All three share **one Po
 - **No dashboards** for customers or partners; admins see platform totals.
 - **Combos (admin switch):** one offer bundling a hotel room, food, pickup & drop and ironing. Off by default; Admin → Overview → Combos switches it on for partners (to post) and customers (Combos tile) at once.
 - **Automatic discount:** the % off is worked out from the prices; any "40% off" in the title is corrected automatically (app and server).
+- **No photos:** partners don't upload photos; every offer shows its category icon. Keeps the app fast and the data bill low.
+- **Light and cacheable:** replies are compressed; public offer lists are fetched without the login and with the location rounded to about 1 km, so Cloudflare serves the same copy to everyone nearby for 60 s.
 - **Quotes:** one short moral quote at a time in the top bar (changes every 7 seconds; a new set every 30 minutes) and one on every offer.
 - **Support:** customers and partners chat with the LastPick team in the app (Help & support); admins and moderators answer in Admin → Support chats. Formal complaints keep their own ticket system.
 - **Rules:** a plain-language "How LastPick works & rules" page plus the full Terms. They say LastPick is only a platform, takes no responsibility for the deal, and acts on providers through reviews and reports.
