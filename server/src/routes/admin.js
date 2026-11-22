@@ -69,7 +69,7 @@ export function adminRoutes(r) {
   });
 
   // Users, split into customers (no business) and partners (have a business). ?kind=customers|partners&q=
-  const userSel = `SELECT u.*, b.name AS b_name, b.category AS b_category, b.area AS b_area, b.city AS b_city, b.state AS b_state,
+  const userSel = `SELECT u.*, EXISTS (SELECT 1 FROM user_photos p WHERE p.user_id = u.id) AS has_photo, b.name AS b_name, b.category AS b_category, b.area AS b_area, b.city AS b_city, b.state AS b_state,
                    b.pincode AS b_pincode, b.status AS b_status, b.trial_ends_at AS b_trial,
                    sc.status AS c_status, sc.current_period_end AS c_end, so.status AS o_status, so.current_period_end AS o_end
                    FROM users u LEFT JOIN businesses b ON b.id = u.id
@@ -90,7 +90,7 @@ export function adminRoutes(r) {
     createdAt: ms(u.created_at), lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
     consentVersion: u.consent?.version || null, consentAt: u.consent?.at || null, partnerConsentVersion: u.partner_consent?.version || null, partnerConsentAt: u.partner_consent?.at || null,
     customer: sub(u.c_status, u.c_end), owner: sub(u.o_status, u.o_end),
-    business: u.b_name ? { name: u.b_name, category: u.b_category, area: u.b_area, city: u.b_city, state: u.b_state, pincode: u.b_pincode, status: u.b_status, trialEndsAt: ms(u.b_trial) } : null,
+    business: u.b_name ? { name: u.b_name, category: u.b_category, area: u.b_area, city: u.b_city, state: u.b_state, pincode: u.b_pincode, status: u.b_status, hasPhoto: !!u.has_photo, trialEndsAt: ms(u.b_trial) } : null,
   });
   r.get("/api/admin/users", async (ctx) => {
     superAdmin(ctx);
@@ -107,6 +107,15 @@ export function adminRoutes(r) {
   });
 
   // A user's Terms acceptances with the exact text they accepted (for disputes). Logged.
+  // partner KYC: the owner's profile photo (admins only; every view is logged)
+  r.get("/api/admin/users/:id/photo", async (ctx) => {
+    const me = superAdmin(ctx);
+    const id = needUuid(ctx.params.id, "user");
+    const row = await one("SELECT data FROM user_photos WHERE user_id = $1", [id]);
+    audit("admin_view_photo", me.id, { target: id });
+    return { photo: row?.data || null };
+  });
+
   r.get("/api/admin/users/:id/consents", async (ctx) => {
     const me = superAdmin(ctx);
     const id = needUuid(ctx.params.id, "user");

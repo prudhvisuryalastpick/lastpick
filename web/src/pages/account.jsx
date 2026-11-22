@@ -476,6 +476,21 @@ function UserTable({ kind, toast }) {
 
 // Terms acceptance: version and date, plus the full record (exact text accepted, time, device, network address)
 // that can be downloaded and shown if there is ever a dispute.
+// partner KYC: the owner's profile photo (opening it is logged)
+function KycPhoto({ u }) {
+  const [photo, setPhoto] = useState(undefined);
+  if (!u.business?.hasPhoto) return <div className="muted">No KYC photo</div>;
+  return (
+    <>
+      <div><button className="link small" onClick={() => api.adminUserPhoto(u.id).then((p) => setPhoto(p || null)).catch(() => setPhoto(null))}>KYC photo</button></div>
+      {photo !== undefined && <Sheet onClose={() => setPhoto(undefined)}>
+        <h2 style={{ marginTop: 0 }}>{u.name || "Partner"}: KYC photo</h2>
+        {photo ? <img src={photo} alt={`Profile photo of ${u.name || "partner"}`} style={{ width: "100%", maxWidth: 360, borderRadius: 16 }} /> : <p className="muted">No photo.</p>}
+      </Sheet>}
+    </>
+  );
+}
+
 function ConsentCell({ u, partners }) {
   const [open, setOpen] = useState(false);
   const v = partners ? u.partnerConsentVersion : u.consentVersion;
@@ -485,6 +500,7 @@ function ConsentCell({ u, partners }) {
       {v ? <span>v{v}<div className="muted">{dt(at)}</div></span> : <span className="pill p-bad">not accepted</span>}
       <div><button className="link small" onClick={() => setOpen(true)}>Record</button></div>
       {open && <ConsentRecord id={u.id} onClose={() => setOpen(false)} />}
+      {partners && <KycPhoto u={u} />}
     </>
   );
 }

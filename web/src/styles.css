@@ -643,3 +643,4 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
 .social-links a:hover { background: var(--brand-soft, #E3F6EF); }
 .social-links .soon { opacity: .5; cursor: default; }
+.fld input.otp { font-size: 24px; font-weight: 800; letter-spacing: 10px; text-align: center; height: 58px; }

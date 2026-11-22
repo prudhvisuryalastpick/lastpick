@@ -66,9 +66,9 @@ export const api = {
   async signIn(login, password) { const r = await post("/api/auth/login", { login: String(login || "").trim(), password }); clearCache(); setToken(r.token); },
   // forgot password: a code to the e-mail (for a mobile number: to the e-mail on that account)
   async sendResetCode(login) { return post("/api/auth/otp/send", { login: String(login || "").trim() }); },
-  async signUp({ email, password, name, phone, consent, otp, phoneOtp }) {
+  async signUp({ email, password, name, phone, consent, otp, phoneOtp, photo }) {
     // consent goes as is: it carries the Terms text the person read (readFull, docText, docHash)
-    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneOtp, consent: consent || undefined });
+    const r = await post("/api/auth/signup", { email: email.trim(), password, name, phone, otp, phoneOtp, photo: photo || undefined, consent: consent || undefined });
     setToken(r.token);
     return { needsConfirmation: false };
   },
@@ -119,6 +119,10 @@ export const api = {
   async endOffer(id) { await post(`/api/owner/offers/${enc(id)}/end`); clearCache(); },
   async addView(id) { try { await post(`/api/offers/${enc(id)}/view`); } catch { /* not critical */ } },
   // a small thumbnail (for lists) and a full photo (opened on the offer page)
+  // partner KYC: the owner's profile photo, made small before it is sent
+  async profilePhotoFrom(file) { return compressPhoto(file, 480, 120000); },
+  async myPhoto() { try { return (await get("/api/me/photo")).photo; } catch { return null; } },
+  async setMyPhoto(photo) { await call("PUT", "/api/me/photo", { photo }); },
   async uploadPhoto(file) {
     const [thumb, photo] = await Promise.all([compressPhoto(file, 360, 28000), compressPhoto(file, 1000, 190000)]);
     return { thumb, photo };
@@ -140,6 +144,7 @@ export const api = {
   async adminStats() { return get("/api/admin/stats"); },
   async adminFindUsers(q) { return get(`/api/admin/users?q=${enc(q || "")}`); },
   async adminUsers(kind, q) { return get(`/api/admin/users?kind=${enc(kind)}&q=${enc(q || "")}`); },
+  async adminUserPhoto(id) { return (await get(`/api/admin/users/${enc(id)}/photo`)).photo; },
   async adminConsents(id) { return get(`/api/admin/users/${enc(id)}/consents`); },
   async adminExportUsers(kind) { return get(`/api/admin/users/export?kind=${enc(kind)}`); },
   async adminSetPlanFor(userId, plan, months) { await post("/api/admin/plans", { userId, plan, months }); },

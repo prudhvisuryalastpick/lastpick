@@ -4,7 +4,7 @@ import { Brand } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
-import { SocialLinks, Spinner } from "../components.jsx";
+import { Sheet, SocialLinks, Spinner } from "../components.jsx";
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -83,9 +83,11 @@ function OwnerWelcome({ go }) {
 // ------------------------------------------------------------------ Sign in
 export function Login({ next = "/" }) {
   const { session, profile, toast, refresh, config } = useApp();
-  // customers and partners: mobile number + WhatsApp code (no password, no e-mail). Admin panel: e-mail + password.
-  const WA = !IS_ADMIN_APP;
-  const [step, setStep] = useState(WA || OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset
+  // Log in: e-mail or mobile + password; sign up with an e-mail code (Amazon SES).
+  // WhatsApp login (mobile + WhatsApp code) is kept and used only when the server switches it on.
+  const WA = !IS_ADMIN_APP && !!config?.whatsappLogin;
+  const [step, setStep] = useState(WA || OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset | signup
+  useEffect(() => { if (WA && step === "password") setStep("enter"); }, [WA]); // eslint-disable-line react-hooks/exhaustive-deps
   const [method, setMethod] = useState("phone");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -114,6 +116,17 @@ export function Login({ next = "/" }) {
   const phoneOn = !!config?.phoneCodes;
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneSentAt, setPhoneSentAt] = useState(0);
+  const [password2, setPassword2] = useState("");
+  // "Is this your correct mobile number?" asked once before the code is sent
+  const [askMobile, setAskMobile] = useState(false);
+  const mobileOk = useRef("");
+  // partner app: the owner's profile photo is required (KYC)
+  const [photo, setPhoto] = useState("");
+  const pickPhoto = async (file) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) return setErr("Please choose a photo");
+    try { setPhoto(await api.profilePhotoFrom(file)); setErr(""); } catch { setErr("Couldn't read that photo. Try another one."); }
+  };
   if (session && profile && !profile.needsProfile) { setTimeout(() => navigate(next || "/", { replace: true }), 0); return <Spinner />; }
 
   const target = method === "phone" ? prettyPhone(indianPhone(phone) || phone) : email.trim();
@@ -162,12 +175,15 @@ export function Login({ next = "/" }) {
     setBusy(false);
   };
   const signUp = async (e) => {
-    e.preventDefault(); setErr("");
+    e?.preventDefault(); setErr("");
     if (name.trim().length < 2) return setErr("Enter your name");
     if (mobileProblem(mobile)) return setErr(mobileProblem(mobile));
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr("Enter a valid e-mail");
     if (password.length < 8) return setErr("Password must be at least 8 characters");
+    if (password2 !== password) return setErr("Passwords don't match. Type the same password in both boxes.");
+    if (IS_OWNER_APP && !photo) return setErr("Please add your profile photo");
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
+    if (!codeSent && mobileOk.current !== mobile.replace(/\D/g, "")) { setAskMobile(true); return; }
     setBusy(true);
     try {
       if (!codeSent) {
@@ -189,7 +205,7 @@ export function Login({ next = "/" }) {
         if (emailSentAt && !/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
         if (phoneOn && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the SMS"); }
       }
-      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined });
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined, photo: IS_OWNER_APP ? photo : undefined });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
       await refresh();
       if (IS_OWNER_APP) navigate("/owner/business");
@@ -262,26 +278,58 @@ export function Login({ next = "/" }) {
 
       {reason && <div className="banner warn" role="status" style={{ margin: "16px 0 0" }}>🔒<span>{reason}</span></div>}
       {step === "signup" && <>
-        <h1>{IS_OWNER_APP ? "Register your business" : "Create your account"}</h1>
-        <p className="lead">{IS_OWNER_APP ? "Step 1: your account. Next you add your shop details; our team verifies them before you can post." : "See today's deals near you."}</p>
+        {codeSent && emailSentAt > 0 ? <>
+          <div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: 20, background: "var(--deep)", display: "grid", placeItems: "center", fontSize: 30, marginTop: 14 }}>✉️</div>
+          <h1>Check your e-mail</h1>
+          <p className="lead">We sent a 6-digit code to <b style={{ color: "var(--ink)" }}>{email.trim()}</b>. Check spam if you don't see it.</p>
+        </> : <>
+          <h1>{IS_OWNER_APP ? "Register your business" : "Create your account"}</h1>
+          <p className="lead">{IS_OWNER_APP ? "Create your partner account. Your business is checked (KYC) before offers go live." : "Sign up with your e-mail. We send a 6-digit code to check it."}</p>
+        </>}
         <form className="form" style={{ padding: "20px 0 0" }} onSubmit={signUp}>
+          <div style={{ display: codeSent ? "none" : "contents" }}>
+          {IS_OWNER_APP && <div style={{ display: "flex", gap: 14, alignItems: "center", background: "#fff", borderRadius: 16, padding: 14, border: "1.5px dashed var(--brand-2)" }}>
+            {photo ? <img src={photo} alt="Your profile photo" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+              : <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--soft)", display: "grid", placeItems: "center", flex: "none", fontSize: 28 }}>📷</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <b>Profile photo (required)</b>
+              <span className="muted small">A clear photo of you, the owner. Used for KYC; customers don't see it.</span>
+              <label className="btn dark sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}>{photo ? "Change photo" : "Take photo / Upload"}
+                <input type="file" accept="image/*" capture="user" style={{ display: "none" }} onChange={(e) => pickPhoto(e.target.files?.[0])} /></label>
+            </div>
+          </div>}
           <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => setMobile(e.target.value)} />
-            <span className="hint">{IS_OWNER_APP ? "Customers contact you on your shop's number (added next)." : "Never shown to businesses."}</span></div>
+          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => { setMobile(e.target.value); mobileOk.current = ""; }} />
+            <span className="hint">Saved for your account. Not checked with a code.</span></div>
           <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} disabled={codeSent} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          <div className="fld"><label htmlFor="su-pass2">Confirm password</label><input id="su-pass2" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)}
+            style={password2 ? { borderColor: password2 === password ? "var(--ok)" : "var(--bad)" } : undefined} />
+            {password2 && <span className="hint" style={{ color: password2 === password ? "var(--ok)" : "var(--bad)", fontWeight: 700 }}>{password2 === password ? "✓ Passwords match" : "Passwords don't match"}</span>}</div>
           <ConsentBoxes value={consent} onChange={setConsent} />
-          {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">6-digit code sent to {email.trim()}</label>
-            <input id="su-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+          </div>
+          {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">6-digit code</label>
+            <input id="su-otp" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="••••••" autoFocus />
             <CodeTimer sentAt={emailSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email); setOtp(""); setEmailSentAt(Date.now()); toast("New e-mail code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && phoneOn && <div className="fld"><label htmlFor="su-sms">Mobile code: 6 digits sent by SMS to {prettyPhone(indianPhone(mobile) || mobile)}</label>
             <input id="su-sms" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneCode(""); setPhoneSentAt(Date.now()); toast("New SMS code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setEmailSentAt(0); setPhoneCode(""); setPhoneSentAt(0); setErr(""); }}>Change e-mail or mobile number</button>}
+          {codeSent && <div className="box small">🔒 Never share this code. {APP_NAME} and businesses will never ask for it.</div>}
           {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : phoneOn ? "Send codes to e-mail and mobile" : "Send verification code"}</button>
+          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : phoneOn ? "Send codes to e-mail and mobile" : "Continue →"}</button>
           <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
         </form>
+        {askMobile && <Sheet onClose={() => setAskMobile(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "6px 4px" }}>
+            <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 16, background: "var(--brand-soft)", display: "grid", placeItems: "center", fontSize: 26 }}>📱</div>
+            <h2 style={{ margin: 0, fontFamily: "var(--font-h)" }}>Is this your correct mobile number?</h2>
+            <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 1 }}>{prettyPhone(indianPhone(mobile) || mobile)}</div>
+            <p className="muted" style={{ margin: 0, lineHeight: 1.5 }}>{IS_OWNER_APP ? "LastPick uses this number to reach you about your business, and you can log in with it." : "Businesses use this number to reach you about your deals, and you can log in with it."} Please check every digit.</p>
+            <button className="btn main" onClick={() => { mobileOk.current = mobile.replace(/\D/g, ""); setAskMobile(false); signUp(); }}>Yes, it's correct</button>
+            <button className="btn ghost" onClick={() => { setAskMobile(false); setTimeout(() => document.getElementById("su-phone")?.focus(), 50); }}>No, edit number</button>
+          </div>
+        </Sheet>}
       </>}
       {(step === "password" || step === "reset") && <>
         <h1>{step === "reset" ? "Reset password" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
@@ -300,6 +348,7 @@ export function Login({ next = "/" }) {
             : <button type="button" className="link" onClick={() => { setStep("password"); setResetSent(false); setErr(""); }}>Back to log in</button>}
           {OTP_LOGIN && <button type="button" className="link" style={{ color: "var(--muted)" }} onClick={() => setStep("enter")}>Use a one-time code instead</button>}
         </form>
+        {step === "password" && !IS_ADMIN_APP && <div className="box small" style={{ marginTop: 16, background: "var(--brand-soft)" }}><b>One device at a time.</b> If you're logged in on another phone or browser, it will be logged out when you log in here.</div>}
         {step === "password" && !IS_ADMIN_APP && <button className="btn ghost" style={{ marginTop: 14 }} onClick={() => { setStep("signup"); setErr(""); }}>
           {IS_OWNER_APP ? "New business? Create an account" : "New here? Create an account"}</button>}
         {!isLive && !OTP_LOGIN && <div style={{ marginTop: 18 }}>

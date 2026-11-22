@@ -27,14 +27,14 @@ export const TERMS_SECTIONS = [
   ["3. Who can use the Platform", [
     [
       `You must be at least 18 years old, able to enter a contract under Indian law, and in India.`,
-      `You must give true, current details (name, mobile number with WhatsApp, and for Partners, business details) and keep them up to date.`,
+      `You must give true, current details (name, e-mail, mobile number, and for Partners, a profile photo and business details) and keep them up to date.`,
       `One account per person. A Partner may have one business profile per account.`,
       `The same account works in the customer app and the partner app.`,
     ],
   ]],
   ["4. Your account and security", [
     [
-      `You log in with a one-time code sent on WhatsApp to your mobile number. Never share that code with anyone, including people who say they are from ${APP_NAME} or a business. Keep your phone and WhatsApp secure. You are responsible for everything done through your account.`,
+      `You log in with your e-mail or mobile number and a password. Your e-mail is checked with a one-time code when you sign up. Keep your password secret and never share a code with anyone, including people who say they are from ${APP_NAME} or a business. Only one device can be logged in at a time. You are responsible for everything done through your account.`,
       `For security, an account may be logged in on only one device at a time: logging in on a new device logs out the old one. Partner and admin accounts are always limited to one device.`,
       `You are logged out automatically after 15 minutes without activity, and must log in again.`,
       `If you think someone else used your account, tell us at once at ${SUPPORT_EMAIL}; we will log out every device on the account.`,
@@ -76,7 +76,7 @@ export const TERMS_SECTIONS = [
   ]],
   ["9. Plans and payments", [
     `There is no free version. The Customer Pass costs ${rupee(PLANS.customer.price)} a month and lets Customers see Partners' contact numbers. Business Pro costs ${rupee(PLANS.owner.price)} a month and lets verified Partners post offers. Prices include any taxes that apply.`,
-    `Until online payment is available, plans are activated by the ${APP_NAME} team after payment, and a receipt is sent to you on WhatsApp. A plan runs for the period shown and is not renewed without your payment. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
+    `Until online payment is available, plans are activated by the ${APP_NAME} team after payment, and a receipt is e-mailed to you. A plan runs for the period shown and is not renewed without your payment. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
   ]],
   ["10. Reviews, reports and action we may take", [
     `Anyone can report an offer, a review or a user. We review reports, reviews and ratings. If a Partner or Customer breaks these Terms or the law, misleads others or behaves badly, we may, with or without notice: warn them, hide or remove their posts or reviews, pause or remove their business, suspend or close their account, and keep records needed by law. We also act on valid orders from courts and government agencies.`,

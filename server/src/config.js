@@ -49,6 +49,13 @@ export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
 export const BREVO_API_KEY = env.BREVO_API_KEY || "";
+// Amazon SES (preferred for e-mail when set). Keys of an IAM user allowed only "ses:SendEmail".
+export const AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID || "";
+export const AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY || "";
+export const AWS_SES_REGION = env.AWS_SES_REGION || "ap-south-1";
+export const SES_API_BASE = env.SES_API_BASE || ""; // tests only: a fake SES server
+// WhatsApp login for customer/partner apps: built and kept, switched on only when WA_LOGIN=on
+export const WA_LOGIN = env.WA_LOGIN === "on";
 // Mobile number check at sign-up: a 6-digit SMS code through Brevo (SMS credits bought in Brevo). On when SMS_SENDER
 // is set (the sender name, up to 11 letters/digits, e.g. LASTPK).
 export const SMS_SENDER = (env.SMS_SENDER || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 11);

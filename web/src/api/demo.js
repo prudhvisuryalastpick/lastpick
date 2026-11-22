@@ -250,6 +250,10 @@ export const api = {
   },
   async signOut() { const db = load(); db.session = null; save(db); emit(); },
   async checkSession() { return true; },
+  async profilePhotoFrom(file) { return new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); }); },
+  async myPhoto() { return null; },
+  async setMyPhoto() {},
+  async adminUserPhoto() { return null; },
   async getProfile() {
     const u = me(load());
     if (u.needsProfile) return { id: u.id, needsProfile: true, name: "", phone: u.phone || "", email: u.email || "", role: "user", regions: [] };

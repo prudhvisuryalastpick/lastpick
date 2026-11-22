@@ -1,11 +1,10 @@
 // E-mails to customers and partners about their account (sent through Brevo, see mail.js).
 // Never blocks the action: if e-mail isn't set up or Brevo fails, the action still succeeds and the error is logged.
-import { BREVO_API_KEY, MAIL_FROM } from "./config.js";
+import { mailProvider, sendEmail } from "./mail.js";
 import { one } from "./db.js";
-import { sendEmail } from "./mail.js";
 import { sendWhatsAppUpdate, updatesOn } from "./whatsapp.js";
 
-export const mailOn = () => !!(MAIL_FROM && BREVO_API_KEY);
+export const mailOn = () => !!mailProvider();
 const anyOn = () => mailOn() || updatesOn();
 const SUPPORT = "support@lastpick.in";
 const PARTNER_URL = "https://partner.lastpick.in";

@@ -23,7 +23,7 @@ const PORTS = { all: 18080, customer: 18081, partner: 18082, admin: 18083, night
 // a fake WhatsApp Cloud API: records every message the servers send (login codes, updates)
 const WA_PORT = 18090;
 const waSent = [];
-const WA_ENV = { WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
+const WA_ENV = { WA_LOGIN: "on", WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
 
 async function sh(cmd, args, env = {}) {
   return new Promise((resolve, reject) => {
@@ -622,4 +622,32 @@ test("log in with mobile number + WhatsApp code (no password, no e-mail)", async
   assert.equal(again.data.isNew, false);
   // the admin panel doesn't accept numbers that aren't staff
   assert.equal((await client("admin").post("/api/auth/wa/send", { phone: "9123456781" })).status, 403);
+});
+
+test("partner sign-up needs a profile photo (KYC); confirm with /api/me and the admin view", async () => {
+  const PHOTO = "data:image/jpeg;base64," + "A".repeat(400);
+  const p = client("partner");
+  const base = { email: "kyc@test.lastpick.in", password: "longpassword", name: "Kyc Owner", phone: "9812345670", consent: fullConsent() };
+  const no = await p.post("/api/auth/signup", base);
+  assert.equal(no.status, 400); assert.match(no.data.error, /photo/i);
+  assert.equal((await p.post("/api/auth/signup", { ...base, photo: "data:text/html;base64,AAAA" })).status, 400, "only images");
+  const ok = await p.post("/api/auth/signup", { ...base, photo: PHOTO });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  const k = client("partner"); k.token = ok.data.token;
+  assert.equal((await k.get("/api/me")).data.hasPhoto, true);
+  assert.equal((await k.get("/api/me/photo")).data.photo, PHOTO);
+  // customers can sign up without a photo
+  assert.equal((await client("customer").post("/api/auth/signup", { email: "nophoto@test.lastpick.in", password: "longpassword", name: "No Photo", phone: "9812345671", consent: fullConsent() })).status, 200);
+  // admins can open the KYC photo
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const ph = await a.get(`/api/admin/users/${ok.data.user.id}/photo`);
+  assert.equal(ph.status, 200); assert.equal(ph.data.photo, PHOTO);
+});
+
+test("Amazon SES signing matches the AWS reference (Signature V4)", async () => {
+  const { signAws } = await import("../src/mail.js");
+  const h = await signAws({ method: "POST", url: "https://email.ap-south-1.amazonaws.com/v2/email/outbound-emails", body: JSON.stringify({ hello: "world" }),
+    region: "ap-south-1", service: "ses", accessKey: "AKIDEXAMPLE", secretKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", now: new Date("2026-11-22T10:15:00Z") });
+  // the same request signed by the aws4 reference library
+  assert.equal(h.authorization, "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261122/ap-south-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=5cc92258e50e14a9de02ffc39a7b9d6d7cfc5fd8045b24586e26a7ffa3ab9ed1");
 });

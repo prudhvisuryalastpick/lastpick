@@ -4,9 +4,12 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER, WA_DAILY_CAP } from "../config.js";
-import { sendEmail, sendSms } from "../mail.js";
+import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER, WA_DAILY_CAP, WA_LOGIN } from "../config.js";
+import { mailProvider, sendEmail, sendSms } from "../mail.js";
 import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
+// WhatsApp login is kept but only used when WA_LOGIN=on (and the WhatsApp keys are set)
+const waLogin = () => WA_LOGIN && whatsappOn();
+const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
@@ -14,7 +17,7 @@ import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import {
-  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail,
+  ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail, isDataImage,
 } from "../util.js";
 
 const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
@@ -33,6 +36,7 @@ async function profile(id) {
     id: u.id, name: u.name, phone: u.phone, email: u.email || "", role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
     trialEndsAt: ms(u.trial_ends_at), consentVersion: u.consent?.version || null, partnerConsentVersion: u.partner_consent?.version || null,
     needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
+    hasPhoto: !!(await one("SELECT 1 FROM user_photos WHERE user_id = $1", [id])),
   };
 }
 
@@ -168,6 +172,10 @@ export function accountRoutes(r) {
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     if (!phone) throw bad("Please enter your mobile number");
+    // partner app: a profile photo of the owner is required (for KYC)
+    const photo = body.photo == null || body.photo === "" ? null : body.photo;
+    if (photo !== null && !isDataImage(photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
+    if (SERVICE === "partner" && !photo) throw bad("Please add your profile photo");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
     if (SMS_SENDER) await checkCode("sms:" + phone, body.phoneOtp); // and the mobile number with an SMS code (Brevo)
     const hash = await hashPassword(body.password);
@@ -182,6 +190,7 @@ export function accountRoutes(r) {
         `INSERT INTO users (email, password_hash, name, phone, trial_ends_at) VALUES ($1, $2, $3, $4, now() + make_interval(days => $5))
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);
       if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
+      if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
@@ -220,7 +229,7 @@ export function accountRoutes(r) {
   // ---------- log in with mobile number + WhatsApp code (customers and partners; no password, no e-mail) ----------
   // Step 1: a random 6-digit code to the number on WhatsApp. Works for new and existing accounts.
   r.post("/api/auth/wa/send", async ({ body, ip }) => {
-    if (!whatsappOn()) throw precondition("WhatsApp login isn't switched on yet.");
+    if (!waLogin()) throw precondition("WhatsApp login isn't switched on yet.");
     const problem = mobileProblem(body?.phone);
     if (problem) throw bad(problem);
     const phone = indianPhone(body.phone);
@@ -245,7 +254,7 @@ export function accountRoutes(r) {
 
   // Step 2: the code is right -> logged in. A new number creates the account (the app then asks for name + Terms).
   r.post("/api/auth/wa/verify", async ({ body, ip, userAgent }) => {
-    if (!whatsappOn()) throw precondition("WhatsApp login isn't switched on yet.");
+    if (!waLogin()) throw precondition("WhatsApp login isn't switched on yet.");
     const phone = indianPhone(body?.phone);
     if (!phone || mobileProblem(body.phone)) throw bad("Enter a valid 10-digit Indian mobile number");
     await limit("ip:" + ip, "waVerify", 40, 900);
@@ -287,6 +296,19 @@ export function accountRoutes(r) {
 
   // ---------- profile ----------
   r.get("/api/me", async (ctx) => profile(needUser(ctx).id));
+  // the owner's own profile photo (partner KYC): view and change it
+  r.get("/api/me/photo", async (ctx) => {
+    const row = await one("SELECT data FROM user_photos WHERE user_id = $1", [needUser(ctx).id]);
+    return { photo: row?.data || null };
+  });
+  r.put("/api/me/photo", async (ctx) => {
+    const u = needUser(ctx);
+    if (!isDataImage(ctx.body?.photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
+    await q(`INSERT INTO user_photos (user_id, data) VALUES ($1, $2)
+             ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`, [u.id, ctx.body.photo]);
+    audit("photo_set", u.id);
+    return { ok: true };
+  });
   r.patch("/api/me", async (ctx) => {
     const u = needUser(ctx);
     const name = str(ctx.body.name, 80);
@@ -327,7 +349,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!MAIL_FROM, phoneCodes: !!SMS_SENDER, whatsappLogin: whatsappOn(),
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!SMS_SENDER, whatsappLogin: waLogin(),
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

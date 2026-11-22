@@ -26,7 +26,7 @@ function OwnerPaywall() {
   const { business } = useApp();
   return (
     <>
-      <div className="page-h owner-row"><div className="avatar">{business.name[0]}</div><div><h1 className="title" style={{ fontSize: 20 }}>{business.name}</h1><div className="muted">Business account · {business.area}</div></div></div>
+      <div className="page-h owner-row">{photo ? <img className="avatar" src={photo} alt="" style={{ objectFit: "cover", borderRadius: "50%" }} /> : <div className="avatar">{business.name[0]}</div>}<div><h1 className="title" style={{ fontSize: 20 }}>{business.name}</h1><div className="muted">Business account · {business.area}</div></div></div>
       <div className="status no"><span style={{ fontSize: 24 }}>⏰</span><div><b>{PLANS.owner.name} is not active</b><div className="muted small">Pick a plan to post offers for customers within 30 km. There is no free version.</div></div></div>
       <PlanCard plan="owner" />
       <div className="pad">
@@ -37,11 +37,51 @@ function OwnerPaywall() {
   );
 }
 
+// the owner's profile photo (partner KYC), loaded once
+function useMyPhoto() {
+  const { profile } = useApp();
+  const [photo, setPhoto] = useState(null);
+  useEffect(() => { if (profile?.hasPhoto) api.myPhoto().then(setPhoto); }, [profile?.hasPhoto]);
+  return [photo, setPhoto];
+}
+
+// "KYC in progress": shown to a partner whose business is waiting for verification
+function KycCard() {
+  const { profile, refresh, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const addPhoto = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try { await api.setMyPhoto(await api.profilePhotoFrom(file)); await refresh(); toast("Photo added"); } catch (x) { toast(errText(x)); }
+    setBusy(false);
+  };
+  const rows = [
+    ["Profile photo", profile?.hasPhoto ? "✓ Added" : "Needed", profile?.hasPhoto ? "var(--ok)" : "var(--bad)"],
+    ["E-mail", profile?.email ? "✓ Verified" : "–", "var(--ok)"],
+    ["Mobile number", profile?.phone ? "Saved" : "–", "var(--muted)"],
+    ["Business details & location", "✓ Sent", "var(--ok)"],
+    ["KYC check by LastPick", "In progress", "var(--warn)"],
+  ];
+  return (
+    <div style={{ margin: "0 16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 16, padding: 14, color: "#7C2D12" }}>
+        <b style={{ fontSize: 15 }}>We're checking your business</b>
+        <div className="small" style={{ marginTop: 6, lineHeight: 1.5 }}>Your KYC is in progress. You can finish your shop profile now. Your offers go live for customers once we verify you. We'll e-mail you as soon as it's done.</div>
+      </div>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "4px 14px" }}>
+        {rows.map(([a, b, c]) => <div key={a} className="row" style={{ padding: "11px 0", borderBottom: "1px solid var(--soft)", fontSize: 13.5 }}><span>{a}</span><b style={{ color: c }}>{b}</b></div>)}
+      </div>
+      {!profile?.hasPhoto && <label className="btn dark" style={{ cursor: "pointer" }}>{busy ? "Uploading…" : "Add your profile photo"}
+        <input type="file" accept="image/*" capture="user" style={{ display: "none" }} disabled={busy} onChange={(e) => addPhoto(e.target.files?.[0])} /></label>}
+    </div>
+  );
+}
+
 function StatusBanner() {
   const { business } = useApp();
   if (!business || business.status === "verified") return null;
+  if (business.status === "pending") return <KycCard />;
   const msg = {
-    pending: ["warn", "⏳ Your business is waiting for verification. Only verified partners can post, so customers can trust every offer. We usually verify within 1 working day."],
     rejected: ["bad", `✖ Verification was rejected${business.statusNote ? ": " + business.statusNote : ""}. Update your business details or contact support.`],
     suspended: ["bad", `⛔ Your business is suspended${business.statusNote ? ": " + business.statusNote : ""}. Your offers are hidden. Contact support.`],
   }[business.status];
@@ -67,6 +107,7 @@ export function OwnerDashboard() {
   const maxDay = Math.max(1, ...perDay);
   const left = daysLeft(trial?.owner);
   const hour = new Date().getHours();
+  const [photo] = useMyPhoto();
 
   return (
     <>
@@ -77,7 +118,7 @@ export function OwnerDashboard() {
             <div><div className="small" style={{ color: "var(--hero-muted)", fontWeight: 600 }}>{hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}</div>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{business.name}</div></div>
           </div>
-          <a className="pill" style={{ background: "rgba(255,255,255,.16)", color: "#fff" }} href="#/owner/business">{business.status === "verified" ? "✔ Verified" : business.status === "pending" ? "⏳ In review" : "Profile"}</a>
+          <a className="pill" style={{ background: "rgba(255,255,255,.16)", color: "#fff" }} href="#/owner/business">{business.status === "verified" ? "✔ Verified" : business.status === "pending" ? "● KYC in progress" : "Profile"}</a>
         </div>
         <div className="row" style={{ alignItems: "flex-end", marginTop: 22 }}>
           <div>
@@ -318,8 +359,8 @@ export function PostOffer() {
     <div className="page"><StatusBanner />
       <div className="card" style={{ textAlign: "center", padding: 24 }}>
         <div style={{ fontSize: 40 }}>🛡️</div>
-        <h2>Posting is for trusted partners</h2>
-        <p className="muted">Once our team verifies your business you can post same-day offers in your own category, and job openings at your shop.</p>
+        <h2>{business.status === "pending" ? "KYC in progress" : "Posting is for trusted partners"}</h2>
+        <p className="muted">Once our team verifies your business (KYC) you can post same-day offers in your own category, and job openings at your shop.</p>
         <a className="btn" href="#/owner/business">Check business profile</a>
       </div>
     </div>
