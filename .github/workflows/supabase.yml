@@ -21,7 +21,7 @@ name: Deploy (Supabase + Cloudflare pages)
 on:
   push:
     branches: [main]
-    paths: ["server/**", "web/**", "supabase/**", "wrangler*.toml", ".github/workflows/supabase.yml"]
+    paths: ["server/**", "web/**", "supabase/**", "wrangler*.toml", ".github/workflows/supabase.yml"]  # an empty commit does not deploy; after changing secrets use Actions -> Run workflow
   workflow_dispatch:
     inputs:
       seed:
