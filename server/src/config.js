@@ -56,6 +56,8 @@ export const AWS_SES_REGION = env.AWS_SES_REGION || "ap-south-1";
 export const SES_API_BASE = env.SES_API_BASE || ""; // tests only: a fake SES server
 // WhatsApp login for customer/partner apps: built and kept, switched on only when WA_LOGIN=on
 export const WA_LOGIN = env.WA_LOGIN === "on";
+// Mobile number check at sign-up with a WhatsApp code (WhatsApp keys needed), switched on with WA_VERIFY=on
+export const WA_VERIFY = env.WA_VERIFY === "on";
 // Mobile number check at sign-up: a 6-digit SMS code through Brevo (SMS credits bought in Brevo). On when SMS_SENDER
 // is set (the sender name, up to 11 letters/digits, e.g. LASTPK).
 export const SMS_SENDER = (env.SMS_SENDER || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 11);

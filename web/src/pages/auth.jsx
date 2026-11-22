@@ -112,8 +112,10 @@ export function Login({ next = "/" }) {
   const [codeSent, setCodeSent] = useState(false);
   // the e-mail code at sign-up has a 10-minute expiry and a 30-second resend wait
   const [emailSentAt, setEmailSentAt] = useState(0);
-  // mobile check by SMS code (Brevo): only when the server says it's switched on (off for now)
+  // mobile check at sign-up with a code on WhatsApp (or SMS): only when the server says it's switched on
   const phoneOn = !!config?.phoneCodes;
+  const viaWa = config?.phoneChannel === "whatsapp";
+  const phoneWord = viaWa ? "WhatsApp" : "SMS";
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneSentAt, setPhoneSentAt] = useState(0);
   const [password2, setPassword2] = useState("");
@@ -198,12 +200,12 @@ export function Login({ next = "/" }) {
         }
         if (sent || phoneOn) {
           setCodeSent(true);
-          toast(sent && phoneOn ? "We sent a code to your e-mail and an SMS code to your mobile" : sent ? `We sent a 6-digit code to ${email.trim()}` : "We sent an SMS code to your mobile");
+          toast(sent && phoneOn ? `We sent a code to your e-mail and a ${phoneWord} code to your mobile` : sent ? `We sent a 6-digit code to ${email.trim()}` : `We sent a ${phoneWord} code to your mobile`);
           setBusy(false); return;
         }
       } else {
         if (emailSentAt && !/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
-        if (phoneOn && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the SMS"); }
+        if (phoneOn && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr(`Enter the 6-digit code from ${viaWa ? "WhatsApp" : "the SMS"}`); }
       }
       await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined, photo: IS_OWNER_APP ? photo : undefined });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
@@ -280,8 +282,8 @@ export function Login({ next = "/" }) {
       {step === "signup" && <>
         {codeSent && emailSentAt > 0 ? <>
           <div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: 20, background: "var(--deep)", display: "grid", placeItems: "center", fontSize: 30, marginTop: 14 }}>✉️</div>
-          <h1>Check your e-mail</h1>
-          <p className="lead">We sent a 6-digit code to <b style={{ color: "var(--ink)" }}>{email.trim()}</b>. Check spam if you don't see it.</p>
+          <h1>{phoneOn ? `Check your e-mail and ${phoneWord}` : "Check your e-mail"}</h1>
+          <p className="lead">We sent a 6-digit code to <b style={{ color: "var(--ink)" }}>{email.trim()}</b>{phoneOn && <> and another on {phoneWord} to <b style={{ color: "var(--ink)" }}>{prettyPhone(indianPhone(mobile) || mobile)}</b></>}. Check spam if you don't see the e-mail.</p>
         </> : <>
           <h1>{IS_OWNER_APP ? "Register your business" : "Create your account"}</h1>
           <p className="lead">{IS_OWNER_APP ? "Create your partner account. Your business is checked (KYC) before offers go live." : "Sign up with your e-mail. We send a 6-digit code to check it."}</p>
@@ -300,7 +302,7 @@ export function Login({ next = "/" }) {
           </div>}
           <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => { setMobile(e.target.value); mobileOk.current = ""; }} />
-            <span className="hint">Saved for your account. Not checked with a code.</span></div>
+            <span className="hint">{phoneOn ? `We'll send a 6-digit code to this number on ${phoneWord} to check it.` : "Saved for your account. Not checked with a code."}</span></div>
           <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} disabled={codeSent} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass2">Confirm password</label><input id="su-pass2" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)}
@@ -308,16 +310,16 @@ export function Login({ next = "/" }) {
             {password2 && <span className="hint" style={{ color: password2 === password ? "var(--ok)" : "var(--bad)", fontWeight: 700 }}>{password2 === password ? "✓ Passwords match" : "Passwords don't match"}</span>}</div>
           <ConsentBoxes value={consent} onChange={setConsent} />
           </div>
-          {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">6-digit code</label>
+          {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">{phoneOn ? "E-mail code" : "6-digit code"}</label>
             <input id="su-otp" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="••••••" autoFocus />
             <CodeTimer sentAt={emailSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email); setOtp(""); setEmailSentAt(Date.now()); toast("New e-mail code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
-          {codeSent && phoneOn && <div className="fld"><label htmlFor="su-sms">Mobile code: 6 digits sent by SMS to {prettyPhone(indianPhone(mobile) || mobile)}</label>
-            <input id="su-sms" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-            <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneCode(""); setPhoneSentAt(Date.now()); toast("New SMS code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
+          {codeSent && phoneOn && <div className="fld"><label htmlFor="su-sms">{viaWa ? "WhatsApp code" : "Mobile code"}: 6 digits sent {viaWa ? "on WhatsApp" : "by SMS"} to {prettyPhone(indianPhone(mobile) || mobile)}</label>
+            <input id="su-sms" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+            <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneCode(""); setPhoneSentAt(Date.now()); toast(`New ${phoneWord} code sent`); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setEmailSentAt(0); setPhoneCode(""); setPhoneSentAt(0); setErr(""); }}>Change e-mail or mobile number</button>}
           {codeSent && <div className="box small">🔒 Never share this code. {APP_NAME} and businesses will never ask for it.</div>}
           {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : phoneOn ? "Send codes to e-mail and mobile" : "Continue →"}</button>
+          <button className="btn main" disabled={busy}>{busy ? "Please wait…" : codeSent ? "Verify and create account" : phoneOn ? "Continue →" : "Continue →"}</button>
           <button type="button" className="link" onClick={() => { setStep("password"); setErr(""); }}>Already have an account? Log in</button>
         </form>
         {askMobile && <Sheet onClose={() => setAskMobile(false)}>
@@ -325,7 +327,7 @@ export function Login({ next = "/" }) {
             <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 16, background: "var(--brand-soft)", display: "grid", placeItems: "center", fontSize: 26 }}>📱</div>
             <h2 style={{ margin: 0, fontFamily: "var(--font-h)" }}>Is this your correct mobile number?</h2>
             <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 1 }}>{prettyPhone(indianPhone(mobile) || mobile)}</div>
-            <p className="muted" style={{ margin: 0, lineHeight: 1.5 }}>{IS_OWNER_APP ? "LastPick uses this number to reach you about your business, and you can log in with it." : "Businesses use this number to reach you about your deals, and you can log in with it."} Please check every digit.</p>
+            <p className="muted" style={{ margin: 0, lineHeight: 1.5 }}>{IS_OWNER_APP ? "LastPick uses this number to reach you about your business, and you can log in with it." : "Businesses use this number to reach you about your deals, and you can log in with it."}{phoneOn ? ` We'll send a code to it on ${phoneWord}.` : ""} Please check every digit.</p>
             <button className="btn main" onClick={() => { mobileOk.current = mobile.replace(/\D/g, ""); setAskMobile(false); signUp(); }}>Yes, it's correct</button>
             <button className="btn ghost" onClick={() => { setAskMobile(false); setTimeout(() => document.getElementById("su-phone")?.focus(), 50); }}>No, edit number</button>
           </div>

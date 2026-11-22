@@ -15,7 +15,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #                             "true" (Settings -> Secrets and variables -> Actions -> Variables). Off by default.
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails; Brevo is the fallback).
 #                             Optional VARIABLE: AWS_SES_REGION (default ap-south-1, Mumbai)
-#   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). WhatsApp login is used only when the VARIABLE WA_LOGIN = on.
+#   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code when the VARIABLE WA_VERIFY = on; WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
 #                             Optional VARIABLES: WA_OTP_TEMPLATE (default lastpick_otp), WA_UPDATE_TEMPLATE (account updates), WA_LANG (default en)
 #   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
@@ -119,7 +119,7 @@ jobs:
               "AWS_SES_REGION=${{ vars.AWS_SES_REGION || 'ap-south-1' }}" >/dev/null
           fi
           # WhatsApp login switch (off unless the variable WA_LOGIN is "on")
-          $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "WA_LOGIN=${{ vars.WA_LOGIN || 'off' }}" >/dev/null
+          $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "WA_LOGIN=${{ vars.WA_LOGIN || 'off' }}" "WA_VERIFY=${{ vars.WA_VERIFY || 'off' }}" >/dev/null
           # WhatsApp login codes (Meta Cloud API), only when both secrets are saved in GitHub
           if [ -n "${{ secrets.WA_PHONE_NUMBER_ID }}" ] && [ -n "${{ secrets.WA_ACCESS_TOKEN }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "WA_PHONE_NUMBER_ID=${{ secrets.WA_PHONE_NUMBER_ID }}" "WA_ACCESS_TOKEN=${{ secrets.WA_ACCESS_TOKEN }}" \

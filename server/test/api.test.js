@@ -40,7 +40,7 @@ async function startServer(service) {
   const target = process.env.LP_TEST_TARGET;
   const entry = target === "worker" ? "test/worker-bridge.js" : target === "edge" || target === "deno" ? "test/edge-bridge.js" : "src/index.js";
   const [cmd, args] = target === "deno" ? ["deno", ["run", "-A", "--config", "deno.json", entry]] : [process.execPath, [entry]];
-  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, ...WA_ENV, SERVICE: service === "night" ? "customer" : service, PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
+  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, ...WA_ENV, SERVICE: service === "night" ? "customer" : service, ...(service === "night" ? { WA_VERIFY: "on" } : {}), PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
   procs.push(p);
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(`http://localhost:${PORTS[service]}/healthz`)).ok) return; } catch { /* starting */ }
@@ -650,4 +650,27 @@ test("Amazon SES signing matches the AWS reference (Signature V4)", async () => 
     region: "ap-south-1", service: "ses", accessKey: "AKIDEXAMPLE", secretKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", now: new Date("2026-11-22T10:15:00Z") });
   // the same request signed by the aws4 reference library
   assert.equal(h.authorization, "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261122/ap-south-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=5cc92258e50e14a9de02ffc39a7b9d6d7cfc5fd8045b24586e26a7ffa3ab9ed1");
+});
+
+test("sign-up checks the mobile number with a WhatsApp code when WA_VERIFY is on", async () => {
+  const n = client("night"); // this test server runs with WA_VERIFY=on
+  { const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+    const pool = new Pool({ connectionString: DB }); await pool.query("DELETE FROM rate_limits WHERE action = 'signup'"); await pool.end(); } // all tests share one IP
+  const cfg = (await n.get("/api/config")).data;
+  assert.equal(cfg.phoneCodes, true); assert.equal(cfg.phoneChannel, "whatsapp");
+  assert.equal((await client("customer").get("/api/config")).data.phoneCodes, false, "off elsewhere");
+  const base = { email: "wav@test.lastpick.in", password: "longpassword", name: "Wa Verify", phone: "9812345672", consent: fullConsent() };
+  assert.equal((await n.post("/api/auth/signup", base)).status, 400, "no WhatsApp code yet");
+  assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9999999999" })).status, 400, "fake number refused");
+  const n0 = waSent.length;
+  const s1 = await n.post("/api/auth/otp/send-phone", { phone: "98123 45672" });
+  assert.equal(s1.status, 200, JSON.stringify(s1.data)); assert.equal(s1.data.channel, "whatsapp");
+  assert.equal(waSent[n0].body.to, "919812345672");
+  const code = waSent[n0].body.template.components[0].parameters[0].text;
+  assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9812345672" })).status, 429, "30-second gap");
+  const wr = await n.post("/api/auth/signup", { ...base, phoneOtp: code === "111111" ? "222222" : "111111" }); assert.equal(wr.status, 400, JSON.stringify(wr.data));
+  const ok = await n.post("/api/auth/signup", { ...base, phoneOtp: code });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  const me = client("night"); me.token = ok.data.token;
+  assert.equal((await me.get("/api/me")).data.phoneVerified, true);
 });

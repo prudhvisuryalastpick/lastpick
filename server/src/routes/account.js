@@ -4,11 +4,13 @@ import { singleDeviceOn } from "../settings.js";
 import { notify } from "../notify.js";
 import crypto from "node:crypto";
 import { checkPassword, hashPassword, issueToken, needUser } from "../auth.js";
-import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER, WA_DAILY_CAP, WA_LOGIN } from "../config.js";
+import { MAIL_FROM, SERVICE, SIGNUP, SMS_SENDER, WA_DAILY_CAP, WA_LOGIN, WA_VERIFY } from "../config.js";
 import { mailProvider, sendEmail, sendSms } from "../mail.js";
 import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
 // WhatsApp login is kept but only used when WA_LOGIN=on (and the WhatsApp keys are set)
 const waLogin = () => WA_LOGIN && whatsappOn();
+// how the mobile number is checked at sign-up: a WhatsApp code (WA_VERIFY=on), an SMS code (SMS_SENDER), or not at all
+const phoneChannel = () => (WA_VERIFY && whatsappOn() ? "whatsapp" : SMS_SENDER ? "sms" : "");
 const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
@@ -35,7 +37,7 @@ async function profile(id) {
   return {
     id: u.id, name: u.name, phone: u.phone, email: u.email || "", role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
     trialEndsAt: ms(u.trial_ends_at), consentVersion: u.consent?.version || null, partnerConsentVersion: u.partner_consent?.version || null,
-    needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
+    phoneVerified: !!u.phone_verified_at, needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
     hasPhoto: !!(await one("SELECT 1 FROM user_photos WHERE user_id = $1", [id])),
   };
 }
@@ -101,7 +103,7 @@ export function accountRoutes(r) {
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
   const checkCode = async (email, code) => {
-    const sms = String(email).startsWith("sms:"), wa = String(email).startsWith("wa:");
+    const sms = String(email).startsWith("sms:"), wa = /^wav?:/.test(String(email));
     const what = wa ? "WhatsApp" : sms ? "mobile (SMS)" : "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
     if (!row || new Date(row.expires_at) < new Date()) throw bad(`The ${what} code has expired. Ask for a new one.`);
@@ -138,24 +140,35 @@ export function accountRoutes(r) {
     return { sent: true, to: maskEmail(email), expiresIn: 600 };
   }, { limit: "auth" });
 
-  // Mobile number check at sign-up: a random 6-digit code by SMS (Brevo), stored like the e-mail codes under "sms:+91…".
-  r.post("/api/auth/otp/send-sms", async ({ body, ip }) => {
-    if (!SMS_SENDER) throw precondition("SMS codes aren't switched on yet.");
+  // Mobile number check at sign-up: a random 6-digit code on WhatsApp ("wav:+91…") or by SMS ("sms:+91…"),
+  // stored like the e-mail codes. The app calls /api/auth/otp/send-phone; send-sms is the older name.
+  const sendPhoneCode = async ({ body, ip }) => {
+    const channel = phoneChannel();
+    if (!channel) throw precondition("Mobile codes aren't switched on yet.");
     const bad1 = mobileProblem(body?.phone);
     if (bad1) throw bad(bad1);
     const phone = indianPhone(body.phone);
     if (await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     await limit("ip:" + ip, "sms", 10, 3600);
     await limit("phone:" + phone, "sms", 4, 3600, "Too many codes for this number. Try again in an hour.");
+    await limit("phone:" + phone, "smsGap", 1, 30, "Please wait 30 seconds before asking for another code.");
+    if (channel === "whatsapp") await limit("all", "waDay", WA_DAILY_CAP, 86400, "Codes are busy right now. Please try again in a little while.");
     const code = String(crypto.randomInt(100000, 1000000));
-    const key = "sms:" + phone;
+    const key = (channel === "whatsapp" ? "wav:" : "sms:") + phone;
     await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
              ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
       [key, codeHash(key, code)]);
-    try { await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`); }
-    catch (e) { log.error("sms failed", { error: e.message }); throw precondition("We couldn't send the SMS right now. Please try again in a few minutes."); }
-    return { sent: true, expiresIn: 600 };
-  }, { limit: "auth" });
+    if (channel === "whatsapp") {
+      try { await sendWhatsAppCode(phone, code); }
+      catch (e) { log.error("whatsapp verify code failed", { error: e.message }); throw precondition("We couldn't send the WhatsApp code. Check this number has WhatsApp, and try again in a minute."); }
+    } else {
+      try { await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`); }
+      catch (e) { log.error("sms failed", { error: e.message }); throw precondition("We couldn't send the SMS right now. Please try again in a few minutes."); }
+    }
+    return { sent: true, channel, to: maskPhone(phone), expiresIn: 600 };
+  };
+  r.post("/api/auth/otp/send-phone", sendPhoneCode, { limit: "auth" });
+  r.post("/api/auth/otp/send-sms", sendPhoneCode, { limit: "auth" });
 
   r.post("/api/auth/signup", async ({ body, ip, userAgent }) => {
     if (SERVICE === "admin") throw denied("Admin accounts are created by another admin");
@@ -177,7 +190,8 @@ export function accountRoutes(r) {
     if (photo !== null && !isDataImage(photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
     if (SERVICE === "partner" && !photo) throw bad("Please add your profile photo");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
-    if (SMS_SENDER) await checkCode("sms:" + phone, body.phoneOtp); // and the mobile number with an SMS code (Brevo)
+    const channel = phoneChannel(); // and the mobile number with a WhatsApp or SMS code, when switched on
+    if (channel) await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + phone, body.phoneOtp);
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -191,6 +205,7 @@ export function accountRoutes(r) {
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);
       if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
       if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
+      if (channel) await c.query("UPDATE users SET phone_verified_at = now() WHERE id = $1", [rows[0].id]);
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
@@ -349,7 +364,7 @@ export function accountRoutes(r) {
     throw precondition("Online payments are not set up yet. Please contact support.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!SMS_SENDER, whatsappLogin: waLogin(),
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(),
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

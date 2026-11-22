@@ -87,7 +87,7 @@ export function adminRoutes(r) {
   const userRow = (u, full = false) => ({
     // masked: the full phone and e-mail are shown only through /reveal or the CSV export, both logged
     id: u.id, name: u.name, phone: full ? u.phone : maskPhone(u.phone), email: full ? u.email : maskEmail(u.email), masked: !full, role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
-    createdAt: ms(u.created_at), lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
+    phoneVerified: !!u.phone_verified_at, createdAt: ms(u.created_at), lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
     consentVersion: u.consent?.version || null, consentAt: u.consent?.at || null, partnerConsentVersion: u.partner_consent?.version || null, partnerConsentAt: u.partner_consent?.at || null,
     customer: sub(u.c_status, u.c_end), owner: sub(u.o_status, u.o_end),
     business: u.b_name ? { name: u.b_name, category: u.b_category, area: u.b_area, city: u.b_city, state: u.b_state, pincode: u.b_pincode, status: u.b_status, hasPhoto: !!u.has_photo, trialEndsAt: ms(u.b_trial) } : null,
