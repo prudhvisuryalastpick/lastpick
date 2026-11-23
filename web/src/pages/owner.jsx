@@ -3,7 +3,7 @@ import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../li
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, JOB_TEMPLATES, categoryOf } from "../lib/config.js";
+import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
@@ -274,9 +274,9 @@ export function OwnerOffers() {
 // ------------------------------------------------------------------ Post an offer
 export function PostOffer() {
   const { business, toast, config } = useApp();
-  // a partner posts ONLY in its own registered categories (a bakery posts bakery offers), plus job openings at its shop
+  // a partner posts ONLY in its own registered categories (a bakery posts bakery offers). No job openings.
   const own = business?.categories?.length ? business.categories : [business?.category || "other"];
-  const allowed = [...new Set([...own, "jobs"])];
+  const allowed = own;
   const [postedToday, setPostedToday] = useState(null);
   useEffect(() => {
     const dayStart = Math.floor((Date.now() + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000;
@@ -302,7 +302,7 @@ export function PostOffer() {
   const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, allDay ? Date.now() + 24 * 3600000 : closing));
   const closeLabel = allDay ? "24 hours" : "11 PM";
   const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
-  const templates = [...TEMPLATES.filter((t) => own.includes(t.category)), ...JOB_TEMPLATES];
+  const templates = TEMPLATES.filter((t) => own.includes(t.category));
   const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
   // the % off is worked out from the prices, and any "40% off" in the title is kept in step automatically
@@ -362,7 +362,7 @@ export function PostOffer() {
       <div className="card" style={{ textAlign: "center", padding: 24 }}>
         <div style={{ fontSize: 40 }}>🛡️</div>
         <h2>{business.status === "pending" ? "KYC in progress" : "Posting is for trusted partners"}</h2>
-        <p className="muted">Once our team verifies your business (KYC) you can post same-day offers in your own category, and job openings at your shop.</p>
+        <p className="muted">Once our team verifies your business (KYC) you can post same-day offers in your own category.</p>
         <a className="btn" href="#/owner/business">Check business profile</a>
       </div>
     </div>
@@ -512,7 +512,7 @@ function BusinessForm({ first = false }) {
         <div className="fld"><label>Business name</label><input maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Sunrise Bakery" /></div>
         <div className="fld"><label>Main category</label>
           <select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-          <span className="hint">You post offers only in this category (plus job openings at your shop).</span></div>
+          <span className="hint">You post offers only in this category.</span></div>
         <div className="fld"><label>Contact number for customers</label><input inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="10-digit Indian mobile or landline with STD code" />
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
         <div className="toggle">

@@ -11,8 +11,7 @@ import {
 } from "../util.js";
 
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
-// registered (a bakery posts only bakery offers). Every business may also post "jobs": a job opening at its
-// own shop, shown like an advertisement only to customers in that area.
+// registered (a bakery posts only bakery offers). Job openings ("jobs") are no longer allowed.
 // Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
 const CATEGORY_IDS = ["food", "stay", "travel", "logistics", "beauty", "makeup", "fashion", "appliances", "shops", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
@@ -92,10 +91,12 @@ export function partnerRoutes(r) {
     const origPrice = Number(d.origPrice), price = Number(d.price), endsAt = Number(d.endsAt);
     if (title.length < 3) throw bad("Title is too short");
     const allowed = b.categories?.length ? b.categories : [b.category || "other"];
-    const category = d.category === "jobs" ? "jobs" : d.category ? normCategory(d.category) : allowed[0];
-    const hiring = category === "jobs";
-    // a business posts only in its registered category (plus job openings at its own shop)
-    if (!hiring && !allowed.includes(category)) throw denied("Your business can post only in its registered category. Every business can also post a job opening.");
+    // job openings (hiring) are not offered any more
+    if (d.category === "jobs") throw bad("Job openings can't be posted on LastPick any more. Post an offer in your category.");
+    const category = d.category ? normCategory(d.category) : allowed[0];
+    const hiring = false;
+    // a business posts only in its registered category
+    if (!allowed.includes(category)) throw denied("Your business can post only in its registered category.");
     // Hotels, travel and logistics run 24×7: post any time, offer runs up to 24 hours.
     // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
     const allDay = runs24x7(category);

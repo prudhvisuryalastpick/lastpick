@@ -17,7 +17,7 @@ export const TERMS_SECTIONS = [
     `If you do not agree, do not use the Platform.`,
   ]],
   ["2. What LastPick is (and is not)", [
-    `${APP_NAME} is an online platform and an "intermediary" under the Information Technology Act, 2000. Verified local businesses ("Partners") post same-day offers and job openings; people nearby ("Customers") see them and contact the Partner directly.`,
+    `${APP_NAME} is an online platform and an "intermediary" under the Information Technology Act, 2000. Verified local businesses ("Partners") post same-day offers; people nearby ("Customers") see them and contact the Partner directly.`,
     [
       `${APP_NAME} does not sell, book, deliver, cook, treat, transport, employ, collect payment for, or guarantee anything posted on the Platform.`,
       `Every deal, payment, service and job is directly between the Customer and the Partner. ${APP_NAME} is not a party to it and is not the agent of either side.`,
@@ -55,10 +55,9 @@ export const TERMS_SECTIONS = [
   ["7. Rules for Partners (businesses)", [
     [
       `Only businesses verified by ${APP_NAME} with an active Business Pro plan can post. Verification is a basic check, not a guarantee of your business.`,
-      `You may post only in the one category you registered (for example, a bakery posts only food offers), up to 3 posts a day, plus job openings for your own shop.`,
+      `You may post only in the one category you registered (for example, a bakery posts only food offers), up to 3 posts a day.`,
       `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels, travel and logistics run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
       `Post only genuine offers you can honour. The "normal price" must be the price you really charge; the offer price is the final price with no hidden charges. The discount shown is worked out from these two prices.`,
-      `Job openings must be real jobs at your own shop with the real pay. They are shown to people nearby (about 10 km, or the same pincode). No agencies and no fees from job seekers.`,
       `Hold every licence and registration your business needs (for example FSSAI for food, permits for travel operators, GST where it applies) and follow all laws, including consumer protection, weights and measures, and labour laws.`,
       `Use a customer's details only to reply about the offer they showed interest in. No marketing lists, spam, resale or sharing with anyone else.`,
       `Do not post, buy or arrange fake reviews, and do not reward customers for reviews. You may reply to reviews but cannot remove them.`,
@@ -76,7 +75,7 @@ export const TERMS_SECTIONS = [
   ]],
   ["9. Plans and payments", [
     `There is no free version. The Customer Pass costs ${rupee(PLANS.customer.price)} a month and lets Customers see Partners' contact numbers. Business Pro costs ${rupee(PLANS.owner.price)} a month and lets verified Partners post offers. Prices include any taxes that apply.`,
-    `Until online payment is available, plans are activated by the ${APP_NAME} team after payment, and a receipt is e-mailed to you. A plan runs for the period shown and is not renewed without your payment. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
+    `Plans are paid online through Razorpay (UPI, card or netbanking) and a receipt is e-mailed to you. Each payment gives 30 days. Plans never renew automatically: a plan runs for the period paid and is not renewed without a new payment from you. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
   ]],
   ["10. Reviews, reports and action we may take", [
     `Anyone can report an offer, a review or a user. We review reports, reviews and ratings. If a Partner or Customer breaks these Terms or the law, misleads others or behaves badly, we may, with or without notice: warn them, hide or remove their posts or reviews, pause or remove their business, suspend or close their account, and keep records needed by law. We also act on valid orders from courts and government agencies.`,

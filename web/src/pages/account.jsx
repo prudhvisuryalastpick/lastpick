@@ -9,10 +9,11 @@ import { navigate, useApp } from "../state.jsx";
 import { AdminSupport } from "./impact.jsx";
 
 // ------------------------------------------------------------------ Plans & pricing
-// No free version: monthly, 3, 6 or 12-month plans. Until the payment gateway is added, an admin turns plans on in Admin → Plans.
+// No free version. One Razorpay payment = 30 days (no auto-renewal: pay again to add 30 more days).
+// Admins can still turn plans on by hand in Admin → Plans (e.g. after a UPI transfer).
 export function Subscribe({ plan }) { return <Plans plan={plan} />; }
 export function Plans({ plan: initial }) {
-  const { session, subs, profile, business, trial, refresh } = useApp();
+  const { session, subs, profile, business, trial, refresh, config, toast } = useApp();
   const [plan, setPlan] = useState(PLANS[initial] ? initial : IS_OWNER_APP ? "owner" : "customer");
   const [months, setMonths] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -20,11 +21,12 @@ export function Plans({ plan: initial }) {
   const p = PLANS[plan], s = subs?.[plan], opt = p.options.find((o) => o.months === months) || p.options[0];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
-  const canPay = !IS_NATIVE && months === 1 && !!session && left === 0;
+  const payOn = !isLive || !!config?.payments; // Razorpay keys saved on the server
+  const canPay = !IS_NATIVE && months === 1 && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
-    try { await api.subscribe(plan, profile); await refresh(); } catch (e) { setErr(errText(e)); }
+    try { await api.subscribe(plan, profile); await refresh(); toast?.(`Payment received. ${p.name} is active for 30 more days.`); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
   let status = null;
@@ -39,7 +41,7 @@ export function Plans({ plan: initial }) {
     <>
       <div style={{ position: "relative", height: 62 }}><BackButton /></div>
       <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Plans</h1>
-        <div className="muted">No free version. Longer plans cost less per month.</div></div>
+        <div className="muted">Pay once, get 30 days. No auto-renewal: pay again when you want more days.</div></div>
       {!IS_OWNER_APP && !IS_CUSTOMER_APP && <div className="tabs">
         <button className={plan === "customer" ? "on" : ""} onClick={() => setPlan("customer")}>For customers</button>
         <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
@@ -64,12 +66,12 @@ export function Plans({ plan: initial }) {
         {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
         {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}</div>}
         {canPay
-          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `Subscribe for ${rupee(opt.price)}`}</button>
+          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `${s?.active ? "Add 30 days" : "Pay"} ${rupee(opt.price)}`}</button>
           : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {left > 0
             ? "You already have access. You can buy a plan when your extra days end."
-            : IS_NATIVE ? "Plans can't be bought inside the app yet." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
+            : IS_NATIVE ? "Plans can't be bought inside the app yet." : plan === "owner" && business?.status !== "verified" ? "You can pay once we verify your business." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
         <div className="note">{plan === "owner"
-          ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category, plus job openings at your shop."
+          ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category."
           : "Customer Pass: see businesses' numbers and contact them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
       </div>
     </>
@@ -89,8 +91,8 @@ export function Help() {
         <p>Owners post offers on things they need to move fast. Customers browse for free; with the Customer Pass they can see the owner's number, call or WhatsApp them, or share their own number so the owner calls back.</p>
         <h2>The owner didn't honour the offer</h2>
         <p>Open the offer and tap "Report this offer". Our team reviews every report and can remove offers or suspend businesses.</p>
-        <h2>Cancel a subscription</h2>
-        <p>Account → your plan → Cancel. You keep access until the end of the paid month.</p>
+        <h2>Renewing or stopping a plan</h2>
+        <p>Plans never renew by themselves. Each payment gives 30 days; to continue, pay again from Account → your plan → Renew. To stop, simply don't pay again.</p>
         <h2>Rate a business</h2>
         <p>After you contact a business through {APP_NAME}, open its offer (or My contacts) and tap "Rate". Only real contacts can review, so ratings stay honest.</p>
         <h2>Your data</h2>
@@ -111,11 +113,11 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
-        <h2>Cancelling</h2>
-        <p>You can cancel anytime in Account. Cancelling stops the next renewal and cancels the mandate; your plan stays active until the end of the period you already paid for.</p>
+        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You pay once through Razorpay (UPI, card or netbanking) and get 30 days. You are never charged without choosing a plan and confirming the payment.</p>
+        <h2>No auto-renewal</h2>
+        <p>Plans do not renew automatically and no mandate is set up. When your 30 days end, the plan stops unless you pay again. Paying again before the end adds 30 days to your current end date.</p>
         <h2>Refunds</h2>
-        <p>Fees already paid are not refunded for unused time. If you were charged by mistake (for example a duplicate charge, or a renewal after you cancelled), contact us within 7 days and we will refund the full amount to the original payment method within 7 working days.</p>
+        <p>Fees already paid are not refunded for unused time. If you were charged by mistake (for example a duplicate charge, or money taken for a payment that failed), contact us within 7 days and we will refund the full amount to the original payment method within 7 working days.</p>
         <h2>Offers and deals</h2>
         <p>{APP_NAME} does not sell, collect payment for, or deliver any offer listed in the app. Payments for offers are made directly to the business, so refunds for offers must be requested from that business.</p>
         <h2>Contact</h2>
@@ -160,7 +162,7 @@ function PaymentsNote() {
     <div className="status no">
       <span style={{ fontSize: 24 }}>💳</span>
       <div className="grow"><b>No free version</b>
-        <div className="muted small">Customers need the Customer Pass and partners need Business Pro. Until the payment gateway is added, turn plans on in Plans after you receive the payment.</div></div>
+        <div className="muted small">Customers need the Customer Pass and partners need Business Pro. They pay online with Razorpay (30 days per payment). You can still turn plans on here after a payment received outside the app.</div></div>
     </div>
   );
 }

@@ -102,7 +102,7 @@ export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 export const HOME_TILES = [
   { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "logistics", tag: "24×7", tagBg: "#1C4F9C" },
   { id: "beauty" }, { id: "makeup" }, { id: "fashion" }, { id: "appliances" }, { id: "shops" },
-  { id: "jobs", tag: "AD", tagBg: "#8A5A00" }, { id: "other" },
+  { id: "other" },
 ];
 
 // Category icon tile (used instead of emoji when an offer has no photo)

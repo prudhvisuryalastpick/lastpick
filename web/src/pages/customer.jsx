@@ -3,7 +3,7 @@ import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
 import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
-import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, JOB_CATEGORY, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
+import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
@@ -64,7 +64,6 @@ export function Home() {
   const now = useNow(30000);
   const all = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
   const live = useMemo(() => all.filter((o) => !isJob(o)), [all]);
-  const jobs = useMemo(() => all.filter(isJob).sort((a, b) => a.endsAt - b.endsAt), [all]);
   const ending = useMemo(() => live.filter((o) => o.endsAt - now <= 3600000).sort((a, b) => a.endsAt - b.endsAt).slice(0, 8), [live, now]);
   const featured = useMemo(() => live.filter((o) => o.featured).slice(0, 4), [live]);
   const results = useMemo(() => { const n = q.trim().toLowerCase(); return n ? live.filter((o) => `${o.title} ${o.description} ${o.business?.name} ${categoryOf(o.category)?.label || ""}`.toLowerCase().includes(n)) : []; }, [live, q]);
@@ -107,7 +106,7 @@ export function Home() {
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
-          {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = (t.id === "jobs" ? jobs : live).filter((o) => o.category === t.id).length; return (
+          {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = live.filter((o) => o.category === t.id).length; return (
             <button key={t.id} className="cattile" onClick={() => open(t.id)}>
               <IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={50} rot={[-6, 4, -3, 6][k % 4]} />
               <b>{st.short}</b><span>{offers ? (n ? `${n} live` : "None yet") : " "}</span>
@@ -117,7 +116,6 @@ export function Home() {
         {featured.length > 0 && <Featured offers={featured} />}
         {!offers && !error && !needGps && <Spinner />}
         <MiniRail title="Ending in the next hour" icon="clock" color="#B35A00" items={ending} />
-        <HiringAds items={jobs} onAll={() => open("jobs")} />
         <div className="bigbanners">
           <button className="bigban dark" onClick={() => open("stay")}><span><small>OPEN 24×7</small><b>Rooms for tonight</b><em>Hotels drop prices for empty rooms</em></span><IconSticker icon="bed" bg="#DBEAFE" fg="#1D4ED8" size={70} rot={8} /></button>
           <button className="bigban light" onClick={() => open("travel")}><span><small>LEAVING TODAY</small><b>Last-minute bus seats</b><em>Operators fill their final seats</em></span><IconSticker icon="bus" bg="#DCFCE7" fg="#15803D" size={70} rot={-6} /></button>
@@ -225,27 +223,6 @@ function MiniRail({ title, icon, color, items, action, onAction }) {
   );
 }
 
-// Job openings posted by local shops, shown like small local ads (only within 10 km / the same pincode).
-function HiringAds({ items, onAll }) {
-  const { location } = useApp();
-  if (!items.length) return null;
-  return (
-    <>
-      <SectionHead title="Now hiring near you" icon="megaphone" color="#8A5A00" action="See all" onAction={onAll} />
-      <div className="listbox adbox">{items.slice(0, 3).map((o) => {
-        const km = distanceKm(location, o.business);
-        return (
-          <a key={o.id} className="lrow" href={"#/offer/" + o.id}>
-            <span className="li" style={{ background: "#FFF3D6", color: "#8A5A00" }}><Icon d="megaphone" size={22} stroke={2} /></span>
-            <span className="lt"><span className="adtag">AD · Job opening</span><b>{o.title}</b><span>{o.business?.name}{km != null && km < 100 ? " · " + kmText(km) : ""} · Pay {rupee(o.price)}{o.quantity ? " " + o.quantity.replace(/^Pay /i, "").toLowerCase() : ""}</span></span>
-            <span className="lcta" style={{ color: "#8A5A00" }}>Apply</span>
-          </a>
-        );
-      })}</div>
-    </>
-  );
-}
-
 function TripList({ items }) {
   if (!items.length) return null;
   return (
@@ -297,7 +274,7 @@ function AllCategories({ value, onPick, onClose }) {
         <button className={"tile" + (value === "all" ? " on" : "")} onClick={() => onPick("all")}>
           <span className="ti" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon d="more" size={24} /></span><span className="tl">Everything</span>
         </button>
-        {[...CATEGORIES, JOB_CATEGORY].map((c) => {
+        {CATEGORIES.map((c) => {
           const st = catStyle(c.id);
           return (
             <button key={c.id} className={"tile" + (value === c.id ? " on" : "")} onClick={() => onPick(c.id)}>
@@ -652,7 +629,7 @@ function AccountInner() {
         if (plan === "customer" && IS_OWNER_APP) return null;
         const left = daysLeft(trial?.[plan]);
         const [cls, icon, title, sub] = s?.active
-          ? ["ok", "✅", `${PLANS[plan].name} · ${s.status === "cancelled" ? "cancelled" : "active"}`, `${s.status === "cancelled" ? "Ends" : "Renews"} ${day(s.currentPeriodEnd)}`]
+          ? ["ok", "✅", `${PLANS[plan].name} · active`, `Active till ${day(s.currentPeriodEnd)} · pay again any time to add 30 days`]
           : left > 0 ? ["ok", "🎁", `Extra days from ${APP_NAME} · ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)} for 30 days.`]
             : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Waiting for verification", `After that, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)} for 30 days.`]
               : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];
@@ -660,9 +637,7 @@ function AccountInner() {
           <div key={plan} className={"status " + cls} style={{ margin: "0 14px 12px", background: "#fff", boxShadow: "var(--shadow)" }}>
             <span className="mic" style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", flex: "none", background: cls === "ok" ? "var(--ok-soft)" : "var(--warn-soft)", color: cls === "ok" ? "var(--ok)" : "var(--warn)" }}><Icon d={cls === "ok" ? (s?.active ? "check" : "gift") : "clock"} size={20} stroke={2.2} /></span>
             <div className="grow"><b>{title}</b><div className="muted small">{sub}</div></div>
-            {s?.active && s.status !== "cancelled" && !IS_NATIVE
-              ? <button className="btn ghost sm" onClick={() => setCancelling(plan)}>Cancel</button>
-              : <a className="btn ghost sm" href={"#/plans" }>Plans</a>}
+            <a className="btn ghost sm" href={"#/plans" }>{s?.active ? "Renew" : "Plans"}</a>
           </div>
         );
       })}

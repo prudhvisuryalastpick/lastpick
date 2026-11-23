@@ -37,10 +37,10 @@ function needOpen(o) {
 async function feed(where, params, cacheKey) {
   const free = await freeMode();
   const night = isNight();
-  return cached(`feed:${free}:${night}:${cacheKey}`, 30000, async () => {
+  return cached(`feed2:${free}:${night}:${cacheKey}`, 30000, async () => {
     const rows = await rmany(
       `SELECT ${offerSelect(free)} FROM offers o JOIN businesses b ON b.id = o.owner_id
-       WHERE ${visibleSql(free)} AND ${hoursSql()} AND ${where} ORDER BY o.ends_at LIMIT 300`, params);
+       WHERE ${visibleSql(free)} AND ${hoursSql()} AND o.category <> 'jobs' AND ${where} ORDER BY o.ends_at LIMIT 300`, params);
     return rows.map(mapOffer);
   });
 }

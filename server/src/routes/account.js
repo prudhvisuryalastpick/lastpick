@@ -15,6 +15,7 @@ const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
+import { paymentsOn } from "./payments.js";
 import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
@@ -413,14 +414,13 @@ export function accountRoutes(r) {
     const rows = await many("SELECT * FROM subscriptions WHERE user_id = $1", [u.id]);
     return { customer: mapSub(rows.find((s) => s.plan === "customer")) || null, owner: mapSub(rows.find((s) => s.plan === "owner")) || null };
   });
-  // Online payments are on hold; admins switch plans on by hand in Admin -> Businesses / Plans.
+  // older app versions: online payment now goes through /api/payments (Razorpay)
   r.post("/api/billing", async (ctx) => {
     needUser(ctx);
-    if (await freeMode()) throw precondition("LastPick is free during launch. No payment is needed.");
-    throw precondition("Online payments are not set up yet. Please contact support.");
+    throw precondition("Please update the app to pay online.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(),
+    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

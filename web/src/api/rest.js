@@ -36,6 +36,19 @@ async function call(method, path, body, { anonymous = false } = {}) {
 const get = (p) => call("GET", p);
 const publicGet = (p) => call("GET", p, undefined, { anonymous: true });
 const post = (p, b = {}) => call("POST", p, b);
+// Razorpay Checkout's script, loaded only when someone pays
+let rzLoading = null;
+function razorpayScript() {
+  if (window.Razorpay) return Promise.resolve();
+  rzLoading ||= new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = "https://checkout.razorpay.com/v1/checkout.js";
+    el.onload = () => resolve();
+    el.onerror = () => { rzLoading = null; reject(new Error("Couldn't open the payment window. Check your internet and try again.")); };
+    document.head.appendChild(el);
+  });
+  return rzLoading;
+}
 
 // Short-lived cache for feeds and city lists, so switching tabs doesn't refetch.
 const memo = new Map();
@@ -96,9 +109,25 @@ export const api = {
   },
   async updateProfile({ name, phone }) { await call("PATCH", "/api/me", { name, phone }); },
 
-  // ---------- plans (payments are on hold; admins switch plans on by hand) ----------
+  // ---------- plans: pay once with Razorpay, get 30 days (no auto-renewal) ----------
   async mySubscriptions() { return get("/api/me/subscriptions"); },
-  async subscribe(plan) { await post("/api/billing", { action: "create", plan }); },
+  async subscribe(plan) {
+    const o = await post("/api/payments/order", { plan });
+    await razorpayScript();
+    const check = () => post("/api/payments/check", { orderId: o.orderId });
+    return new Promise((resolve, reject) => {
+      const rz = new window.Razorpay({
+        key: o.keyId, order_id: o.orderId, amount: o.amount, currency: o.currency, name: o.name, description: o.description,
+        prefill: o.prefill, theme: { color: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim() || "#0E6B66" },
+        // paid: the server checks Razorpay's signature and adds 30 days
+        handler: (r) => post("/api/payments/verify", { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature })
+          .then(() => resolve(true), async (e) => { try { if ((await check()).paid) return resolve(true); } catch { /* keep the first error */ } reject(e); }),
+        // closed without the success reply: ask the server whether the order was paid anyway
+        modal: { ondismiss: () => check().then((c) => (c.paid ? resolve(true) : reject(new Error("Payment was not completed. No money was taken."))), reject) },
+      });
+      rz.open();
+    });
+  },
   async cancelPlan(plan) { await post("/api/billing", { action: "cancel", plan }); },
 
   // ---------- business (partner server) ----------

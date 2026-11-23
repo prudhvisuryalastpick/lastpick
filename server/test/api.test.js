@@ -23,7 +23,10 @@ const PORTS = { all: 18080, customer: 18081, partner: 18082, admin: 18083, night
 // a fake WhatsApp Cloud API: records every message the servers send (login codes, updates)
 const WA_PORT = 18090;
 const waSent = [];
-const WA_ENV = { WA_LOGIN: "on", WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
+// a fake Razorpay API: orders, and the payments of an order (rzPaid = orders the "customer" paid)
+const RZ_PORT = 18091, RZ_SECRET = "rz_test_secret";
+const rzOrders = [], rzPaid = new Map();
+const WA_ENV = { RAZORPAY_KEY_ID: "rzp_test_key", RAZORPAY_KEY_SECRET: RZ_SECRET, RAZORPAY_API_BASE: `http://localhost:${RZ_PORT}`, WA_LOGIN: "on", WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
 
 async function sh(cmd, args, env = {}) {
   return new Promise((resolve, reject) => {
@@ -85,6 +88,22 @@ before(async () => {
   });
   await new Promise((r) => wa.listen(WA_PORT, r));
   procs.push({ kill: () => wa.close() });
+  const rz = http.createServer((req, res) => {
+    let b = ""; req.on("data", (d) => (b += d));
+    req.on("end", () => {
+      const ok = req.headers.authorization === "Basic " + Buffer.from(`rzp_test_key:${RZ_SECRET}`).toString("base64");
+      res.writeHead(ok ? 200 : 401, { "Content-Type": "application/json" });
+      if (!ok) return res.end('{"error":{"description":"Authentication failed"}}');
+      if (req.method === "POST" && req.url === "/v1/orders") {
+        const o = { id: `order_T${rzOrders.length + 1}`, ...JSON.parse(b) }; rzOrders.push(o); return res.end(JSON.stringify(o));
+      }
+      const m = req.url.match(/^\/v1\/orders\/([^/]+)\/payments$/);
+      if (m) return res.end(JSON.stringify({ items: rzPaid.has(m[1]) ? [{ id: rzPaid.get(m[1]), status: "captured" }] : [] }));
+      res.end("{}");
+    });
+  });
+  await new Promise((r) => rz.listen(RZ_PORT, r));
+  procs.push({ kill: () => rz.close() });
   await Promise.all(Object.keys(PORTS).map(startServer));
 });
 after(() => procs.forEach((p) => p.kill("SIGTERM")));
@@ -389,7 +408,7 @@ test("support conversations", async () => {
   assert.equal((await c.get(`/api/support/${t.data.id}`)).data.status, "open");
 });
 
-test("own category only, everything ends the same day, local job openings", async () => {
+test("own category only, everything ends the same day, no job openings", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");
   // the daily limit was used earlier: lift it for this test by ageing today's posts
@@ -397,14 +416,10 @@ test("own category only, everything ends the same day, local job openings", asyn
   const pool = new Pool({ connectionString: DB });
   await pool.query("UPDATE offers SET created_at = now() - interval '2 days'");
   await pool.end();
-  // every business can post a job opening at its shop: pay instead of a discount, up to 7 days, only in the local area
+  // job openings (hiring) are not allowed any more
   const job = await p.post("/api/owner/offers", { title: "Shop helper needed, ₹12,000/month", category: "jobs", origPrice: 0, price: 12000, endsAt: soon(30) });
-  assert.equal(job.status, 200, JSON.stringify(job.data));
-  const cj = client("customer");
-  assert.ok((await cj.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.some((o) => o.id === job.data.id), "near: shown");
-  assert.ok((await cj.get("/api/offers?pincode=560001")).data.some((o) => o.id === job.data.id), "same pincode: shown");
-  assert.ok(!(await cj.get("/api/offers?lat=13.10&lng=77.62&radius=30")).data.some((o) => o.id === job.data.id), "15 km away: hidden");
-  assert.equal((await p.post("/api/owner/offers", { title: "Helper", category: "jobs", price: 500, endsAt: Date.now() + 2 * 86400000 })).status, 400, "nothing runs past today");
+  assert.equal(job.status, 400);
+  assert.match(job.data.error, /Job openings/);
   // longer than 24 hours is refused (no 120-day admission campaigns any more)
   const long = await p.post("/api/owner/offers", { title: "Cake pre-orders, 20% off", category: "food", origPrice: 100, price: 80, endsAt: Date.now() + 90 * 86400000 });
   assert.equal(long.status, 400);
@@ -448,7 +463,8 @@ test("working hours: after 11 PM only hotels, travel and logistics", async () =>
   assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel", "logistics"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
-  const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=5")).data.find((o) => o.category === "food");
+  // radius 6: a fresh (uncached) list, so no offer removed by an earlier test is picked
+  const day = (await client("customer").get("/api/offers?lat=12.97&lng=77.60&radius=6")).data.find((o) => o.category === "food");
   if (day) {
     const r = await n.post(`/api/offers/${day.id}/reveal`);
     assert.equal(r.data.code, "closed_for_night");
@@ -709,4 +725,49 @@ test("KYC: verify the mobile number later from the account page (WhatsApp code)"
   assert.equal((await me.post("/api/me/phone/verify", { code: code === "111111" ? "222222" : "111111" })).status, 400);
   assert.equal((await me.post("/api/me/phone/verify", { code })).status, 200);
   assert.equal((await me.get("/api/me")).data.phoneVerified, true);
+});
+
+test("Razorpay: pay once, get 30 days; each payment counts once; wrong signatures are refused", async () => {
+  const { createHmac } = await import("node:crypto");
+  const sign = (o, p) => createHmac("sha256", RZ_SECRET).update(`${o}|${p}`).digest("hex");
+  const c = client("customer");
+  const s = await c.post("/api/auth/signup", { email: "payer@test.lastpick.in", password: "longpassword", name: "Payer", phone: "9811155566", consent: fullConsent() });
+  assert.equal(s.status, 200, JSON.stringify(s.data));
+  c.token = s.data.token;
+  assert.equal((await c.get("/api/config")).data.payments, true);
+  // the customer app sells only the Customer Pass
+  assert.equal((await c.post("/api/payments/order", { plan: "owner" })).status, 403);
+  const o = await c.post("/api/payments/order", { plan: "customer" });
+  assert.equal(o.status, 200, JSON.stringify(o.data));
+  assert.equal(o.data.amount, 9900); assert.equal(o.data.keyId, "rzp_test_key");
+  assert.equal(rzOrders.at(-1).amount, 9900);
+  // a forged signature does nothing
+  assert.equal((await c.post("/api/payments/verify", { orderId: o.data.orderId, paymentId: "pay_X1", signature: "0".repeat(64) })).status, 400);
+  assert.equal((await c.get("/api/me/subscriptions")).data.customer, null);
+  // the real signature: 30 days
+  const v = await c.post("/api/payments/verify", { orderId: o.data.orderId, paymentId: "pay_X1", signature: sign(o.data.orderId, "pay_X1") });
+  assert.equal(v.status, 200, JSON.stringify(v.data));
+  const end1 = v.data.subscription.currentPeriodEnd;
+  assert.ok(v.data.subscription.active && Math.abs(end1 - (Date.now() + 30 * 86400000)) < 120000);
+  // the same payment again changes nothing
+  await c.post("/api/payments/verify", { orderId: o.data.orderId, paymentId: "pay_X1", signature: sign(o.data.orderId, "pay_X1") });
+  assert.equal((await c.get("/api/me/subscriptions")).data.customer.currentPeriodEnd, end1);
+  // the number is visible now (the Customer Pass is active): paying works end to end
+  // second payment, the app never got Razorpay's reply: "check" asks Razorpay and adds 30 more days
+  const o2 = await c.post("/api/payments/order", { plan: "customer" });
+  assert.deepEqual((await c.post("/api/payments/check", { orderId: o2.data.orderId })).data, { paid: false });
+  rzPaid.set(o2.data.orderId, "pay_X2");
+  const k = await c.post("/api/payments/check", { orderId: o2.data.orderId });
+  assert.equal(k.data.paid, true);
+  assert.ok(Math.abs(k.data.subscription.currentPeriodEnd - (end1 + 30 * 86400000)) < 5000, "30 days added to the current end");
+  // someone else's order can't be used
+  const other = client("customer");
+  other.token = (await other.post("/api/auth/signup", { email: "payer2@test.lastpick.in", password: "longpassword", name: "Payer Two", phone: "9811155577", consent: fullConsent() })).data.token;
+  assert.equal((await other.post("/api/payments/check", { orderId: o2.data.orderId })).status, 404);
+  // partners: Business Pro only, and only once the business is verified
+  const p = client("partner"); await p.login("owner@test.lastpick.in");
+  assert.equal((await p.post("/api/payments/order", { plan: "customer" })).status, 403);
+  const po = await p.post("/api/payments/order", { plan: "owner" });
+  assert.ok([200, 409].includes(po.status), JSON.stringify(po.data));
+  if (po.status === 200) assert.equal(po.data.amount, 49900);
 });

@@ -1,6 +1,6 @@
 # LastPick on Supabase + Cloudflare
 
-Local businesses post same-day offers and job openings; customers nearby see them and tap "I'm interested" (the partner sees only their name). LastPick only connects people.
+Local businesses post same-day offers; customers nearby see them and tap "I'm interested" (the partner sees only their name). LastPick only connects people.
 
 | Part | Where | Address |
 |---|---|---|
@@ -60,7 +60,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
   - Everyone else can post from 4 AM to 10:30 PM, so a post at 10 PM can run till 11 PM at most. Their offers are shown 4 AM to 11 PM, end by 11 PM and are removed at 12 midnight.
   - Customers are told this on the home screen.
   - Change the hours with `OPEN_HOUR` / `CLOSE_HOUR` (shown hours) and `POST_FROM_HOUR` / `POST_TILL_HOUR` (posting).
-- **One category per partner:** a partner picks one category and posts offers only in it, plus job openings at their shop (shown within 10 km or the same pincode). 3 posts a day.
+- **One category per partner:** a partner picks one category and posts offers only in it. 3 posts a day. **No job openings / hiring** (removed Nov 2026: partners can't post them and customers never see them).
 - **Trusted partners only:** a business can post only after the LastPick team verifies it and an admin activates its plan.
 - **Names only:** partners see the names of interested customers, never their numbers. Customers see the shop's number as text (no call or WhatsApp buttons).
 - **Offer times:** customers see "Offer ends in 4 hours" with the time, the normal price struck off, the offer price and the % off.
@@ -69,8 +69,8 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 - **No dashboards** for customers or partners; admins see platform totals.
 - **No combos:** removed (migration 011 closes old combo offers and drops the column).
 - **Automatic discount:** the % off is worked out from the prices; any "40% off" in the title is corrected automatically (app and server).
-- **Categories:** Food, Hotels, Travel, Salon, Makeup, Fashion, Home appliances, Shops, Other, plus Hiring (job openings). Old categories are moved by migration 010.
-- **Plans (only two, monthly):** Customer Pass ₹99, Business Pro ₹499. The admin activates them until payments are added.
+- **Categories:** Food, Hotels, Travel, Salon, Makeup, Fashion, Home appliances, Shops, Other (Hiring / job openings removed). Old categories are moved by migration 010.
+- **Plans (only two):** Customer Pass ₹99, Business Pro ₹499 (verified businesses only). **Paid online with Razorpay: one payment = 30 days, no auto-renewal** (pay again to add 30 days to the current end date). The server makes the Razorpay order, checks Razorpay's signature (or asks Razorpay if the app lost the reply) and counts each order once (`payments` table, `plan_sales` source `gateway`); a receipt e-mail goes out. Keys: GitHub secrets `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`. Admins can still turn plans on by hand after an outside payment. Boosts stay manual (admin confirms).
 - **No photos:** partners don't upload photos; every offer shows its category icon. Keeps the app fast and the data bill low.
 - **Light and cacheable:** replies are compressed; public offer lists are fetched without the login and with the location rounded to about 1 km, so Cloudflare serves the same copy to everyone nearby for 60 s.
 - **Quotes:** one short moral quote at a time in the top bar (changes every 7 seconds; a new set every 30 minutes) and one on every offer.
@@ -126,7 +126,7 @@ Local test accounts use the password `LocalTest1234`. Server tests: `cd server &
 1. **Android apps**: release APK + Play Store bundle are built by GitHub Actions; they use the live API once Supabase is connected.
 2. **Play Store**: permanent signing key, store listing, Data safety form.
 3. **Login and registration**: one-time codes by SMS and e-mail (the screens exist; the server side is switched off, `VITE_OTP_LOGIN`). Until then, only test accounts can log in (`SIGNUP=closed`).
-4. **Payments** (Razorpay / Google Play Billing). Until then admins switch plans on by hand.
+4. **Payments in the Android app** (Google Play Billing). The web apps pay with Razorpay.
 5. **Domain**: lastpick.in on Cloudflare; the deploy creates customer./partner./admin. automatically.
 
 ## Privacy and legal (India)

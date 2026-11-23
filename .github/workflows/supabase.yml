@@ -10,6 +10,8 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
+#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET  Razorpay online payments (Customer Pass ₹99 / Business Pro ₹499, 30 days per payment).
+#                             Razorpay Dashboard → Account & Settings → API Keys. Test keys (rzp_test_…) take no real money.
 #   BREVO_API_KEY             Brevo: sends sign-up / reset codes, receipts and account e-mails (the e-mail provider).
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code is switched off for now (see the WA_VERIFY line below); WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
@@ -108,6 +110,12 @@ jobs:
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" >/dev/null
           else
             $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" BREVO_API_KEY >/dev/null 2>&1 || true
+          fi
+          # Razorpay payments, only when both keys are saved in GitHub
+          if [ -n "${{ secrets.RAZORPAY_KEY_ID }}" ] && [ -n "${{ secrets.RAZORPAY_KEY_SECRET }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >/dev/null
+          else
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET >/dev/null 2>&1 || true
           fi
           # Amazon SES is not used: its keys are removed from the functions
           $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SES_REGION >/dev/null 2>&1 || true
