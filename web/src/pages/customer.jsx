@@ -6,7 +6,7 @@ import { TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, Ma
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
-import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
+import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
 import { navigate, nearestCity, useApp, useNow } from "../state.jsx";
 
 function useLiveOffers(city) {
@@ -646,7 +646,7 @@ function AccountInner() {
       <div className="secthead">Your details</div>
       <div className="form panel" style={{ margin: "0 14px 6px", padding: 14 }}>
         <div className="fld"><label>Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="fld"><label>Phone number</label><input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile number" />
+        <div className="fld"><label>Phone number</label><input inputMode="numeric" autoComplete="tel-national" maxLength={14} value={phone} onChange={(e) => setPhone(typePhone(e.target.value))} placeholder="10-digit mobile number" />
           <span className="hint">Never shown to businesses.</span></div>
         {dirty && <button className="btn dark" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>}
       </div>

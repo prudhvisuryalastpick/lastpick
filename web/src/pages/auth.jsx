@@ -6,7 +6,7 @@ import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
 import { Sheet, SocialLinks, Spinner } from "../components.jsx";
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
-import { errText, indianPhone, mobileProblem, prettyPhone, rupee, validPhone } from "../lib/format.js";
+import { errText, indianPhone, mobileProblem, prettyPhone, rupee, typePhone, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
@@ -240,7 +240,7 @@ export function Login({ next = "/" }) {
           {method === "phone" ? <>
             <label htmlFor="otp-phone" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>Mobile number</label>
             <div className="bigfield"><b style={{ fontSize: 17 }}>+91</b><span style={{ width: 1, height: 26, background: "var(--line)" }} />
-              <input id="otp-phone" inputMode="tel" autoComplete="tel-national" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98765 43210" /></div>
+              <input id="otp-phone" inputMode="numeric" autoComplete="tel-national" maxLength={14} value={phone} onChange={(e) => setPhone(typePhone(e.target.value))} placeholder="98765 43210" /></div>
             <div className="note">{WA ? "We'll send a 6-digit code to this number on WhatsApp. New here? Your account is created when you enter the code." : "We'll e-mail a 6-digit code to the address on your account."}</div>
           </> : <>
             <label htmlFor="otp-email" className="small" style={{ fontWeight: 600, color: "var(--muted)" }}>E-mail address</label>
@@ -307,7 +307,7 @@ export function Login({ next = "/" }) {
             </div>
           </div>}
           <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => { setMobile(e.target.value); mobileOk.current = ""; }} />
+          <div className="fld"><label htmlFor="su-phone">Mobile number</label><input id="su-phone" inputMode="numeric" autoComplete="tel-national" maxLength={14} placeholder="98765 43210" value={mobile} disabled={codeSent} onChange={(e) => { setMobile(typePhone(e.target.value)); mobileOk.current = ""; }} />
             <span className="hint">{phoneOn ? `We'll send a 6-digit code to this number on ${phoneWord} to check it.` : "Saved for your account. Not checked with a code."}</span></div>
           <div className="fld"><label htmlFor="su-email">E-mail</label><input id="su-email" type="email" autoComplete="email" value={email} disabled={codeSent} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-pass">Password (8+ characters)</label><input id="su-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
@@ -419,7 +419,7 @@ export function CompleteProfile() {
       <p className="lead">{viaPhone ? `Verified ${prettyPhone(profile.phone)}.` : `Verified ${profile?.email}.`} This is how businesses will know you.</p>
       <div className="form" style={{ padding: "16px 0 0" }}>
         <div className="fld"><label htmlFor="cp-name">Your name</label><input id="cp-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        {!viaPhone && <div className="fld"><label htmlFor="cp-phone">Mobile number (India)</label><input id="cp-phone" inputMode="tel" autoComplete="tel" value={other} onChange={(e) => setOther(e.target.value)} placeholder="+91 98765 43210" />
+        {!viaPhone && <div className="fld"><label htmlFor="cp-phone">Mobile number (India)</label><input id="cp-phone" inputMode="numeric" autoComplete="tel-national" maxLength={14} value={other} onChange={(e) => setOther(typePhone(e.target.value))} placeholder="98765 43210" />
             <span className="hint">Never shown to businesses.</span></div>}
         <details className="box small"><summary style={{ cursor: "pointer", fontWeight: 600 }}>What we collect and why</summary>
           {NOTICE_ITEMS.map((n) => <div key={n.data} style={{ paddingTop: 6 }}><b>{n.data}</b><div className="muted">{n.why}</div></div>)}</details>

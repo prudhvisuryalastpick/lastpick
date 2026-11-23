@@ -5,7 +5,7 @@ import { api } from "../api/index.js";
 import { TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
-import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
+import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
 import { validPincode } from "../lib/geo.js";
 import { addressFromLocation, lookupPincode } from "../lib/address.js";
@@ -522,7 +522,7 @@ function BusinessForm({ first = false }) {
         <div className="fld"><label>Main category</label>
           <select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
           <span className="hint">You post offers only in this category.</span></div>
-        <div className="fld"><label>Contact number for customers</label><input inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="10-digit Indian mobile or landline with STD code" />
+        <div className="fld"><label>Contact number for customers</label><input inputMode="numeric" maxLength={14} value={f.phone} onChange={(e) => set("phone", typePhone(e.target.value, { landline: true }))} placeholder="10-digit Indian mobile or landline with STD code" />
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
         <div className="toggle">
           <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{locating ? "Finding your shop's location…" : f.lat != null ? "Found from your phone's GPS. Do this while you are at your shop." : "Turn on location and be at your shop. We fill the pincode, state, city and area from it."}</div></div>

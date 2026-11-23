@@ -47,14 +47,32 @@ export function indianPhone(p) {
   return null;
 }
 export const validPhone = (p) => indianPhone(p) !== null;
+// What a mobile-number box accepts while typing: digits only, at most 10 (a pasted +91 / 91 / 0 in front is dropped).
+// landline: also allow a landline with STD code (0 + up to 10 digits = 11).
+export function typePhone(v, { landline = false } = {}) {
+  let s = String(v || "");
+  const plus91 = /^\s*\+\s*9\s*1/.test(s);
+  let d = s.replace(/\D/g, "");
+  if (plus91) d = d.slice(2);
+  else if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+  if (d.startsWith("0")) return landline ? d.slice(0, 11) : d.replace(/^0+/, "").slice(0, 10);
+  return d.slice(0, 10);
+}
 // A mobile number for an account: must be a real-looking Indian mobile (10 digits starting 6-9), not an obvious fake
 // like 9999999999, 9000000000 or 9876543210. (Without an SMS code we can't prove ownership; this catches typos/fakes.)
 export function mobileProblem(p) {
+  // only digits, spaces, dashes, brackets and a leading +91 are allowed (no letters or other symbols)
+  if (!/^\s*(\+?91[\s-]*)?[\d\s()-]+$/.test(String(p || ""))) return "A mobile number can only have digits (no letters or symbols)";
   const n = indianPhone(p);
   const d = n ? n.slice(3) : "";
   if (!/^[6-9]\d{9}$/.test(d)) return "Enter a valid 10-digit Indian mobile number (starting with 6, 7, 8 or 9)";
   const most = Math.max(...[..."0123456789"].map((x) => d.split(x).length - 1));
-  if (most >= 8 || /(\d)\1{5}/.test(d) || "01234567890123456789".includes(d) || "98765432109876543210".includes(d)) return "This doesn't look like a real mobile number. Please enter your own mobile number";
+  const fake = most >= 7 // e.g. 9999999990
+    || /(\d)\1{5}/.test(d) // six of the same digit in a row
+    || /^(\d\d)\1{4}$/.test(d) // 9898989898
+    || /^(\d{5})\1$/.test(d) // 9876598765
+    || "01234567890123456789".includes(d) || "98765432109876543210".includes(d); // 6789012345, 9876543210
+  if (fake) return "This doesn't look like a real mobile number. Please enter your own mobile number";
   return null;
 }
 
