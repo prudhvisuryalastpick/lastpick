@@ -4,7 +4,7 @@ import { Brand } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
-import { CompanyLine, Sheet, SocialLinks, Spinner } from "../components.jsx";
+import { Sheet, SocialLinks, Spinner } from "../components.jsx";
 import { CATEGORIES, APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, typePhone, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -392,7 +392,6 @@ export function Login({ next = "/", start }) {
 
       <div className="center small muted" style={{ paddingTop: 24 }}>
         India only · 18+ · <a href="#/privacy">Privacy</a> · <a href="#/terms">Terms</a> · <a href="#/plans">Plans</a> · <a href="#/contact">Contact</a>
-        <CompanyLine style={{ paddingTop: 12 }} />
       </div>
     </div>
   );

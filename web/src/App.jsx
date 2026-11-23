@@ -24,11 +24,12 @@ const I = {
   post: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v8M8 12h8",
   leads: "M16 21v-2a4 4 0 0 0-8 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   myoffers: "M4 4h16v16H4zM4 10h16M10 4v16",
+  about: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01",
 };
 const Icon = ({ d }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
-// customer bottom bar: Home, Map, raised "Near me" button, History (businesses contacted), Account
-const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["/contacts", "phone", "History"], ["/account", "user", "Account"]];
-const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"]];
+// customer bottom bar: Home, Map, History (businesses contacted), Account, About
+const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["/contacts", "phone", "History"], ["/account", "user", "Account"], ["/about", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01", "About"]];
+const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"], ["/about", I.about, "About"]];
 // pages anyone can open without accepting the privacy notice first
 const OPEN_PAGES = ["/about", "/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
 
@@ -130,7 +131,7 @@ export default function App() {
         </nav>
       )}
       {showNav && !needsConsent && biz && (
-        <nav className="nav" aria-label="Main">
+        <nav className="nav six" aria-label="Main">
           {nav.map(([to, icon, label]) => (
             <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}>
               <Icon d={icon} />{label}

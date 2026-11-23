@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, COMPANY_LINE, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
+import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
 import { api } from "./api/index.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
@@ -69,9 +69,6 @@ export function JoinedTicker({ joined }) {
     <div className="ticker" role="status"><span className="dot" aria-hidden="true" />
       <span key={i} className="tk"><b>{j.name}</b>{j.area ? ` from ${j.area}` : ""} joined · {ago}</span></div>
   );
-}
-export function CompanyLine({ style }) {
-  return <div className="muted small center" style={{ padding: "4px 16px 18px", ...style }}>{COMPANY_LINE} · <a className="link" href="#/about">about us</a></div>;
 }
 
 export function Empty({ icon, title, children, action }) {

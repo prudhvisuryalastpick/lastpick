@@ -8,9 +8,8 @@ export const SOCIAL = {
   youtube: import.meta.env?.VITE_YOUTUBE_URL || "https://www.youtube.com/@LastPick-c2m",
 };
 // Shown in the footer of the apps and lastpick.in (lower case on purpose, as the owner asked).
-export const COMPANY_LINE = "lastpick is a unit of doormate online, msme (udyam) registered, owned by prudhvi surya";
 // From the Udyam Registration Certificate (Ministry of MSME). Shown on the About page.
-export const COMPANY = { owner: "Prudhvi Surya", enterprise: "Doormate Online", udyam: "UDYAM-TS-20-0228036", registered: "17 Nov 2026", place: "Hyderabad, Telangana" };
+export const COMPANY = { owner: "Prudhvi Surya", enterprise: "Doormate Online", unit: "LastPick", type: "Micro enterprise · Services", udyam: "UDYAM-TS-20-0228036", registered: "17 Nov 2026", address: "Villa 9, Thiru Sankalp Villas, beside Aditya Lagoon, Nizampet, Hyderabad, Medchal-Malkajgiri, Telangana 500090" };
 // Optional support phone / WhatsApp (shown in Help & support when set at build time).
 export const SUPPORT_PHONE = import.meta.env?.VITE_SUPPORT_PHONE || "";
 export const SUPPORT_WHATSAPP = import.meta.env?.VITE_SUPPORT_WHATSAPP || "";
