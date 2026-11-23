@@ -129,6 +129,20 @@
   .notif small { font-size: 11px; color: var(--muted); }
   .stat { display: flex; gap: 8px; }
   .stat div { flex: 1; background: #fff; border-radius: 14px; padding: 10px; text-align: center; }
+  .trusted { padding: 70px 0; background: #FFFBF5; }
+  .packhead { margin-top: 26px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: #9A4F2C; }
+  .packs3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .pk3 { position: relative; background: #fff; border: 1.5px solid #EAD9C8; border-radius: 18px; padding: 16px 14px 14px; color: #2A1206; }
+  .pk3.best { border: 2px solid #3A1508; }
+  .pk3 .t { position: absolute; top: -11px; left: 12px; font-size: 11px; font-weight: 700; border-radius: 99px; padding: 2px 9px; background: #FDEBD3; color: #7A3E0C; white-space: nowrap; }
+  .pk3.best .t { background: #3A1508; color: #F6D9A8; }
+  .pk3 .d { font-size: 13px; font-weight: 600; color: #6B4E3D; } .pk3 .p { font-family: var(--fh); font-weight: 800; font-size: 26px; margin-top: 4px; }
+  .pk3 .p s { font-family: var(--fb); font-size: 13px; font-weight: 400; color: #9C8474; margin-left: 6px; } .pk3 .s { font-size: 12px; color: #6B4E3D; margin-top: 2px; }
+  .packnote { font-size: 12px; color: #8A7563; margin: 12px 0 18px; }
+  @media (max-width: 560px) { .packs3 { grid-template-columns: 1fr; gap: 16px; } }
+  .tlogos { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 24px; }
+  .tlogos:empty { display: none; }
+  .tlogos img { height: 46px; width: auto; max-width: 140px; object-fit: contain; background: #fff; border: 1px solid #EFE2D2; border-radius: 12px; padding: 8px 12px; }
   .stat b { font-family: var(--fh); font-size: 22px; color: var(--brown); display: block; }
   .stat small { font-size: 10px; color: var(--muted); font-weight: 600; }
   .floaty { position: absolute; z-index: 3; background: #fff; color: var(--ink); border-radius: 18px; padding: 12px 14px; box-shadow: var(--shadow); font-size: 13px; font-weight: 700; display: flex; gap: 10px; align-items: center; animation: bob 7s ease-in-out infinite; }
@@ -483,7 +497,13 @@
         <div class="perk"><i><svg><use href="#i-pin"/></svg></i><div><b>Seen by people nearby</b><span>Shown to customers within their distance and pincode. See how many saw each offer.</span></div></div>
         <div class="perk"><i><svg><use href="#i-user"/></svg></i><div><b>Names of interested customers</b><span>Know who's coming. Reply to reviews and build your reputation.</span></div></div>
       </div>
-      <div class="price"><b>₹5–6</b><span>per post · post 3 offers a day · ₹499 for 30 days · Business Pro, verified partners only</span></div>
+      <div class="packhead">Business Pro · verified partners · post 3 offers a day</div>
+      <div class="packs3">
+        <div class="pk3"><div class="d">5 days</div><div class="p">₹119</div><div class="s">₹23.8 a day · try it out</div></div>
+        <div class="pk3"><span class="t">Save 16%</span><div class="d">15 days</div><div class="p">₹299<s>₹357</s></div><div class="s">Under ₹20 a day</div></div>
+        <div class="pk3 best"><span class="t">Best value · Save 30%</span><div class="d">30 days</div><div class="p">₹499<s>₹714</s></div><div class="s">Just ₹16.6 a day</div></div>
+      </div>
+      <div class="packnote">Pay once · no auto-renewal · crossed-out = the same days at the 5-day rate</div>
       <a class="btn gold" href="https://partner.lastpick.in">Register your business</a>
     </div>
     <div class="postdemo reveal" aria-label="Animation: posting an offer">
@@ -497,6 +517,17 @@
       <div class="pct" id="fpct">Discount: 40% off · worked out from your prices</div>
       <button class="postbtn" id="fbtn" type="button" tabindex="-1">Make offer live</button>
     </div>
+  </div>
+</section>
+
+<!-- ================= TRUSTED PARTNERS (live counts from the API; hidden until they load) ================= -->
+<section class="trusted" id="trusted" hidden>
+  <div class="wrap reveal" style="text-align:center">
+    <div class="eyebrow">Trusted by local businesses</div>
+    <h2 class="h2" style="color:#3B1606"><span data-count="partners">0</span>+ verified partners</h2>
+    <p class="sub" style="margin:8px auto 0;max-width:560px">Every partner is checked by LastPick before going live. <span data-count="customers">0</span>+ customers already use LastPick to find today's deals.</p>
+    <div class="tlogos" id="tlogos"></div>
+    <a class="btn gold" style="margin-top:22px" href="https://partner.lastpick.in">Want your brand here? Partner with LastPick</a>
   </div>
 </section>
 
@@ -523,7 +554,7 @@
       <details class="reveal"><summary>Why do offers end the same day?</summary><p>LastPick is for today's deals: food before closing, rooms tonight, free slots this evening. Offers end by 11 PM and are removed at midnight. Hotels, travel and logistics run 24×7, for up to 24 hours.</p></details>
       <details class="reveal"><summary>Who can post offers?</summary><p>Only businesses verified by the LastPick team, each in its own category, up to 3 posts a day.</p></details>
       <details class="reveal"><summary>Does LastPick handle payments for the deal?</summary><p>No. LastPick only connects you with the business. You pay the business directly. Never pay an advance to someone you haven't verified.</p></details>
-      <details class="reveal"><summary>What does it cost?</summary><p>Businesses: post 3 offers a day for just ₹5–6 per post (Business Pro, ₹499 for 30 days). Customers: get all offers with the Customer Pass for just ₹3.3 a day (₹99 for 30 days).</p></details>
+      <details class="reveal"><summary>What does it cost?</summary><p>Businesses (Business Pro, post 3 offers a day): ₹119 for 5 days, ₹299 for 15 days or ₹499 for 30 days, from ₹16.6 a day. Customers (Customer Pass, all offers): ₹29 for 5 days, ₹59 for 15 days or ₹99 for 30 days, from ₹3.3 a day. Pay once; nothing renews by itself.</p></details>
     </div>
   </div>
 </section>
@@ -537,9 +568,10 @@
       <a href="https://customer.lastpick.in/#/grievance">Grievances</a>
       <a href="mailto:support@lastpick.in">support@lastpick.in</a>
       <!-- Social: put your page links in the two hrefs below. Until then they show "coming soon". -->
-      <a class="social" id="soc-insta" href="" aria-label="LastPick on Instagram" title="Instagram (coming soon)"><svg><use href="#i-insta"/></svg></a>
-      <a class="social" id="soc-yt" href="" aria-label="LastPick on YouTube" title="YouTube (coming soon)"><svg><use href="#i-youtube"/></svg></a>
+      <a class="social" id="soc-insta" href="https://www.instagram.com/lastpick_partner/" aria-label="LastPick on Instagram" title="Instagram"><svg><use href="#i-insta"/></svg></a>
+      <a class="social" id="soc-yt" href="https://www.youtube.com/@LastPick-c2m" aria-label="LastPick on YouTube" title="YouTube"><svg><use href="#i-youtube"/></svg></a>
     </nav>
+    <div style="width:100%;font-size:12.5px;opacity:.75">lastpick is a registered company under msme, owned by prudhvi surya</div>
     <div style="width:100%;font-size:12.5px;opacity:.6">LastPick only connects customers and businesses. Offers, payments and services are between you and the business. © <span id="yr"></span> LastPick</div>
   </div>
 </footer>
@@ -552,6 +584,23 @@
   const nav = document.getElementById("nav");
   addEventListener("scroll", () => nav.classList.toggle("solid", scrollY > 40), { passive: true });
   document.getElementById("yr").textContent = new Date().getFullYear();
+  // trusted partners: real counts from the API, counted up with a "+" (section stays hidden if they can't load)
+  // Partner logos: add {name, src} items to LOGOS once a brand agrees to be shown.
+  const LOGOS = [];
+  fetch("https://wgdhcseugaqbbmnkgnxv.supabase.co/functions/v1/customer/api/stats").then((r) => r.ok ? r.json() : null).then((s) => {
+    if (!s) return;
+    const sec = document.getElementById("trusted"); sec.hidden = false;
+    const tl = document.getElementById("tlogos");
+    LOGOS.forEach((l) => { const im = document.createElement("img"); im.src = l.src; im.alt = l.name; im.loading = "lazy"; tl.appendChild(im); });
+    const nums = { partners: s.partners.total, customers: s.customers.total };
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelectorAll("[data-count]").forEach((el) => {
+      const to = nums[el.dataset.count] || 0, t0 = performance.now();
+      if (still) { el.textContent = to.toLocaleString("en-IN"); return; }
+      const step = (t) => { const k = Math.min(1, (t - t0) / 1100); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))).toLocaleString("en-IN"); if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  }).catch(() => {});
   // social links: empty href = not created yet -> "coming soon", no navigation
   document.querySelectorAll("footer .social").forEach((a) => {
     if (a.getAttribute("href")) { a.target = "_blank"; a.rel = "noopener"; return; }

@@ -404,6 +404,10 @@ export const api = {
     return row;
   },
   async myBoosts() { const db = load(); const u = me(db); return (db.boosts || []).filter((x) => x.ownerId === u.id).map((x) => ({ ...x, live: x.status === "active" && x.endsAt > Date.now() })).reverse(); },
+  async stats(pincode) {
+    return { partners: { area: pincode ? 12 : null, total: 140 }, customers: { total: 2400 }, joinedWeek: 6,
+      joined: [{ name: "Sri Sai Bakery", area: "Kukatpally", at: Date.now() - 4 * 60000 }, { name: "Green Leaf Salon", area: "Madhapur", at: Date.now() - 18 * 60000 }] };
+  },
   async banners(city) {
     const db = load(), now = Date.now();
     return (db.banners || []).filter((x) => x.active && x.startsAt <= now && x.endsAt > now && (!x.cityKey || x.cityKey === city)).reverse();

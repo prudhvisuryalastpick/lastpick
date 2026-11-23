@@ -152,7 +152,7 @@ jobs:
           done
           npx --yes supabase@latest secrets set --yes --project-ref "$SUPABASE_PROJECT_ID" \
             "CRON_SECRET=$CRON_SECRET" "NODE_ENV=production" \
-            "ALLOWED_ORIGINS=https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
+            "ALLOWED_ORIGINS=https://lastpick.in,https://www.lastpick.in,https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
           npx --yes supabase@latest functions deploy customer partner admin --yes --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --use-api
 
       - name: Background jobs every 5 minutes (pg_cron)

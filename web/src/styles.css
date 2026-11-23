@@ -479,6 +479,10 @@ main.main.custmain { padding-bottom: 96px; }
 .custmain .item { gap: 10px; padding: 12px; }
 .custmain .item .icon-btn { width: 40px; height: 40px; border-radius: 12px; }
 .cwel .radar { height: 270px; }
+.welcome.cwel.pwel { background: radial-gradient(60% 50% at 75% 25%, rgba(254,215,170,.55) 0%, rgba(254,215,170,0) 70%), linear-gradient(165deg, #3B1606 0%, #8C4A2F 50%, #C9774A 100%); }
+.pwel .radar .ring { border-color: rgba(254, 215, 170, .75); }
+.pwel .floatcard i { background: #9A3412; }
+.pwel .lead2 { color: #F3DCC9; } .pwel .fine { color: #F3DCC9; }
 .cwel h1 { font-size: 32px; line-height: 1.06; margin: 12px 0 8px; }
 .cwel .lead2 { font-size: 14px; }
 .cwel .cattrail { margin-top: 12px; gap: 6px; }
@@ -564,6 +568,20 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .shero-switch { position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 2; display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.45); border: 1px solid rgba(255,255,255,.6); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
 .shero-switch button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 6px 5px 5px; border: 0; border-radius: 999px; background: none; color: #12302E; font-weight: 700; font-size: 13px; }
 .shero-switch button.on { background: var(--deep); color: #fff; }
+/* the banner's bottom bar now shows live numbers instead of category tabs */
+.shero-switch.counts { justify-content: space-around; padding: 6px 8px; }
+.shero-switch.counts .cnt { display: flex; align-items: center; gap: 8px; color: #12302E; }
+.shero-switch.counts .cv { display: flex; flex-direction: column; line-height: 1.1; }
+.shero-switch.counts .cv b { font-family: var(--font-h); font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+.shero-switch.counts .cv small { font-size: 11.5px; font-weight: 700; opacity: .75; }
+/* Instagram / YouTube icons beside the pill on the login page */
+.social-links.pill-icons { gap: 6px; padding: 0; margin: 0; }
+.social-links.pill-icons a, .social-links.pill-icons .soon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--hi); color: var(--hi-ink); }
+.social-links.pill-icons svg { width: 17px; height: 17px; }
+/* Instagram / YouTube icons beside Log in, on the banner */
+.social-links.glassy-icons { gap: 6px; padding: 0; margin: 0; }
+.social-links.glassy-icons a, .social-links.glassy-icons .soon { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.social-links.glassy-icons svg { width: 18px; height: 18px; }
 .shero-switch .ic { width: 28px; height: 28px; border-radius: 50%; background: #fff; color: var(--deep); display: grid; place-items: center; }
 .glassbar { margin: 12px 12px 0 !important; background: rgba(255,255,255,.9) !important; border: 1px solid rgba(255,255,255,.9) !important; border-radius: 999px !important; box-shadow: var(--shadow); }
 .catgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 12px; }
@@ -652,6 +670,14 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
 .social-links a:hover { background: var(--brand-soft, #E3F6EF); }
 .social-links .soon { opacity: .5; cursor: default; }
+/* live counts: [area] [LastPick total] side by side, and the "just joined" line */
+.statpair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 0 16px; margin: 12px 0; }
+.statbox { border-radius: 18px; padding: 13px 14px; background: var(--hero); color: #fff; }
+.statbox.dark { background: var(--ink); }
+.statbox .sl { font-size: 12px; opacity: .85; font-weight: 600; } .statbox .sn { font-family: var(--font-h); font-weight: 800; font-size: 28px; line-height: 1.15; font-variant-numeric: tabular-nums; } .statbox .ss { font-size: 11.5px; opacity: .8; }
+.ticker { display: flex; align-items: center; gap: 10px; margin: 0 16px 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; font-size: 13px; overflow: hidden; }
+.ticker .dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; flex: none; box-shadow: 0 0 0 4px rgba(29,158,117,.15); }
+.ticker .tk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: fadeUp .4s ease both; } .ticker b { font-weight: 800; }
 /* mobile number boxes: a fixed +91 in front, the person types only the 10 digits */
 .pfx { position: relative; }
 .pfx > span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; font-size: 15px; color: var(--ink); pointer-events: none; }

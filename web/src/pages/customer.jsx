@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
-import { TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { CompanyLine, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -62,6 +62,7 @@ export function Home() {
   const [allCats, setAllCats] = useState(false);
   const [q, setQ] = useState("");
   const now = useNow(30000);
+  const stats = useStats(place?.pincode || "");
   const all = useMemo(() => (offers || []).filter((o) => o.endsAt > now), [offers, now]);
   const live = useMemo(() => all.filter((o) => !isJob(o)), [all]);
   const ending = useMemo(() => live.filter((o) => o.endsAt - now <= 3600000).sort((a, b) => a.endsAt - b.endsAt).slice(0, 8), [live, now]);
@@ -79,14 +80,21 @@ export function Home() {
       <button className="cwho glassy" onClick={() => { retryLocation(); if (location.exact) toast("Showing offers within 30 km of you"); }} aria-label="Your location (tap to refresh)">
         <Icon d="place" size={16} stroke={2} /><span>{where}</span>
       </button>
+      <span className="gap" style={{ gap: 8 }}>
+      <SocialLinks className="glassy-icons" />
       {session
         ? <a className="cround glassy" href="#/account" aria-label="Your account">{initialsOf(profile?.name) || <Icon d="user" size={18} stroke={2} />}</a>
         : <a className="pill light sm" href="#/login">Log in</a>}
+      </span>
     </div>
   );
   return (
     <>
-      <StickerHero top={top} liveCount={offers ? live.length : null} onOpen={open} />
+      <StickerHero top={top} liveCount={offers ? live.length : null} onOpen={open}
+        counts={stats ? [
+          stats.partners.area != null ? { icon: "store", n: stats.partners.area, label: `partners in ${place?.pincode}` } : { icon: "store", n: stats.partners.total, label: "partners" },
+          { icon: "user", n: stats.customers.total, label: "customers" },
+        ] : null} />
       <QuoteStrip variant="inline" />
       <label className="csearch glassbar">
         <Icon d="search" size={20} stroke={2} />
@@ -104,6 +112,7 @@ export function Home() {
           : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels, travel and logistics are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>{PLANS.customer.tagline} · just {PLANS.customer.perDay} ({rupee(PLANS.customer.price)} for {PLANS.customer.period}). See shops' numbers and contact them.</span></a>}
         {error && <div className="pad"><div className="error">{error}</div><TicketHint /></div>}
+        {stats?.joined?.length > 0 && <JoinedTicker joined={stats.joined} />}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
           {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = live.filter((o) => o.category === t.id).length; return (
@@ -673,6 +682,7 @@ function AccountInner() {
       <div className="menubox"><button className="mi bad" onClick={async () => { await api.signOut(); navigate("/"); }}><span className="mic"><Icon d="logout" size={18} stroke={2.1} /></span>Log out</button></div>
       <div className="center muted small" style={{ padding: "8px 0 4px" }}>Follow {APP_NAME}</div>
       <SocialLinks style={{ justifyContent: "center", paddingBottom: 16 }} />
+      <CompanyLine />
       {cancelling && (
         <Sheet onClose={() => setCancelling(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>Cancel {PLANS[cancelling].name}?</h2>

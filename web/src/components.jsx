@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
+import { APP_NAME, COMPANY_LINE, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
+import { api } from "./api/index.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
@@ -14,6 +15,63 @@ export function TicketHint({ style, payment = false }) {
   if (IS_ADMIN_APP) return null;
   const mail = <a className="link" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(payment ? "Payment problem" : "Problem in LastPick")}`}>{SUPPORT_EMAIL}</a>;
   return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/grievance">Raise a ticket</a>, or e-mail {payment ? "a clear screenshot of the payment" : "the details (a screenshot helps)"} to {mail}. We resolve it in {TICKET_DAYS}.</div>;
+}
+
+// ---- live counts (real numbers from /api/stats, refreshed every minute) ----
+export function useStats(pincode) {
+  const [s, setS] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.stats(pincode).then((r) => alive && setS(r)).catch(() => {});
+    load(); const t = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, [pincode]);
+  return s;
+}
+// counts up from 0 when shown (or from the old number when it changes), then shows "+"
+export function CountUp({ n }) {
+  const [v, setV] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    const start = from.current, to = Number(n) || 0, t0 = performance.now(), dur = 900;
+    if (matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setV(to); from.current = to; return; }
+    let raf;
+    const step = (t) => { const k = Math.min(1, (t - t0) / dur); setV(Math.round(start + (to - start) * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); else from.current = to; };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [n]);
+  return <>{v.toLocaleString("en-IN")}{Number(n) > 0 ? "+" : ""}</>;
+}
+// two boxes side by side: [area count] [LastPick total]
+export function StatPair({ left, right }) {
+  return (
+    <div className="statpair">
+      {[left, right].filter(Boolean).map((b, i) => (
+        <div key={i} className={"statbox " + (i ? "dark" : "")}>
+          <div className="sl">{b.label}</div>
+          <div className="sn" aria-live="polite"><CountUp n={b.n} /></div>
+          {b.sub && <div className="ss">{b.sub}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+// newly verified partners, one line at a time (real businesses: name and area only)
+export function JoinedTicker({ joined }) {
+  const [i, setI] = useState(0);
+  const now = useNow(30000);
+  useEffect(() => { if (!joined?.length) return; const t = setInterval(() => setI((x) => (x + 1) % joined.length), 3500); return () => clearInterval(t); }, [joined?.length]);
+  if (!joined?.length) return null;
+  const j = joined[i % joined.length];
+  const mins = Math.max(1, Math.round((now - j.at) / 60000));
+  const ago = mins < 60 ? `${mins} min ago` : mins < 1440 ? `${Math.round(mins / 60)} hr ago` : `${Math.round(mins / 1440)} day${mins >= 2880 ? "s" : ""} ago`;
+  return (
+    <div className="ticker" role="status"><span className="dot" aria-hidden="true" />
+      <span key={i} className="tk"><b>{j.name}</b>{j.area ? ` from ${j.area}` : ""} joined · {ago}</span></div>
+  );
+}
+export function CompanyLine({ style }) {
+  return <div className="muted small center" style={{ padding: "4px 16px 18px", ...style }}>{COMPANY_LINE}</div>;
 }
 
 export function Empty({ icon, title, children, action }) {
@@ -225,13 +283,13 @@ export function useLive(load, deps = [], ms = 20000) {
 }
 
 // Instagram and YouTube icons. While a link isn't set yet, the icon is shown greyed out with "coming soon".
-export function SocialLinks({ style }) {
+export function SocialLinks({ style, className = "" }) {
   const items = [
     ["instagram", "Instagram", <svg key="i" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" /></svg>],
     ["youtube", "YouTube", <svg key="y" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="4" /><path d="M10 9l5 3-5 3z" fill="currentColor" /></svg>],
   ];
   return (
-    <div className="social-links" style={style}>
+    <div className={"social-links " + className} style={style}>
       {items.map(([k, label, icon]) => (SOCIAL[k]
         ? <a key={k} href={SOCIAL[k]} target="_blank" rel="noopener noreferrer" aria-label={`${APP_NAME} on ${label}`} title={label}>{icon}</a>
         : <span key={k} className="soon" aria-label={`${label} (coming soon)`} title={`${label} (coming soon)`}>{icon}</span>))}

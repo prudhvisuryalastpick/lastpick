@@ -4,9 +4,11 @@ export const SUPPORT_EMAIL = import.meta.env?.VITE_SUPPORT_EMAIL || "support@las
 // LastPick's Instagram and YouTube pages. Empty = not created yet: the icons show "coming soon".
 // Add the links here (or as VITE_INSTAGRAM_URL / VITE_YOUTUBE_URL) once the pages exist.
 export const SOCIAL = {
-  instagram: import.meta.env?.VITE_INSTAGRAM_URL || "",
-  youtube: import.meta.env?.VITE_YOUTUBE_URL || "",
+  instagram: import.meta.env?.VITE_INSTAGRAM_URL || "https://www.instagram.com/lastpick_partner/",
+  youtube: import.meta.env?.VITE_YOUTUBE_URL || "https://www.youtube.com/@LastPick-c2m",
 };
+// Shown in the footer of the apps and lastpick.in (lower case on purpose, as the owner asked).
+export const COMPANY_LINE = "lastpick is a registered company under msme, owned by prudhvi surya";
 // Optional support phone / WhatsApp (shown in Help & support when set at build time).
 export const SUPPORT_PHONE = import.meta.env?.VITE_SUPPORT_PHONE || "";
 export const SUPPORT_WHATSAPP = import.meta.env?.VITE_SUPPORT_WHATSAPP || "";

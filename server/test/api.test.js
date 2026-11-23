@@ -786,3 +786,17 @@ test("Razorpay: pay once, get 30 days; each payment counts once; wrong signature
   assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 15 })).data.amount, 5900);
   assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 7 })).status, 400);
 });
+
+test("public counts: partners in a pincode and in total, customers, newly joined partners", async () => {
+  const c = client("customer");
+  const all = await c.get("/api/stats");
+  assert.equal(all.status, 200, JSON.stringify(all.data));
+  assert.ok(all.data.partners.total >= 1 && all.data.customers.total >= 1, JSON.stringify(all.data));
+  assert.equal(all.data.partners.area, null);
+  const pin = await c.get("/api/stats?pincode=560038");
+  assert.ok(Number.isInteger(pin.data.partners.area) && pin.data.partners.area <= pin.data.partners.total, JSON.stringify(pin.data));
+  assert.equal((await c.get("/api/stats?pincode=999999")).data.partners.area, 0);
+  assert.equal((await c.get("/api/stats?pincode=12ab")).status, 400);
+  for (const j of all.data.joined) assert.deepEqual(Object.keys(j).sort(), ["area", "at", "name"], "name, area and time only");
+  assert.equal((await client("partner").get("/api/stats")).status, 200);
+});

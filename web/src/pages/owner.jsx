@@ -2,7 +2,7 @@ import { TermsBox } from "./privacy.jsx";
 import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
+import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
@@ -116,6 +116,7 @@ export function OwnerDashboard() {
   const cheapest = PLANS.owner.packs[0];
   const hour = new Date().getHours();
   const [photo] = useMyPhoto();
+  const stats = useStats(business.pincode || "");
 
   return (
     <>
@@ -146,6 +147,11 @@ export function OwnerDashboard() {
         <div className="kpi"><div className="n">{business.rating?.count ? <>{Number(business.rating.avg).toFixed(1)}<span style={{ color: "#E0A800" }}>★</span></> : "–"}</div><div className="l">{business.rating?.count ? `${business.rating.count} reviews` : "No reviews yet"}</div></div>
       </div>
       <StatusBanner />
+      {stats && <>
+        <StatPair left={business.pincode ? { label: `Partners in ${business.area || business.pincode}`, n: stats.partners.area, sub: `pincode ${business.pincode}` } : null}
+          right={{ label: "Partners on LastPick", n: stats.partners.total, sub: stats.joinedWeek ? `${stats.joinedWeek} joined this week` : "verified businesses" }} />
+        <JoinedTicker joined={stats.joined} />
+      </>}
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
       <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`

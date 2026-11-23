@@ -43,7 +43,7 @@ function Page({ path, query }) {
   if ((m = match("/subscribe/:plan", path))) return <Subscribe plan={m.plan} />;
   if (path === "/plans") return <Plans plan={query.plan} />;
   if (path === "/welcome") return <Welcome />;
-  if (path === "/login") return <Login next={query.next} />;
+  if (path === "/login") return <Login next={query.next} start={query.start} />;
   if (path === "/owner") return <OwnerGate><OwnerDashboard /></OwnerGate>;
   if (path === "/owner/post") return <OwnerGate><PostOffer /></OwnerGate>;
   if (path === "/owner/leads") return <OwnerGate><OwnerLeads /></OwnerGate>;
@@ -91,11 +91,16 @@ export default function App() {
   const { loading, mode, setMode, session, profile } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
-  const firstVisit = !loading && !session && !IS_OWNER_APP && !IS_ADMIN_APP && path === "/" && !welcomed();
+  // first visit, not logged in: the opening animation (customer app on "/", partner app on its home)
+  const firstVisit = !loading && !session && !IS_ADMIN_APP && (IS_OWNER_APP ? ["/", "/owner"].includes(path) : path === "/") && !welcomed();
   const ownerArea = path.startsWith("/owner");
 
   // the Business app always opens on the owner dashboard
   useEffect(() => { if (IS_OWNER_APP && ["/", "/map", "/contacts"].includes(path)) navigate("/owner", { replace: true }); }, [path]);
+  // partner app, not logged in (after the opening animation): straight to the login page, not a "log in" placeholder
+  useEffect(() => {
+    if (IS_OWNER_APP && !loading && !session && welcomed() && (path === "/" || path.startsWith("/owner"))) navigate("/login", { replace: true });
+  }, [path, loading, session]);
 
   // keep the bottom bar in sync with where the user is
   useEffect(() => {

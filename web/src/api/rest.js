@@ -230,6 +230,8 @@ export const api = {
   async boostOffer(id, hours) { return post(`/api/owner/offers/${enc(id)}/boost`, { hours }); },
   async myBoosts() { return get("/api/owner/boosts"); },
   async banners(city) { return get(`/api/banners?city=${enc(city || "")}`); },
+  // public counts: partners in a pincode and in total, customers in total, newly joined partners
+  async stats(pincode) { return get(`/api/stats${pincode ? `?pincode=${enc(pincode)}` : ""}`); },
   async adminBoosts(status) { return get(`/api/admin/boosts?status=${enc(status || "pending")}`); },
   async decideBoost(id, action, note = "") { return post(`/api/admin/boosts/${enc(id)}`, { action, note }); },
   async adminBanners() { return get("/api/admin/banners"); },

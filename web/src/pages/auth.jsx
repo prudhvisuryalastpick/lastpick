@@ -4,7 +4,7 @@ import { Brand } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
-import { Sheet, SocialLinks, Spinner } from "../components.jsx";
+import { CompanyLine, Sheet, SocialLinks, Spinner } from "../components.jsx";
 import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, typePhone, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -13,13 +13,6 @@ import { Icon, catStyle } from "../lib/icons.jsx";
 
 export const markWelcomed = () => { try { localStorage.setItem("lastpick-welcomed", "1"); } catch { /* ignore */ } };
 export const welcomed = () => { try { return localStorage.getItem("lastpick-welcomed") === "1"; } catch { return true; } };
-
-const FLOAT = [
-  { e: "🛏️", t: "Room for tonight", s: "Ends in 5 h 12 m", o: "-47%", style: { left: 0, top: 10 } },
-  { e: "🎂", t: "Cakes at closing", s: "1.2 km · 7 left", o: "-50%", style: { right: 0, top: 56, animationDelay: ".8s" } },
-  { e: "🚌", t: "6 bus seats left", s: "Leaves 10:45 PM", o: "-43%", style: { left: 24, bottom: 0, animationDelay: "1.6s" } },
-  { e: "💇", t: IS_OWNER_APP ? "6 salon slots filled" : "Salon slots today", s: IS_OWNER_APP ? "This evening" : "4 – 8 PM", o: "-50%", style: { right: 10, bottom: 26, animationDelay: ".4s" } },
-];
 
 // Opening animation for the customer app: radar rings, deal cards floating in, the categories locals post in.
 const CFLOAT = [
@@ -58,35 +51,42 @@ export function Welcome() {
   );
 }
 
-// Business app welcome (redesign comes with the partner app)
+// Partner app opening animation: the same style as the customer app's, in the partner colours, with what a partner gets.
+const PFLOAT = [
+  { icon: "user", tint: "#FFEAD5", ink: "#9A3412", t: "3 customers interested", s: "Cakes at closing · today", o: "New", style: { left: 0, top: 10 } },
+  { icon: "stay", tint: "#E0F2FE", ink: "#075985", t: "Room filled tonight", s: "Posted at 6 PM", o: "Sold", style: { right: 0, top: 36, animationDelay: ".8s" } },
+  { icon: "eye", tint: "#EDE9FE", ink: "#5B21B6", t: "146 views today", s: "Customers within 30 km", o: "+38", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
+  { icon: "shield", tint: "#DCFCE7", ink: "#166534", t: "Verified partner", s: "Checked by LastPick", o: "✔", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
+];
 function OwnerWelcome({ go }) {
   return (
-    <div className="welcome">
+    <div className="welcome cwel pwel">
       <Brand light style={{ animation: "fadeUp .5s ease both" }} />
       <div className="radar" aria-hidden="true">
-        <span className="ring" /><span className="ring r2" /><span className="core">📍</span>
-        {FLOAT.map((f) => <div key={f.t} className="floatcard" style={f.style}><span className="e">{f.e}</span><i>{f.o}</i><b>{f.t}</b><span>{f.s}</span></div>)}
+        <span className="ring" /><span className="ring r2" /><span className="core"><Icon d="store" size={40} stroke={1.8} /></span>
+        {PFLOAT.map((f) => <div key={f.t} className="floatcard" style={f.style}><span className="fi" style={{ background: f.tint, color: f.ink }}><Icon d={f.icon} size={20} stroke={2} /></span><i>{f.o}</i><b>{f.t}</b><span>{f.s}</span></div>)}
       </div>
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
-        <span className="giftpill">🛡️ Verified local partners only</span>
-        <h1>Last-minute deals,<br />within 30 km.</h1>
-        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: "#C9C7C0" }}>Empty rooms, seats, food and slots that businesses near you must fill today. Call the owner directly.</p>
+        <span className="giftpill"><Icon d="shield" size={14} stroke={2.2} />Verified local partners only</span>
+        <h1>Fill today's empty slots, today.</h1>
+        <p className="lead2">Post what's left today: rooms, tables, seats, salon chairs, closing-time stock. Customers within 30 km see it and call you directly. No commission on your sales.</p>
+        <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
+        <p className="fine">{PLANS.owner.name}: from {rupee(PLANS.owner.packs[0].price)} for {PLANS.owner.packs[0].days} days.</p>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22, animation: "fadeUp .6s ease .35s both" }}>
-        <button className="btn main" onClick={() => go("/login")}>Get started →</button>
-        <button className="btn" style={{ background: "transparent", border: "1px solid #3A3B45", color: "#F6F3EC" }} onClick={() => go("/")}>Look around first</button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20, animation: "fadeUp .6s ease .35s both" }}>
+        <button className="btn main" onClick={() => go("/login?start=signup")}>Register your business</button>
+        <button className="btn line" onClick={() => go("/login")}>I have an account · Log in</button>
       </div>
     </div>
   );
 }
-
 // ------------------------------------------------------------------ Sign in
-export function Login({ next = "/" }) {
+export function Login({ next = "/", start }) {
   const { session, profile, toast, refresh, config } = useApp();
   // Log in: e-mail or mobile + password; sign up with an e-mail code (Amazon SES).
   // WhatsApp login (mobile + WhatsApp code) is kept and used only when the server switches it on.
   const WA = !IS_ADMIN_APP && !!config?.whatsappLogin;
-  const [step, setStep] = useState(WA || OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset | signup
+  const [step, setStep] = useState(start === "signup" && !IS_ADMIN_APP ? "signup" : WA || OTP_LOGIN ? "enter" : "password"); // enter | code | password | reset | signup
   useEffect(() => { if (WA && step === "password") setStep("enter"); }, [WA]); // eslint-disable-line react-hooks/exhaustive-deps
   const [method, setMethod] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -225,7 +225,10 @@ export function Login({ next = "/" }) {
       <div id="otp-captcha" />
       <div className="row">
         <button className="back" style={{ position: "static" }} aria-label="Back" onClick={() => (step === "enter" || !(OTP_LOGIN || WA) ? navigate(IS_OWNER_APP || IS_ADMIN_APP ? "/login" : "/") : setStep("enter"))}>‹</button>
-        {!IS_ADMIN_APP && <span className="trialpill">{IS_OWNER_APP ? "🛡️ Verified partners only" : "⏱️ Deals for today only"}</span>}
+        {!IS_ADMIN_APP && <span className="gap" style={{ gap: 8, alignItems: "center" }}>
+          <SocialLinks className="pill-icons" />
+          <span className="trialpill">{IS_OWNER_APP ? "🛡️ Verified partners only" : "⏱️ Deals for today only"}</span>
+        </span>}
       </div>
       <Brand style={{ marginTop: 16 }} />
 
@@ -378,7 +381,7 @@ export function Login({ next = "/" }) {
 
       <div className="center small muted" style={{ paddingTop: 24 }}>
         India only · 18+ · <a href="#/privacy">Privacy</a> · <a href="#/terms">Terms</a> · <a href="#/plans">Plans</a> · <a href="#/contact">Contact</a>
-        <SocialLinks style={{ justifyContent: "center", marginTop: 12 }} />
+        <CompanyLine style={{ paddingTop: 12 }} />
       </div>
     </div>
   );

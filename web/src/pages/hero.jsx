@@ -2,6 +2,7 @@
 // a frosted card, white-outlined stickers, a rotating badge and a category switcher.
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
+import { CountUp } from "../components.jsx";
 
 export const Cupcake = ({ top = "#F9A8D4", swirl = "#EC4899", wrap = "#F59E0B" }) => (
   <svg viewBox="0 0 120 130" width="100%" height="100%" aria-hidden="true">
@@ -44,10 +45,10 @@ const SLIDES = {
   travel: { tag: "Leaving today", title: <>Last-minute<br />bus seats</>, sub: "Operators fill their final seats for less. Open 24×7.", cta: "See bus seats",
     art: [["bus", "#DCFCE7", "#15803D"], ["pin", "#CCFBF1", "#0F766E"], ["clock", "#FEF9C3", "#A16207"]] },
 };
-const SWITCH = [["food", "food", "Food"], ["stay", "bed", "Hotels"], ["beauty", "scissors", "Salon"], ["travel", "bus", "Bus"]];
 
-export function StickerHero({ top, liveCount, onOpen }) {
-  const [cat, setCat] = useState("food");
+// counts: [{ icon, n, label }] shown in the bar at the bottom of the banner (live numbers, counted up with "+")
+export function StickerHero({ top, liveCount, onOpen, counts }) {
+  const [cat] = useState("food");
   const s = SLIDES[cat];
   return (
     <section className="shero" aria-label="Today's deals">
@@ -72,13 +73,16 @@ export function StickerHero({ top, liveCount, onOpen }) {
           <span className="pill light">{liveCount != null ? `${liveCount} live near you` : "Live near you"}</span>
         </div>
       </div>
-      <div className="shero-switch" role="tablist" aria-label="Show deals for">
-        {SWITCH.map(([id, icon, label]) => (
-          <button key={id} role="tab" aria-selected={cat === id} className={cat === id ? "on" : ""} onClick={() => setCat(id)}>
-            <span className="ic"><Icon d={icon} size={16} stroke={2} /></span>{label}
-          </button>
-        ))}
-      </div>
+      {counts?.length > 0 && (
+        <div className="shero-switch counts" aria-label="LastPick in numbers">
+          {counts.map((c) => (
+            <span key={c.label} className="cnt">
+              <span className="ic"><Icon d={c.icon} size={16} stroke={2} /></span>
+              <span className="cv"><b><CountUp n={c.n} /></b><small>{c.label}</small></span>
+            </span>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
