@@ -770,4 +770,17 @@ test("Razorpay: pay once, get 30 days; each payment counts once; wrong signature
   const po = await p.post("/api/payments/order", { plan: "owner" });
   assert.ok([200, 409].includes(po.status), JSON.stringify(po.data));
   if (po.status === 200) assert.equal(po.data.amount, 49900);
+  // partner packs: 5 days ₹99, 15 days ₹199 (any number of times); other lengths are refused; customers only 30 days
+  if (po.status === 200) {
+    const p5 = await p.post("/api/payments/order", { plan: "owner", days: 5 });
+    assert.equal(p5.data.amount, 9900); assert.equal(p5.data.days, 5);
+    const before = (await p.get("/api/me/subscriptions")).data.owner?.currentPeriodEnd || 0;
+    const v5 = await p.post("/api/payments/verify", { orderId: p5.data.orderId, paymentId: "pay_P5", signature: sign(p5.data.orderId, "pay_P5") });
+    assert.equal(v5.status, 200, JSON.stringify(v5.data));
+    const base = Math.max(before, Date.now());
+    assert.ok(Math.abs(v5.data.subscription.currentPeriodEnd - (base + 5 * 86400000)) < 120000, "5 days added");
+    assert.equal((await p.post("/api/payments/order", { plan: "owner", days: 15 })).data.amount, 19900);
+    assert.equal((await p.post("/api/payments/order", { plan: "owner", days: 7 })).status, 400);
+  }
+  assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 5 })).status, 400);
 });

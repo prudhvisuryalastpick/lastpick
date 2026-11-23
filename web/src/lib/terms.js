@@ -75,7 +75,7 @@ export const TERMS_SECTIONS = [
   ]],
   ["9. Plans and payments", [
     `There is no free version. The Customer Pass costs ${rupee(PLANS.customer.price)} a month and lets Customers see Partners' contact numbers. Business Pro costs ${rupee(PLANS.owner.price)} a month and lets verified Partners post offers. Prices include any taxes that apply.`,
-    `Plans are paid online through Razorpay (UPI, card or netbanking) and a receipt is e-mailed to you. Each payment gives 30 days. Plans never renew automatically: a plan runs for the period paid and is not renewed without a new payment from you. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
+    `Plans are paid online through Razorpay (UPI, card or netbanking) and a receipt is e-mailed to you. Each payment gives the days of the pack you chose (Customer Pass: 30 days; Business Pro: 5, 15 or 30 days). Plans never renew automatically: a plan runs for the period paid and is not renewed without a new payment from you. Fees are for access to the Platform and are not linked to any deal. See the Refund policy for when a refund is possible.`,
   ]],
   ["10. Reviews, reports and action we may take", [
     `Anyone can report an offer, a review or a user. We review reports, reviews and ratings. If a Partner or Customer breaks these Terms or the law, misleads others or behaves badly, we may, with or without notice: warn them, hide or remove their posts or reviews, pause or remove their business, suspend or close their account, and keep records needed by law. We also act on valid orders from courts and government agencies.`,

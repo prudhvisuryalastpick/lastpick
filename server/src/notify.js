@@ -36,7 +36,7 @@ const TEMPLATES = {
   }),
   plan_active: (n, d) => ({
     subject: `Payment received: ${d.planName} is active`,
-    text: `Hi ${n},\n\nThank you. We've received your payment and your ${d.planName} is active.\n\nPlan: ${d.planName}\nPeriod: ${d.months} month${d.months === 1 ? "" : "s"}\nAmount: ${rupees(d.amount)}\nActive until: ${day(d.until)}\n\nKeep this message as your receipt.${sign}`,
+    text: `Hi ${n},\n\nThank you. We've received your payment and your ${d.planName} is active.\n\nPlan: ${d.planName}\nPeriod: ${d.days ? `${d.days} days` : `${d.months} month${d.months === 1 ? "" : "s"}`}\nAmount: ${rupees(d.amount)}\nActive until: ${day(d.until)}\n\nKeep this message as your receipt.${sign}`,
   }),
   plan_ended: (n, d) => ({
     subject: `Your ${d.planName} has ended`,

@@ -1,5 +1,6 @@
-// Online payments with Razorpay: pay once, get 30 days. No auto-renewal; the person pays again to renew.
-//   Customer app: Customer Pass ₹99.   Partner app: Business Pro ₹499 (verified businesses only).
+// Online payments with Razorpay: pay once for a pack of days. No auto-renewal; the person pays again to renew.
+//   Customer app: Customer Pass ₹99 / 30 days.
+//   Partner app (verified businesses only): Business Pro ₹99 / 5 days, ₹199 / 15 days or ₹499 / 30 days, any number of times.
 // Flow: the app asks for an order (POST /api/payments/order) → opens Razorpay Checkout → sends Razorpay's reply to
 // POST /api/payments/verify, which checks the signature and extends the plan. If the app never gets that reply (closed
 // tab, lost network), POST /api/payments/check asks Razorpay whether the order was paid. Each order counts only once.
@@ -13,10 +14,10 @@ import { notify, PLAN_NAMES } from "../notify.js";
 import { limit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
 import { bad, denied, notFound, precondition, str } from "../util.js";
-import { planPrice } from "./revenue.js";
+import { PAY_PACKS } from "./revenue.js";
 
 export const paymentsOn = () => !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
-const MONTHS = 1; // one payment = 30 days
+const MONTHS = 1; // kept in the months column for reports; the real length is "days"
 
 async function razorpay(method, path, body) {
   const r = await fetch(`${RAZORPAY_API_BASE}/v1${path}`, {
@@ -55,17 +56,17 @@ async function fulfil(order, paymentId) {
     await c.query("INSERT INTO plan_sales (user_id, plan, months, amount, source) VALUES ($1, $2, $3, $4, 'gateway')", [p.user_id, p.plan, p.months, p.amount]);
     await c.query(
       `INSERT INTO subscriptions (user_id, plan, provider, status, months, current_period_end, provider_subscription_id)
-       VALUES ($1, $2, 'razorpay', 'active', $3, now() + make_interval(days => $3 * 30), $4)
+       VALUES ($1, $2, 'razorpay', 'active', $3, now() + make_interval(days => $5), $4)
        ON CONFLICT (user_id, plan) DO UPDATE SET provider = 'razorpay', status = 'active', months = $3, provider_subscription_id = $4, updated_at = now(),
          current_period_end = (CASE WHEN subscriptions.status IN ('active', 'cancelled') AND subscriptions.current_period_end > now()
-                                    THEN subscriptions.current_period_end ELSE now() END) + make_interval(days => $3 * 30)`,
-      [p.user_id, p.plan, p.months, paymentId]);
+                                    THEN subscriptions.current_period_end ELSE now() END) + make_interval(days => $5)`,
+      [p.user_id, p.plan, p.months, paymentId, p.days]);
     return p;
   });
   if (done) {
     audit("plan_paid", done.user_id, { plan: done.plan, amount: done.amount, orderId: done.order_id, paymentId });
     const s = await one("SELECT current_period_end FROM subscriptions WHERE user_id = $1 AND plan = $2", [done.user_id, done.plan]);
-    await notify(done.user_id, "plan_active", { planName: PLAN_NAMES[done.plan], months: done.months, amount: done.amount, until: s?.current_period_end });
+    await notify(done.user_id, "plan_active", { planName: PLAN_NAMES[done.plan], months: done.months, days: done.days, amount: done.amount, until: s?.current_period_end });
   }
   return !!done;
 }
@@ -83,7 +84,7 @@ async function myOrder(ctx) {
 }
 
 export function paymentRoutes(r) {
-  // 1. create a Razorpay order for 30 days of the plan
+  // 1. create a Razorpay order for a pack of days (body: plan, days; days defaults to 30)
   r.post("/api/payments/order", async (ctx) => {
     const u = needUser(ctx);
     if (!paymentsOn()) throw precondition("Online payment is not set up yet. Please contact support.");
@@ -94,16 +95,19 @@ export function paymentRoutes(r) {
       if (b.status !== "verified") throw precondition("You can buy Business Pro once we verify your business.");
     }
     await limit(u.id, "payOrder", 20, 3600);
-    const amount = planPrice(plan, MONTHS);
+    const days = Number(ctx.body.days ?? 30);
+    const pack = PAY_PACKS[plan].find((x) => x.days === days);
+    if (!pack) throw bad(`Pick one of: ${PAY_PACKS[plan].map((x) => `${x.days} days`).join(", ")}`);
+    const amount = pack.price;
     const ord = await razorpay("POST", "/orders", {
-      amount: amount * 100, currency: "INR", receipt: `${plan}-${Date.now()}`.slice(0, 40),
-      notes: { user_id: u.id, plan, app: "lastpick" },
+      amount: amount * 100, currency: "INR", receipt: `${plan}-${days}d-${Date.now()}`.slice(0, 40),
+      notes: { user_id: u.id, plan, days: String(days), app: "lastpick" },
     });
-    await q("INSERT INTO payments (user_id, plan, months, amount, order_id) VALUES ($1, $2, $3, $4, $5)", [u.id, plan, MONTHS, amount, ord.id]);
+    await q("INSERT INTO payments (user_id, plan, months, days, amount, order_id) VALUES ($1, $2, $3, $4, $5, $6)", [u.id, plan, MONTHS, days, amount, ord.id]);
     const me = await one("SELECT name, email, phone FROM users WHERE id = $1", [u.id]);
     return {
       keyId: RAZORPAY_KEY_ID, orderId: ord.id, amount: amount * 100, currency: "INR",
-      name: "LastPick", description: `${PLAN_NAMES[plan]} · 30 days`,
+      name: "LastPick", description: `${PLAN_NAMES[plan]} · ${days} days`, days,
       prefill: { name: me?.name || "", email: me?.email || "", contact: me?.phone || "" },
     };
   });

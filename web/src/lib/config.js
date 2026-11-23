@@ -58,6 +58,7 @@ export const PLANS = {
     // shown everywhere the price is: "Get all offers · ₹99 for 30 days"
     tagline: "Get all offers", perDay: "₹3.3 a day", period: "30 days", // 99 / 30 = 3.3
     options: [{ months: 1, price: 99 }],
+    packs: [{ days: 30, price: 99 }], // bought online (Razorpay): one payment = this many days
     perks: ["See every business's phone number", "Call or WhatsApp businesses directly", "Share your number in one tap", "Keep a list of businesses you contacted"],
   },
   owner: {
@@ -65,6 +66,8 @@ export const PLANS = {
     // 3 offers a day x 30 days = 90 posts; 499 / 90 = about Rs 5.5 a post
     tagline: "Post 3 offers a day", perPost: "₹5–6 per post", period: "30 days",
     options: [{ months: 1, price: 499 }],
+    // partners can buy any pack, any number of times (keep in sync with PAY_PACKS in server/src/routes/revenue.js)
+    packs: [{ days: 5, price: 99 }, { days: 15, price: 199 }, { days: 30, price: 499 }],
     perks: ["Post up to 3 offers a day in your category", "See the names of customers who are interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
   },
 };

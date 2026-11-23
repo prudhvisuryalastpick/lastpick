@@ -109,6 +109,11 @@ export function OwnerDashboard() {
   const perDay = [6, 5, 4, 3, 2, 1, 0].map((d) => week.filter((l) => Math.floor((now - l.createdAt) / 86400000) === d).length);
   const maxDay = Math.max(1, ...perDay);
   const left = daysLeft(trial?.owner);
+  // days left on Business Pro, shown straight away at the top (paid days first, else free days)
+  const paidLeft = subs.owner?.active ? daysLeft(subs.owner.currentPeriodEnd) : 0;
+  const daysText = paidLeft > 0 ? `${PLANS.owner.name} · ${paidLeft} day${paidLeft > 1 ? "s" : ""} left`
+    : left > 0 ? `Free days · ${left} left` : business.status === "verified" ? `${PLANS.owner.name} · 0 days left` : "";
+  const cheapest = PLANS.owner.packs[0];
   const hour = new Date().getHours();
   const [photo] = useMyPhoto();
 
@@ -121,7 +126,10 @@ export function OwnerDashboard() {
             <div><div className="small" style={{ color: "var(--hero-muted)", fontWeight: 600 }}>{hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}</div>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{business.name}</div></div>
           </div>
-          <a className="pill" style={{ background: "rgba(255,255,255,.16)", color: "#fff" }} href="#/owner/business">{business.status === "verified" ? "✔ Verified" : business.status === "pending" ? "● KYC in progress" : "Profile"}</a>
+          <div className="gap" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <a className="pill" style={{ background: "rgba(255,255,255,.16)", color: "#fff" }} href="#/owner/business">{business.status === "verified" ? "✔ Verified" : business.status === "pending" ? "● KYC in progress" : "Profile"}</a>
+            {daysText && <a className="pill" style={{ background: "var(--hi)", color: "var(--hi-ink)" }} href="#/plans">{daysText}</a>}
+          </div>
         </div>
         <div className="row" style={{ alignItems: "flex-end", marginTop: 22 }}>
           <div>
@@ -140,10 +148,10 @@ export function OwnerDashboard() {
       <StatusBanner />
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
-      <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{subs.owner?.active ? `${PLANS.owner.name} active till ${day(subs.owner.currentPeriodEnd)}`
-        : left > 0 ? `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then ${rupee(PLANS.owner.price)} for 30 days, or less on longer plans.`
-          : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)} for 30 days. There is no free version.`
-            : `${PLANS.owner.name} is not active. Plans from ${rupee(PLANS.owner.price)} for 30 days.`}</span></a>
+      <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`
+        : left > 0 ? `Free days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then from ${rupee(cheapest.price)} for ${cheapest.days} days.`
+          : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(cheapest.price)} for ${cheapest.days} days.`
+            : `${PLANS.owner.name}: 0 days left. Plans from ${rupee(cheapest.price)} for ${cheapest.days} days.`}</span></a>
       {live.length > 0 && <>
         <div className="sect"><h3>Live now</h3><a className="link small" href="#/owner/offers">All offers</a></div>
         {live.slice(0, 3).map((o) => (

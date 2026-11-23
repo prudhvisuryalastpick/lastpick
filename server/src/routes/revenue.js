@@ -15,6 +15,11 @@ import { bad, cityKey, denied, ms, needUuid, notFound, precondition, str } from 
 export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
 // Two plans only, monthly: Customer Pass ₹99, Business Pro ₹499. Keep in sync with PLANS in web/src/lib/config.js.
 export const PLAN_PRICES = { customer: { 1: 99 }, owner: { 1: 499 } };
+// What can be bought online (Razorpay), as packs of days. Partners may buy any pack, any number of times.
+export const PAY_PACKS = {
+  customer: [{ days: 30, price: 99 }],
+  owner: [{ days: 5, price: 99 }, { days: 15, price: 199 }, { days: 30, price: 499 }],
+};
 // price for a number of months (no discounts for longer periods)
 export const planPrice = (plan, months) => PLAN_PRICES[plan][1] * Math.max(1, Number(months) || 1);
 

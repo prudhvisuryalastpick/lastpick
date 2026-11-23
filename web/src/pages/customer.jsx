@@ -629,7 +629,7 @@ function AccountInner() {
         if (plan === "customer" && IS_OWNER_APP) return null;
         const left = daysLeft(trial?.[plan]);
         const [cls, icon, title, sub] = s?.active
-          ? ["ok", "✅", `${PLANS[plan].name} · active`, `Active till ${day(s.currentPeriodEnd)} · pay again any time to add 30 days`]
+          ? ["ok", "✅", `${PLANS[plan].name} · active`, `Active till ${day(s.currentPeriodEnd)} · pay again any time to add more days`]
           : left > 0 ? ["ok", "🎁", `Extra days from ${APP_NAME} · ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)} for 30 days.`]
             : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Waiting for verification", `After that, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)} for 30 days.`]
               : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];

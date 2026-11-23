@@ -111,8 +111,8 @@ export const api = {
 
   // ---------- plans: pay once with Razorpay, get 30 days (no auto-renewal) ----------
   async mySubscriptions() { return get("/api/me/subscriptions"); },
-  async subscribe(plan) {
-    const o = await post("/api/payments/order", { plan });
+  async subscribe(plan, _profile, days = 30) {
+    const o = await post("/api/payments/order", { plan, days });
     await razorpayScript();
     const check = () => post("/api/payments/check", { orderId: o.orderId });
     return new Promise((resolve, reject) => {

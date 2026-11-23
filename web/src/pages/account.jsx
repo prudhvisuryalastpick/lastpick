@@ -15,18 +15,18 @@ export function Subscribe({ plan }) { return <Plans plan={plan} />; }
 export function Plans({ plan: initial }) {
   const { session, subs, profile, business, trial, refresh, config, toast } = useApp();
   const [plan, setPlan] = useState(PLANS[initial] ? initial : IS_OWNER_APP ? "owner" : "customer");
-  const [months, setMonths] = useState(1);
+  const [days, setDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const p = PLANS[plan], s = subs?.[plan], opt = p.options.find((o) => o.months === months) || p.options[0];
+  const p = PLANS[plan], s = subs?.[plan], opt = p.packs.find((o) => o.days === days) || p.packs[p.packs.length - 1];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
   const payOn = !isLive || !!config?.payments; // Razorpay keys saved on the server
-  const canPay = !IS_NATIVE && months === 1 && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
+  const canPay = !IS_NATIVE && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
-    try { await api.subscribe(plan, profile); await refresh(); toast?.(`Payment received. ${p.name} is active for 30 more days.`); } catch (e) { setErr(errText(e)); }
+    try { await api.subscribe(plan, profile, opt.days); await refresh(); toast?.(`Payment received. ${p.name} is active for ${opt.days} more days.`); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
   let status = null;
@@ -41,7 +41,7 @@ export function Plans({ plan: initial }) {
     <>
       <div style={{ position: "relative", height: 62 }}><BackButton /></div>
       <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Plans</h1>
-        <div className="muted">Pay once, get 30 days. No auto-renewal: pay again when you want more days.</div></div>
+        <div className="muted">{plan === "owner" ? "Pay once for 5, 15 or 30 days." : "Pay once, get 30 days."} No auto-renewal: pay again when you want more days.</div></div>
       {!IS_OWNER_APP && !IS_CUSTOMER_APP && <div className="tabs">
         <button className={plan === "customer" ? "on" : ""} onClick={() => setPlan("customer")}>For customers</button>
         <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
@@ -50,24 +50,20 @@ export function Plans({ plan: initial }) {
       <PlanCard plan={plan} />
       <div className="label-up" style={{ paddingBottom: 12 }}>Choose a plan{plan === "owner" ? " (verified businesses)" : ""}</div>
       <div className="planopts">
-        {p.options.map((o) => {
-          const save = savePct(plan, o);
-          return (
-            <button key={o.months} className={"planopt " + (o.months === months ? "on" : "")} aria-pressed={o.months === months} onClick={() => setMonths(o.months)}>
-              {save > 0 && <span className="save">Save {save}%</span>}
-              <div className="m">{planLabel(o.months)}</div>
-              <div className="p">{rupee(o.price)}</div>
-              <div className="pm">{o.months > 1 ? `${rupee(Math.round(o.price / o.months))}/month` : "for 30 days"}</div>
-            </button>
-          );
-        })}
+        {p.packs.map((o) => (
+          <button key={o.days} className={"planopt " + (o.days === opt.days ? "on" : "")} aria-pressed={o.days === opt.days} onClick={() => setDays(o.days)}>
+            <div className="m">{o.days} days</div>
+            <div className="p">{rupee(o.price)}</div>
+            <div className="pm">for {o.days} days</div>
+          </button>
+        ))}
       </div>
       <div className="pad">
         {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
         {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}<TicketHint payment /></div>}
         {canPay
-          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `${s?.active ? "Add 30 days" : "Pay"} ${rupee(opt.price)}`}</button>
-          : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {left > 0
+          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `${s?.active ? `Add ${opt.days} days ·` : "Pay"} ${rupee(opt.price)}`}</button>
+          : <div className="box small"><b>{opt.days} days: {rupee(opt.price)}.</b> {left > 0
             ? "You already have access. You can buy a plan when your extra days end."
             : IS_NATIVE ? "Plans can't be bought inside the app yet." : plan === "owner" && business?.status !== "verified" ? "You can pay once we verify your business." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
         <div className="note">{plan === "owner"
@@ -92,7 +88,7 @@ export function Help() {
         <h2>The owner didn't honour the offer</h2>
         <p>Open the offer and tap "Report this offer". Our team reviews every report and can remove offers or suspend businesses.</p>
         <h2>Renewing or stopping a plan</h2>
-        <p>Plans never renew by themselves. Each payment gives 30 days; to continue, pay again from Account → your plan → Renew. To stop, simply don't pay again.</p>
+        <p>Plans never renew by themselves. Each payment gives the days you paid for (customers 30 days; businesses 5, 15 or 30 days); to continue, pay again from Account → your plan → Renew. To stop, simply don't pay again.</p>
         <h2>Rate a business</h2>
         <p>After you contact a business through {APP_NAME}, open its offer (or My contacts) and tap "Rate". Only real contacts can review, so ratings stay honest.</p>
         <h2>Your data</h2>
@@ -113,9 +109,9 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You pay once through Razorpay (UPI, card or netbanking) and get 30 days. You are never charged without choosing a plan and confirming the payment.</p>
+        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You pay once through Razorpay (UPI, card or netbanking): Customer Pass ₹99 for 30 days; Business Pro ₹99 for 5 days, ₹199 for 15 days or ₹499 for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
         <h2>No auto-renewal</h2>
-        <p>Plans do not renew automatically and no mandate is set up. When your 30 days end, the plan stops unless you pay again. Paying again before the end adds 30 days to your current end date.</p>
+        <p>Plans do not renew automatically and no mandate is set up. When your days end, the plan stops unless you pay again. Paying again before the end adds the new days to your current end date.</p>
         <h2>Refunds</h2>
         <p>Fees already paid are not refunded for unused time. If you were charged by mistake (for example a duplicate charge, or money taken for a payment that failed), contact us within 7 days and we will refund the full amount to the original payment method within 7 working days.</p>
         <h2>Offers and deals</h2>

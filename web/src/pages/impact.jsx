@@ -146,7 +146,7 @@ const FAQ = {
     ["How do I get verified?", "Fill in your business profile with your shop location and contact number. Our team checks it, usually within 1 working day."],
     ["How many offers can I post?", "3 posts a day per business, posted between 4 AM and 10:30 PM. Everything is for the same day: it ends by 11 PM and is removed at 12 midnight. Hotels, travel and logistics can post any time and run for up to 24 hours."],
     ["What can I post?", "Only offers in the category you registered: a bakery posts bakery offers, a salon posts salon offers. No halls, movie tickets or selling personal items. Only verified (trusted) partners can post; we check every business first."],
-    ["Is there a free version?", "No. Posting needs an active Business Pro plan, and seeing business numbers needs the Customer Pass. Each payment gives 30 days, with no auto-renewal."],
+    ["Is there a free version?", "No. Posting needs an active Business Pro plan, and seeing business numbers needs the Customer Pass. Customers pay ₹99 for 30 days; businesses pay ₹99 for 5 days, ₹199 for 15 days or ₹499 for 30 days. No auto-renewal."],
     ["A customer misbehaved", "Open Leads, or contact us below. Customers who break the rules can be blocked."],
   ],
 };
