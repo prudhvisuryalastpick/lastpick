@@ -10,7 +10,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails).
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails). Required: no other e-mail provider.
 #                             Optional VARIABLE: AWS_SES_REGION (default ap-south-1, Mumbai)
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code when the VARIABLE WA_VERIFY = on; WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
