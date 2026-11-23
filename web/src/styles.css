@@ -186,6 +186,15 @@ main.main { flex: 1; padding-bottom: 100px; }
 .planopt .m { font-weight: 700; font-size: 13px; color: var(--muted); }
 .planopt .p { font-family: var(--font-h); font-weight: 800; font-size: 24px; margin-top: 4px; }
 .planopt .pm { font-size: 12px; color: var(--muted); }
+.packs { padding: 0 16px; display: grid; gap: 12px; }
+.pack { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 13px 14px; text-align: left; }
+.pack.on { border-color: var(--ink); }
+.pack .rd { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.pack.on .rd { border: 6px solid var(--ink); }
+.pack .d { font-weight: 800; font-size: 15px; } .pack .pd { font-size: 12.5px; color: var(--muted); }
+.pack .was { font-size: 12.5px; color: var(--muted); text-decoration: line-through; } .pack .pr { font-family: var(--font-h); font-weight: 800; font-size: 20px; }
+.pack .tag { position: absolute; top: -10px; right: 12px; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 99px; background: var(--hi); color: var(--hi-ink); }
+.pack .tag.best { background: var(--ink); color: #fff; }
 .planopt .save { position: absolute; top: -9px; right: 10px; font-size: 10.5px; font-weight: 800; background: var(--hi); color: var(--hi-ink); padding: 2px 8px; border-radius: 99px; }
 
 /* business dashboard header */

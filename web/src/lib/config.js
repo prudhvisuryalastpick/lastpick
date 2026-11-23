@@ -58,7 +58,9 @@ export const PLANS = {
     // shown everywhere the price is: "Get all offers · ₹99 for 30 days"
     tagline: "Get all offers", perDay: "₹3.3 a day", period: "30 days", // 99 / 30 = 3.3
     options: [{ months: 1, price: 99 }],
-    packs: [{ days: 30, price: 99 }], // bought online (Razorpay): one payment = this many days
+    // bought online (Razorpay): one payment = this many days; any pack, any number of times
+    // (keep in sync with PAY_PACKS in server/src/routes/revenue.js)
+    packs: [{ days: 5, price: 29 }, { days: 15, price: 59 }, { days: 30, price: 99 }],
     perks: ["See every business's phone number", "Call or WhatsApp businesses directly", "Share your number in one tap", "Keep a list of businesses you contacted"],
   },
   owner: {
@@ -67,7 +69,7 @@ export const PLANS = {
     tagline: "Post 3 offers a day", perPost: "₹5–6 per post", period: "30 days",
     options: [{ months: 1, price: 499 }],
     // partners can buy any pack, any number of times (keep in sync with PAY_PACKS in server/src/routes/revenue.js)
-    packs: [{ days: 5, price: 99 }, { days: 15, price: 199 }, { days: 30, price: 499 }],
+    packs: [{ days: 5, price: 119 }, { days: 15, price: 299 }, { days: 30, price: 499 }],
     perks: ["Post up to 3 offers a day in your category", "See the names of customers who are interested", "Shown to customers within 30 km", "Views, leads and reviews for every offer"],
   },
 };
@@ -76,6 +78,16 @@ export const PLANS = {
 export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
 // UPI ID partners pay boosts to until the payment gateway is switched on (set at build time).
 export const PAY_UPI = import.meta.env?.VITE_PAY_UPI || "";
+// Pack maths shown on the Plans page. Rupees a day to 1 decimal (₹16.6); the strike-off price is the same days at
+// the shortest pack's daily rate (a real comparison, not an invented "regular price"), and the saving is against it.
+export const perDay = (o) => Math.round((o.price / o.days) * 10) / 10;
+export const packCompare = (plan, o) => {
+  const base = PLANS[plan].packs[0];
+  if (o.days <= base.days) return null;
+  const was = Math.round((base.price / base.days) * o.days);
+  return { was, save: Math.round((1 - o.price / was) * 100) };
+};
+export const cheapestPerDay = (plan) => Math.min(...PLANS[plan].packs.map(perDay));
 export const planLabel = (m) => (m === 12 ? "1 year" : `${m} month${m > 1 ? "s" : ""}`);
 export const savePct = (plan, o) => Math.round((1 - o.price / (PLANS[plan].price * o.months)) * 100);
 

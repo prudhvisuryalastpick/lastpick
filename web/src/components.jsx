@@ -95,13 +95,14 @@ export function CategoryChips({ value, onChange, categories }) {
   );
 }
 
-export function PlanCard({ plan }) {
+// fromDay: show "from ₹16.6 a day" (Plans page) instead of the 30-day price
+export function PlanCard({ plan, fromDay }) {
   const p = PLANS[plan];
   return (
     <div className="plan">
       <div style={{ fontWeight: 700, opacity: .8 }}>{p.name}</div>
       <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 18, marginTop: 4 }}>{p.tagline}{p.perPost || p.perDay ? ` · just ${p.perPost || p.perDay}` : ""}</div>
-      <div className="amt">{rupee(p.price)}<small> / {p.period || "30 days"}</small></div>
+      {fromDay ? <div className="amt">from ₹{fromDay}<small> a day</small></div> : <div className="amt">{rupee(p.price)}<small> / {p.period || "30 days"}</small></div>}
       <ul>{p.perks.map((x) => <li key={x}>{x}</li>)}</ul>
     </div>
   );

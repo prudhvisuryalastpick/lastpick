@@ -1,6 +1,7 @@
 // Online payments with Razorpay: pay once for a pack of days. No auto-renewal; the person pays again to renew.
-//   Customer app: Customer Pass ₹99 / 30 days.
-//   Partner app (verified businesses only): Business Pro ₹99 / 5 days, ₹199 / 15 days or ₹499 / 30 days, any number of times.
+//   Customer app: Customer Pass ₹29 / 5 days, ₹59 / 15 days or ₹99 / 30 days.
+//   Partner app (verified businesses only): Business Pro ₹119 / 5 days, ₹299 / 15 days or ₹499 / 30 days.
+//   Any pack, any number of times (packs: PAY_PACKS in revenue.js).
 // Flow: the app asks for an order (POST /api/payments/order) → opens Razorpay Checkout → sends Razorpay's reply to
 // POST /api/payments/verify, which checks the signature and extends the plan. If the app never gets that reply (closed
 // tab, lost network), POST /api/payments/check asks Razorpay whether the order was paid. Each order counts only once.
