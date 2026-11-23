@@ -5,7 +5,7 @@ import { one } from "./db.js";
 import { sendWhatsAppUpdate, updatesOn } from "./whatsapp.js";
 
 export const mailOn = () => !!mailProvider();
-const anyOn = () => mailOn() || updatesOn();
+const anyOn = () => mailOn() || (WA_KINDS.size > 0 && updatesOn());
 const SUPPORT = "support@lastpick.in";
 const PARTNER_URL = "https://partner.lastpick.in";
 const CUSTOMER_URL = "https://customer.lastpick.in";
@@ -49,8 +49,10 @@ const TEMPLATES = {
 };
 export const PLAN_NAMES = { customer: "Customer Pass", owner: "Business Pro" };
 
-// Sends an account update: on WhatsApp (customers and partners log in with their mobile number), or by e-mail for
-// accounts that have one (the admin). The WhatsApp version is the same message without the greeting and signature.
+// Sends an account update by e-mail (Amazon SES, Brevo as fallback). Payments, receipts, plan changes and password
+// resets always go by e-mail. WhatsApp is used only for the mobile verification code; the WhatsApp copy of other
+// updates is sent only for kinds listed in WA_KINDS (none for now) when WA_UPDATE_TEMPLATE is set.
+const WA_KINDS = new Set([]);
 export async function notify(userId, kind, data = {}) {
   if (!anyOn() || !TEMPLATES[kind]) return false;
   try {
@@ -58,7 +60,7 @@ export async function notify(userId, kind, data = {}) {
     if (!u) return false;
     const first = String(u.name || "there").split(" ")[0];
     const t = TEMPLATES[kind](first, data);
-    if (updatesOn() && u.phone) {
+    if (WA_KINDS.has(kind) && updatesOn() && u.phone && !mailOn()) {
       const body = t.text.replace(/^Hi [^,\n]*,\s*/, "").split(sign)[0].replace(/\s+/g, " ").trim();
       await sendWhatsAppUpdate(u.phone, first, `${t.subject}. ${body} Questions: ${SUPPORT}`);
       return true;
