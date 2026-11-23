@@ -1,5 +1,5 @@
 // The help button (bottom right, above the menu) and its panel: search + question boxes that open to show the
-// answer. If the answer isn't there, "Raise a ticket" opens the complaints page (resolved in 1–5 working days).
+// answer. One "Raise a ticket" button at the bottom (resolved in 1–5 working days) for anything not covered.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CUSTOMER_FAQ, PARTNER_FAQ } from "../lib/faq.js";
 import { Icon } from "../lib/icons.jsx";
@@ -46,7 +46,7 @@ export function HelpButton({ partner }) {
                       return (
                         <div key={qq} className={"hq" + (on ? " open" : "")}>
                           <button type="button" aria-expanded={on} onClick={() => setOpenQ(openQ === qq ? null : qq)}><span>{qq}</span><Icon d="chevDown" size={16} stroke={2.4} /></button>
-                          {on && <div className="ha">{a}<div className="hstuck">Still stuck? <button type="button" className="link" onClick={ticket}>Raise a ticket</button></div></div>}
+                          {on && <div className="ha">{a}</div>}
                         </div>
                       );
                     })}

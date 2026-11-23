@@ -689,7 +689,6 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .helppanel .hq > button { width: 100%; background: #fff; border: 0; padding: 13px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; font-weight: 700; font-size: 14.5px; color: var(--ink); cursor: pointer; }
 .helppanel .hq.open > button svg { transform: rotate(180deg); }
 .helppanel .ha { padding: 12px 14px 14px; border-top: 1.5px dashed color-mix(in srgb, var(--ink) 18%, transparent); background: var(--soft); font-size: 14px; line-height: 1.55; color: var(--ink); }
-.helppanel .hstuck { margin-top: 8px; font-size: 13px; color: var(--muted); } .helppanel .hstuck .link { background: none; border: 0; padding: 0; font-weight: 700; cursor: pointer; }
 .helppanel .hnone { text-align: center; padding: 30px 10px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); } .helppanel .hnone span { color: var(--muted); }
 .helppanel .hf { padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; display: flex; flex-direction: column; gap: 8px; text-align: center; font-size: 12.5px; color: var(--muted); }
 /* About page */
