@@ -412,7 +412,7 @@ export function OfferPage({ id }) {
               </>}
             </>
           ) : contactErr ? (
-            <div className="error" style={{ marginTop: 12 }}>{contactErr}</div><TicketHint />
+            <><div className="error" style={{ marginTop: 12 }}>{contactErr}</div><TicketHint /></>
           ) : !contact ? <Spinner /> : (
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>
