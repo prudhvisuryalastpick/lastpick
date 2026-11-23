@@ -91,7 +91,7 @@ export function PlanCard({ plan }) {
   return (
     <div className="plan">
       <div style={{ fontWeight: 700, opacity: .8 }}>{p.name}</div>
-      <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 18, marginTop: 4 }}>{p.tagline}{p.perPost ? ` · just ${p.perPost}` : ""}</div>
+      <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 18, marginTop: 4 }}>{p.tagline}{p.perPost || p.perDay ? ` · just ${p.perPost || p.perDay}` : ""}</div>
       <div className="amt">{rupee(p.price)}<small> / {p.period || "30 days"}</small></div>
       <ul>{p.perks.map((x) => <li key={x}>{x}</li>)}</ul>
     </div>

@@ -253,7 +253,7 @@ export function Login({ next = "/" }) {
         </form>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           <div className="trust"><span className="ti" style={{ background: "var(--ok-soft)" }}>🛡️</span><div><b style={{ fontSize: 14 }}>Your number stays private</b><div className="muted small">A business sees it only when you tap "Share my number".</div></div></div>
-          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline} · just ${PLANS.owner.perPost}` : `${PLANS.customer.tagline} · ${rupee(PLANS.customer.price)} for ${PLANS.customer.period}`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
+          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline} · just ${PLANS.owner.perPost}` : `${PLANS.customer.tagline} · just ${PLANS.customer.perDay}`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
         </div>
         {!WA && <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>}
         {!isLive && <div style={{ marginTop: 18 }}>
@@ -412,7 +412,7 @@ export function CompleteProfile() {
       <div className="plan" style={{ margin: "8px 0 0" }}>
         <div className="row"><span className="small" style={{ fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", color: "var(--hi)" }}>Your plan</span><span className="small" style={{ opacity: .75 }}>{IS_OWNER_APP ? PLANS.owner.name : PLANS.customer.name}</span></div>
         <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{rupee(IS_OWNER_APP ? PLANS.owner.price : PLANS.customer.price)} / {PLANS.customer.period}</div>
-        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline}: just ${PLANS.owner.perPost}. After we verify your business.` : `${PLANS.customer.tagline}. You pick a plan after this step.`}</div>
+        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline}: just ${PLANS.owner.perPost}. After we verify your business.` : `${PLANS.customer.tagline}: just ${PLANS.customer.perDay}. You pick a plan after this step.`}</div>
         <div style={{ height: 8, background: "rgba(255,255,255,.18)", borderRadius: 99, marginTop: 14, overflow: "hidden" }}><div style={{ height: "100%", background: "var(--hi)", borderRadius: 99, animation: "grow 1.4s ease .3s both", transformOrigin: "left" }} /></div>
       </div>
       <h1 style={{ fontSize: 26 }}>A few details</h1>

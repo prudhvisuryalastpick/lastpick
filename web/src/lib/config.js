@@ -56,7 +56,7 @@ export const PLANS = {
   customer: {
     id: "customer", name: "Customer Pass", price: 99,
     // shown everywhere the price is: "Get all offers · ₹99 for 30 days"
-    tagline: "Get all offers", period: "30 days",
+    tagline: "Get all offers", perDay: "₹3.3 a day", period: "30 days", // 99 / 30 = 3.3
     options: [{ months: 1, price: 99 }],
     perks: ["See every business's phone number", "Call or WhatsApp businesses directly", "Share your number in one tap", "Keep a list of businesses you contacted"],
   },

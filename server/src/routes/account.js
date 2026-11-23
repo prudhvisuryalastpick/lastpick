@@ -102,7 +102,8 @@ export function accountRoutes(r) {
 
   // ---------- e-mail one-time codes (sign-up verification) ----------
   const codeHash = (email, code) => crypto.createHash("sha256").update(`${email}:${code}`).digest("hex");
-  const checkCode = async (email, code) => {
+  // keep=true: check only; the caller deletes the code after everything else succeeded (sign-up checks two codes)
+  const checkCode = async (email, code, keep = false) => {
     const sms = String(email).startsWith("sms:"), wa = /^wav?:/.test(String(email));
     const what = wa ? "WhatsApp" : sms ? "mobile (SMS)" : "e-mail";
     const row = await one("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING code_hash, expires_at, attempts", [email]);
@@ -110,7 +111,7 @@ export function accountRoutes(r) {
     if (row.attempts > 5) throw bad(`Too many wrong tries for the ${what} code. Ask for a new one.`);
     const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash), Buffer.from(codeHash(email, String(code || "").trim())));
     if (!ok) throw bad(wa ? "That WhatsApp code is not right. Please check the message and try again." : sms ? "The mobile (SMS) code is not right. Please check the SMS and try again." : "The e-mail code is not right. Please check the e-mail and try again.");
-    await q("DELETE FROM otp_codes WHERE email = $1", [email]);
+    if (!keep) await q("DELETE FROM otp_codes WHERE email = $1", [email]);
   };
   // which e-mail a code goes to: the one typed, or for a mobile number the e-mail on that account (no SMS yet)
   const codeEmail = async (body) => {
@@ -200,13 +201,15 @@ export function accountRoutes(r) {
     const photo = body.photo == null || body.photo === "" ? null : body.photo;
     if (photo !== null && !isDataImage(photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
     if (SERVICE === "partner" && !photo) throw bad("Please add your profile photo");
-    if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
-    const channel = phoneChannel(); // and the mobile number with a WhatsApp or SMS code, when switched on
+    const channel = phoneChannel(); // the mobile number is checked with a WhatsApp or SMS code, when switched on
+    if (channel === "whatsapp" && body.waOptIn !== true) throw bad("Please tick the WhatsApp box to get your code on WhatsApp");
     // WhatsApp sending was skipped for this number (our side not ready): sign up without the mobile code
     const waSkipped = channel === "whatsapp" && !!(await one(
       "SELECT 1 FROM rate_limits WHERE key = $1 AND action = 'waSkip' AND window_start > now() - interval '30 minutes'", ["phone:" + phone]));
-    if (channel === "whatsapp" && body.waOptIn !== true) throw bad("Please agree to get your codes and account messages on WhatsApp");
-    if (channel && !waSkipped) await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + phone, body.phoneOtp);
+    const phoneKey = channel && !waSkipped ? (channel === "whatsapp" ? "wav:" : "sms:") + phone : null;
+    // check BOTH codes first; a wrong code never uses up the other one
+    if (MAIL_FROM) await checkCode(email, body.otp, true); // e-mail must be verified with a one-time code
+    if (phoneKey) await checkCode(phoneKey, body.phoneOtp, true);
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -224,6 +227,7 @@ export function accountRoutes(r) {
       if (body.waOptIn === true) await c.query("UPDATE users SET whatsapp_optin_at = now() WHERE id = $1", [rows[0].id]);
       return rows[0];
     });
+    await q("DELETE FROM otp_codes WHERE email = ANY($1)", [[email, phoneKey].filter(Boolean)]);
     audit("signup", u.id, { service: SERVICE });
     if (SERVICE === "customer") await notify(u.id, "welcome");
     return { token: issueToken(u), user: { id: u.id, email: u.email } };
