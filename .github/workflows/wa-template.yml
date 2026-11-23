@@ -1,0 +1,45 @@
+# One-off helper: asks Meta to create the WhatsApp OTP template "lastpick_otp"
+# (Authentication, English, Copy code button) on the Lastpick WhatsApp account,
+# then lists the account's templates. Prints only Meta's replies, never the token.
+# Runs when this file changes, or by hand from the Actions tab.
+name: WhatsApp OTP template
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/wa-template.yml"]
+
+jobs:
+  template:
+    runs-on: ubuntu-latest
+    env:
+      WABA_ID: "1311021787831879"
+      TOKEN: ${{ secrets.WA_ACCESS_TOKEN }}
+    steps:
+      - name: Check the token can see the WhatsApp account
+        run: |
+          curl -sS -G "https://graph.facebook.com/v23.0/$WABA_ID" \
+            --data-urlencode "fields=id,name,account_review_status,business_verification_status" \
+            -H "Authorization: Bearer $TOKEN"; echo
+
+      - name: Create the lastpick_otp template
+        run: |
+          curl -sS -X POST "https://graph.facebook.com/v23.0/$WABA_ID/message_templates" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            -d '{
+              "name": "lastpick_otp",
+              "language": "en",
+              "category": "AUTHENTICATION",
+              "components": [
+                { "type": "BODY", "add_security_recommendation": true },
+                { "type": "FOOTER", "code_expiration_minutes": 10 },
+                { "type": "BUTTONS", "buttons": [ { "type": "OTP", "otp_type": "COPY_CODE", "text": "Copy code" } ] }
+              ]
+            }'; echo
+
+      - name: List the account's templates
+        run: |
+          curl -sS -G "https://graph.facebook.com/v23.0/$WABA_ID/message_templates" \
+            --data-urlencode "fields=name,language,status,category,rejected_reason" \
+            -H "Authorization: Bearer $TOKEN"; echo
