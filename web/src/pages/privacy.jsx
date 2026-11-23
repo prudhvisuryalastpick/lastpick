@@ -137,7 +137,7 @@ export function Privacy() {
         <NoticeList />
         <h2>Who can see or receive your data</h2>
         <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
-        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Amazon Web Services (Amazon SES, Mumbai region: sends sign-up codes, password-reset codes and account e-mails; it receives only your e-mail address and the message); and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
+        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Brevo (sends sign-up codes, password-reset codes, receipts and account e-mails; it receives only your e-mail address and the message); and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
           <tbody>

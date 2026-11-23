@@ -10,12 +10,13 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails). Required: no other e-mail provider.
+#   BREVO_API_KEY             Brevo: sends sign-up / reset codes, receipts and account e-mails (the e-mail provider).
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES: only used while BREVO_API_KEY is not saved. Delete them once Brevo works. Required: no other e-mail provider.
 #                             Optional VARIABLE: AWS_SES_REGION (default ap-south-1, Mumbai)
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code is switched off for now (see the WA_VERIFY line below); WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
 #                             Optional VARIABLES: WA_OTP_TEMPLATE (default lastpick_otp), WA_UPDATE_TEMPLATE (account updates), WA_LANG (default en)
-#   MAIL_FROM                 the e-mail sender, e.g. "LastPick <no-reply@lastpick.in>" (domain verified in Amazon SES)
+#   MAIL_FROM                 the e-mail sender, e.g. "LastPick <support@lastpick.in>" (sender or domain verified in Brevo)
 on:
   push:
     branches: [main]
@@ -99,13 +100,21 @@ jobs:
           if ! $S list --project-ref "$SUPABASE_PROJECT_ID" | grep -q JWT_SECRET; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
           fi
-          # e-mail sender address (Amazon SES only; Brevo is not used any more)
+          # e-mail sender address
           if [ -n "${{ secrets.MAIL_FROM }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
-          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" BREVO_API_KEY SMS_SENDER >/dev/null 2>&1 || true
-          # Amazon SES for e-mail, only when both keys are saved in GitHub
-          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
+          # Brevo for e-mail, when its key is saved in GitHub
+          if [ -n "${{ secrets.BREVO_API_KEY }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" >/dev/null
+          else
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" BREVO_API_KEY >/dev/null 2>&1 || true
+          fi
+          # Amazon SES: only a stand-in until the Brevo key is saved; removed from the functions once it is
+          if [ -n "${{ secrets.BREVO_API_KEY }}" ]; then
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SES_REGION >/dev/null 2>&1 || true
+          elif [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
               "AWS_SES_REGION=${{ vars.AWS_SES_REGION || 'ap-south-1' }}" >/dev/null
           fi

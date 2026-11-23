@@ -44,11 +44,13 @@ export const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS || "https://localhost,ca
 // Sign-up through the API. "closed" (default) = test accounts only, until the real login/registration is built.
 export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
 export const LOG_LEVEL = env.LOG_LEVEL || "info";
-// E-mail one-time codes (Amazon SES). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
+// E-mail one-time codes (Brevo). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
 export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
-// Amazon SES (preferred for e-mail when set). Keys of an IAM user allowed only "ses:SendEmail".
+// Brevo: the e-mail provider (sign-up codes, password resets, receipts, account e-mails).
+export const BREVO_API_KEY = env.BREVO_API_KEY || "";
+// Amazon SES: used for e-mail only while BREVO_API_KEY is not set. Keys of an IAM user allowed only "ses:SendEmail".
 export const AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID || "";
 export const AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY || "";
 export const AWS_SES_REGION = env.AWS_SES_REGION || "ap-south-1";
