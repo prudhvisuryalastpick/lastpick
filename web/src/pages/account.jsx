@@ -455,7 +455,8 @@ function UserTable({ kind, toast }) {
                 <td><b>{u.name || "(no name)"}</b></td>
                 <td className="small">{u.phone || u.email
                   ? <Reveal masked={`${u.email || "no e-mail"} · ${u.phone || "no phone"}`} load={() => api.revealUser(u.id)} render={(c) => <span>{c.email || "no e-mail"} · {c.phone ? prettyPhone(c.phone) : "no phone"}</span>} />
-                  : "none"}</td>
+                  : "none"}
+                  <div className="muted small">{u.phone ? (u.phoneVerified ? "✓ mobile verified" : "mobile not verified") : ""}</div></td>
                 {partners ? <>
                   <td>{u.business?.name}<div className="muted small">{categoryOf(u.business?.category)?.label || u.business?.category}</div></td>
                   <td className="small">{[u.business?.area, u.business?.city].filter(Boolean).join(", ")}<div className="muted">{u.business?.state} {u.business?.pincode}</div></td>

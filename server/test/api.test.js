@@ -663,15 +663,16 @@ test("sign-up checks the mobile number with a WhatsApp code when WA_VERIFY is on
   const cfg = (await n.get("/api/config")).data;
   assert.equal(cfg.phoneCodes, true); assert.equal(cfg.phoneChannel, "whatsapp");
   assert.equal((await client("customer").get("/api/config")).data.phoneCodes, false, "off elsewhere");
-  const base = { email: "wav@test.lastpick.in", password: "longpassword", name: "Wa Verify", phone: "9812345672", consent: fullConsent() };
+  const base = { email: "wav@test.lastpick.in", password: "longpassword", name: "Wa Verify", phone: "9812345672", consent: fullConsent(), waOptIn: true };
+  assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9812345673" })).status, 400, "WhatsApp opt-in needed first");
   assert.equal((await n.post("/api/auth/signup", base)).status, 400, "no WhatsApp code yet");
   assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9999999999" })).status, 400, "fake number refused");
   const n0 = waSent.length;
-  const s1 = await n.post("/api/auth/otp/send-phone", { phone: "98123 45672" });
+  const s1 = await n.post("/api/auth/otp/send-phone", { phone: "98123 45672", optIn: true });
   assert.equal(s1.status, 200, JSON.stringify(s1.data)); assert.equal(s1.data.channel, "whatsapp");
   assert.equal(waSent[n0].body.to, "919812345672");
   const code = waSent[n0].body.template.components[0].parameters[0].text;
-  assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9812345672" })).status, 429, "30-second gap");
+  assert.equal((await n.post("/api/auth/otp/send-phone", { phone: "9812345672", optIn: true })).status, 429, "30-second gap");
   const wr = await n.post("/api/auth/signup", { ...base, phoneOtp: code === "111111" ? "222222" : "111111" }); assert.equal(wr.status, 400, JSON.stringify(wr.data));
   const ok = await n.post("/api/auth/signup", { ...base, phoneOtp: code });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
@@ -681,10 +682,39 @@ test("sign-up checks the mobile number with a WhatsApp code when WA_VERIFY is on
 
 test("if Meta refuses the WhatsApp template, sign-up still works with the e-mail code only", async () => {
   const n = client("night");
-  const r = await n.post("/api/auth/otp/send-phone", { phone: "9812345679" });
+  const r = await n.post("/api/auth/otp/send-phone", { phone: "9812345679", optIn: true });
   assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.skipped, true);
-  const ok = await n.post("/api/auth/signup", { email: "skip@test.lastpick.in", password: "longpassword", name: "Skip", phone: "9812345679", consent: fullConsent() });
+  const ok = await n.post("/api/auth/signup", { email: "skip@test.lastpick.in", password: "longpassword", name: "Skip", phone: "9812345679", consent: fullConsent(), waOptIn: true });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   const me = client("night"); me.token = ok.data.token;
+  const prof = (await me.get("/api/me")).data;
+  assert.equal(prof.phoneVerified, false); assert.equal(prof.emailVerified, true); assert.equal(prof.whatsappOptIn, true);
+});
+
+test("KYC: verify the mobile number later from the account page (WhatsApp code)", async () => {
+  { const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+    const pool = new Pool({ connectionString: DB }); await pool.query("DELETE FROM rate_limits WHERE action IN ('signup','waSkip')"); await pool.end(); }
+  const n = client("night");
+  // the code couldn't be sent at sign-up (Meta refused), so the account starts with the number not verified
+  await n.post("/api/auth/otp/send-phone", { phone: "9812345679", optIn: true });
+  const ok = await n.post("/api/auth/signup", { email: "later@test.lastpick.in", password: "longpassword", name: "Later", phone: "9812345674", consent: fullConsent(), waOptIn: true, phoneOtp: "000000" });
+  // 9812345674 was never skipped, so a wrong code is refused
+  assert.equal(ok.status, 400);
+  await n.post("/api/auth/otp/send-phone", { phone: "9812345674", optIn: true });
+  const code0 = waSent.at(-1).body.template.components[0].parameters[0].text;
+  const ok2 = await n.post("/api/auth/signup", { email: "later@test.lastpick.in", password: "longpassword", name: "Later", phone: "9812345674", consent: fullConsent(), waOptIn: true, phoneOtp: code0 });
+  assert.equal(ok2.status, 200, JSON.stringify(ok2.data));
+  const me = client("night"); me.token = ok2.data.token;
+  assert.equal((await me.get("/api/me")).data.phoneVerified, true);
+  assert.equal((await me.post("/api/me/phone/send", { optIn: true })).data.verified, true, "already verified");
+  // changing the number resets it; then verify it again from the account page
+  assert.equal((await me.patch("/api/me", { name: "Later", phone: "9812345675" })).status, 200);
   assert.equal((await me.get("/api/me")).data.phoneVerified, false);
+  assert.equal((await me.post("/api/me/phone/send", {})).status, 400, "opt-in needed");
+  const s1 = await me.post("/api/me/phone/send", { optIn: true });
+  assert.equal(s1.status, 200, JSON.stringify(s1.data));
+  const code = waSent.at(-1).body.template.components[0].parameters[0].text;
+  assert.equal((await me.post("/api/me/phone/verify", { code: code === "111111" ? "222222" : "111111" })).status, 400);
+  assert.equal((await me.post("/api/me/phone/verify", { code })).status, 200);
+  assert.equal((await me.get("/api/me")).data.phoneVerified, true);
 });

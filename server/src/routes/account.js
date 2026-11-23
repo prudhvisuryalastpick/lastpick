@@ -37,7 +37,7 @@ async function profile(id) {
   return {
     id: u.id, name: u.name, phone: u.phone, email: u.email || "", role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [],
     trialEndsAt: ms(u.trial_ends_at), consentVersion: u.consent?.version || null, partnerConsentVersion: u.partner_consent?.version || null,
-    phoneVerified: !!u.phone_verified_at, needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
+    phoneVerified: !!u.phone_verified_at, emailVerified: !!u.email, whatsappOptIn: !!u.whatsapp_optin_at, phoneCheck: phoneChannel(), needsProfile: !u.name, lastLoginAt: ms(u.last_login_at), lastLoginDevice: u.last_login_device || "",
     hasPhoto: !!(await one("SELECT 1 FROM user_photos WHERE user_id = $1", [id])),
   };
 }
@@ -145,6 +145,7 @@ export function accountRoutes(r) {
   const sendPhoneCode = async ({ body, ip }) => {
     const channel = phoneChannel();
     if (!channel) throw precondition("Mobile codes aren't switched on yet.");
+    if (channel === "whatsapp" && body?.optIn !== true) throw bad("Please agree to get your code on WhatsApp");
     const bad1 = mobileProblem(body?.phone);
     if (bad1) throw bad(bad1);
     const phone = indianPhone(body.phone);
@@ -204,6 +205,7 @@ export function accountRoutes(r) {
     // WhatsApp sending was skipped for this number (our side not ready): sign up without the mobile code
     const waSkipped = channel === "whatsapp" && !!(await one(
       "SELECT 1 FROM rate_limits WHERE key = $1 AND action = 'waSkip' AND window_start > now() - interval '30 minutes'", ["phone:" + phone]));
+    if (channel === "whatsapp" && body.waOptIn !== true) throw bad("Please agree to get your codes and account messages on WhatsApp");
     if (channel && !waSkipped) await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + phone, body.phoneOtp);
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
@@ -219,6 +221,7 @@ export function accountRoutes(r) {
       if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
       if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
       if (channel && !waSkipped) await c.query("UPDATE users SET phone_verified_at = now() WHERE id = $1", [rows[0].id]);
+      if (body.waOptIn === true) await c.query("UPDATE users SET whatsapp_optin_at = now() WHERE id = $1", [rows[0].id]);
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
@@ -324,6 +327,41 @@ export function accountRoutes(r) {
 
   // ---------- profile ----------
   r.get("/api/me", async (ctx) => profile(needUser(ctx).id));
+  // KYC: verify the saved mobile number later (WhatsApp or SMS code), e.g. when it couldn't be checked at sign-up
+  r.post("/api/me/phone/send", async (ctx) => {
+    const me = needUser(ctx);
+    const u = await one("SELECT phone, phone_verified_at FROM users WHERE id = $1", [me.id]);
+    const channel = phoneChannel();
+    if (!channel) throw precondition("Mobile codes aren't switched on yet.");
+    if (!u?.phone) throw bad("Add your mobile number first");
+    if (u.phone_verified_at) return { verified: true };
+    if (channel === "whatsapp" && ctx.body?.optIn !== true) throw bad("Please agree to get your code on WhatsApp");
+    await limit("phone:" + u.phone, "sms", 4, 3600, "Too many codes for this number. Try again in an hour.");
+    await limit("phone:" + u.phone, "smsGap", 1, 30, "Please wait 30 seconds before asking for another code.");
+    if (channel === "whatsapp") await limit("all", "waDay", WA_DAILY_CAP, 86400, "Codes are busy right now. Please try again in a little while.");
+    const code = String(crypto.randomInt(100000, 1000000));
+    const key = (channel === "whatsapp" ? "wav:" : "sms:") + u.phone;
+    await q(`INSERT INTO otp_codes (email, code_hash, expires_at) VALUES ($1, $2, now() + interval '10 minutes')
+             ON CONFLICT (email) DO UPDATE SET code_hash = $2, expires_at = now() + interval '10 minutes', attempts = 0, created_at = now()`,
+      [key, codeHash(key, code)]);
+    try {
+      if (channel === "whatsapp") await sendWhatsAppCode(u.phone, code);
+      else await sendSms(u.phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`);
+    } catch (e) { log.error("verify-later code failed", { error: e.message }); throw precondition("We couldn't send the code right now. Please try again in a few minutes."); }
+    if (channel === "whatsapp") await q("UPDATE users SET whatsapp_optin_at = COALESCE(whatsapp_optin_at, now()) WHERE id = $1", [me.id]);
+    return { sent: true, channel, to: maskPhone(u.phone), expiresIn: 600 };
+  }, { limit: "auth" });
+  r.post("/api/me/phone/verify", async (ctx) => {
+    const me = needUser(ctx);
+    const u = await one("SELECT phone FROM users WHERE id = $1", [me.id]);
+    const channel = phoneChannel();
+    if (!channel || !u?.phone) throw bad("Nothing to verify");
+    await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + u.phone, ctx.body?.code);
+    await q("UPDATE users SET phone_verified_at = now() WHERE id = $1", [me.id]);
+    audit("phone_verified", me.id);
+    return { verified: true };
+  }, { limit: "auth" });
+
   // the owner's own profile photo (partner KYC): view and change it
   r.get("/api/me/photo", async (ctx) => {
     const row = await one("SELECT data FROM user_photos WHERE user_id = $1", [needUser(ctx).id]);
@@ -343,7 +381,8 @@ export function accountRoutes(r) {
     const phone = indianPhone(ctx.body.phone);
     if (name.length < 2) throw bad("Please enter your name");
     if (ctx.body.phone && !phone) throw bad("Please enter a valid Indian mobile number");
-    await q("UPDATE users SET name = $2, phone = $3, updated_at = now() WHERE id = $1", [u.id, name, phone || ""]);
+    await q(`UPDATE users SET name = $2, phone = $3, updated_at = now(),
+               phone_verified_at = CASE WHEN phone = $3 THEN phone_verified_at ELSE NULL END WHERE id = $1`, [u.id, name, phone || ""]);
     return profile(u.id);
   });
   r.post("/api/me/complete-profile", async (ctx) => {

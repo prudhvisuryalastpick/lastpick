@@ -254,6 +254,8 @@ export const api = {
   async myPhoto() { return null; },
   async setMyPhoto() {},
   async adminUserPhoto() { return null; },
+  async sendMyPhoneCode() { return { sent: true, channel: "whatsapp", expiresIn: 600 }; },
+  async verifyMyPhone() { return { verified: true }; },
   async getProfile() {
     const u = me(load());
     if (u.needsProfile) return { id: u.id, needsProfile: true, name: "", phone: u.phone || "", email: u.email || "", role: "user", regions: [] };

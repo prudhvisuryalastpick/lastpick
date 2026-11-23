@@ -120,6 +120,7 @@ export function Login({ next = "/" }) {
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneSentAt, setPhoneSentAt] = useState(0);
   const [password2, setPassword2] = useState("");
+  const [waOk, setWaOk] = useState(false); // agreed to get codes and account messages on WhatsApp
   // "Is this your correct mobile number?" asked once before the code is sent
   const [askMobile, setAskMobile] = useState(false);
   const mobileOk = useRef("");
@@ -185,6 +186,7 @@ export function Login({ next = "/" }) {
     if (password.length < 8) return setErr("Password must be at least 8 characters");
     if (password2 !== password) return setErr("Passwords don't match. Type the same password in both boxes.");
     if (IS_OWNER_APP && !photo) return setErr("Please add your profile photo");
+    if (phoneOn && viaWa && !waOk) return setErr("Please agree to get your codes on WhatsApp (tick the WhatsApp box)");
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
     if (!codeSent && mobileOk.current !== mobile.replace(/\D/g, "")) { setAskMobile(true); return; }
     setBusy(true);
@@ -196,7 +198,7 @@ export function Login({ next = "/" }) {
         if (sent) setEmailSentAt(Date.now());
         // and an SMS code to the mobile (when switched on)
         if (phoneOn) {
-          try { const r = await api.sendSmsOtp(mobile); if (r?.skipped) { setPhoneSkipped(true); skippedNow = true; } else setPhoneSentAt(Date.now()); }
+          try { const r = await api.sendSmsOtp(mobile, waOk); if (r?.skipped) { setPhoneSkipped(true); skippedNow = true; } else setPhoneSentAt(Date.now()); }
           catch (x) { setBusy(false); return setErr(errText(x)); }
         }
         if (sent || phoneOn) {
@@ -208,7 +210,7 @@ export function Login({ next = "/" }) {
         if (emailSentAt && !/^\d{6}$/.test(otp.trim())) { setBusy(false); return setErr("Enter the 6-digit code from the e-mail"); }
         if (phoneOn && !/^\d{6}$/.test(phoneCode.trim())) { setBusy(false); return setErr(`Enter the 6-digit code from ${viaWa ? "WhatsApp" : "the SMS"}`); }
       }
-      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined, photo: IS_OWNER_APP ? photo : undefined });
+      await api.signUp({ email, password, name: name.trim(), phone: mobile, consent: consentPayload(consent), otp: otp.trim(), phoneOtp: phoneOn ? phoneCode.trim() : undefined, photo: IS_OWNER_APP ? photo : undefined, waOptIn: phoneOn && viaWa ? waOk : undefined });
       markWelcomed(); toast(IS_OWNER_APP ? "Account created. Now register your business." : "Account created. Welcome!");
       await refresh();
       if (IS_OWNER_APP) navigate("/owner/business");
@@ -310,13 +312,17 @@ export function Login({ next = "/" }) {
             style={password2 ? { borderColor: password2 === password ? "var(--ok)" : "var(--bad)" } : undefined} />
             {password2 && <span className="hint" style={{ color: password2 === password ? "var(--ok)" : "var(--bad)", fontWeight: 700 }}>{password2 === password ? "✓ Passwords match" : "Passwords don't match"}</span>}</div>
           <ConsentBoxes value={consent} onChange={setConsent} />
+          {phoneOn && viaWa && <label style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#fff", borderRadius: 14, padding: "11px 12px", fontSize: 12.5, lineHeight: 1.45, cursor: "pointer" }}>
+            <input type="checkbox" checked={waOk} onChange={(e) => setWaOk(e.target.checked)} style={{ width: 20, height: 20, flex: "none", accentColor: "var(--brand-2)" }} />
+            <span>I agree to get my verification codes and account messages (approvals, receipts) from {APP_NAME} on WhatsApp at this number. I can stop them any time.</span>
+          </label>}
           </div>
           {codeSent && emailSentAt > 0 && <div className="fld"><label htmlFor="su-otp">{phoneOn ? "E-mail code" : "6-digit code"}</label>
             <input id="su-otp" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} placeholder="••••••" autoFocus />
             <CodeTimer sentAt={emailSentAt} hint="Didn't get it? Check spam." onResend={async () => { try { await api.sendEmailOtp(email); setOtp(""); setEmailSentAt(Date.now()); toast("New e-mail code sent"); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && phoneOn && <div className="fld"><label htmlFor="su-sms">{viaWa ? "WhatsApp code" : "Mobile code"}: 6 digits sent {viaWa ? "on WhatsApp" : "by SMS"} to {prettyPhone(indianPhone(mobile) || mobile)}</label>
             <input id="su-sms" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-            <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile); setPhoneCode(""); setPhoneSentAt(Date.now()); toast(`New ${phoneWord} code sent`); } catch (x) { setErr(errText(x)); } }} /></div>}
+            <CodeTimer sentAt={phoneSentAt} hint="Check the number is right." onResend={async () => { try { await api.sendSmsOtp(mobile, waOk); setPhoneCode(""); setPhoneSentAt(Date.now()); toast(`New ${phoneWord} code sent`); } catch (x) { setErr(errText(x)); } }} /></div>}
           {codeSent && <button type="button" className="link small" style={{ alignSelf: "flex-start" }} onClick={() => { setCodeSent(false); setOtp(""); setEmailSentAt(0); setPhoneCode(""); setPhoneSentAt(0); setErr(""); }}>Change e-mail or mobile number</button>}
           {codeSent && <div className="box small">🔒 Never share this code. {APP_NAME} and businesses will never ask for it.</div>}
           {err && <div className="error">{err}</div>}

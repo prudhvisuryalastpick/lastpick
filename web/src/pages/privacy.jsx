@@ -16,7 +16,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 
 // What we collect and why: shown at sign-up, in the consent gate and in the full notice.
 export const NOTICE_ITEMS = [
-  { data: "Name, e-mail and mobile number", why: "To create your account and log you in. Your e-mail is checked with a one-time code; your mobile number is saved but not checked with a code. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
+  { data: "Name, e-mail and mobile number", why: "To create your account and log you in. Your e-mail is checked with a one-time code; your mobile number is checked with a one-time code on WhatsApp (when you agree to get it there). Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
   { data: "Profile photo of the owner (business accounts)", why: "For KYC: to check the person running the business. Seen only by you and the LastPick team, never shown to customers." },
   { data: "Your location", why: "Needed to show offers within 30 km of you. Sent only rounded to about 1 km to find offers, and to OpenStreetMap to show your area name and pincode. We don't store it." },
@@ -137,7 +137,7 @@ export function Privacy() {
         <NoticeList />
         <h2>Who can see or receive your data</h2>
         <p><b>Businesses</b> never get your number. They see only your name, and only if you tap "I'm interested" on their offer. <b>Customers</b> who are logged in can see a business's contact number. Reviews show your first name only.</p>
-        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Amazon Web Services (Amazon SES, Mumbai region: sends sign-up codes, password-reset codes and account e-mails; it receives only your e-mail address and the message), and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
+        <p><b>Service providers</b> who process data for us: Supabase (servers, database and backups, stored in its Mumbai region, India), Cloudflare (delivers the website and app pages securely), Amazon Web Services (Amazon SES, Mumbai region: sends sign-up codes, password-reset codes and account e-mails; it receives only your e-mail address and the message); Meta (WhatsApp Business: sends your mobile verification code and, if you agreed, account messages to your WhatsApp; it receives only your number and the message), and, once paid plans start, our payment gateway, which handles card and UPI details. We never see or store them. We share data with government agencies only when Indian law requires it.</p>
         <h2>How long we keep it</h2>
         <table className="admin small" style={{ width: "100%" }}>
           <tbody>

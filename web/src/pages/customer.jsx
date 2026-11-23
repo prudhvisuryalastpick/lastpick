@@ -555,6 +555,65 @@ function ContactReview({ offer, onClose }) {
 }
 
 // ------------------------------------------------------------------ Account
+// KYC status: e-mail verified, mobile verified (with "Verify now" by WhatsApp/SMS code), partner photo
+export function KycStatus({ compact }) {
+  const { profile, business, refresh, toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [agree, setAgree] = useState(!!profile?.whatsappOptIn);
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!profile) return null;
+  const viaWa = profile.phoneCheck === "whatsapp";
+  const canVerify = !!profile.phoneCheck && !!profile.phone && !profile.phoneVerified;
+  const allOk = profile.emailVerified && profile.phoneVerified && (!IS_OWNER_APP || profile.hasPhoto);
+  const send = async () => {
+    if (viaWa && !agree) return toast("Please tick the WhatsApp box first");
+    setBusy(true);
+    try { const r = await api.sendMyPhoneCode(agree); if (r?.verified) { await refresh(); setOpen(false); } else { setSent(true); toast(`Code sent on ${viaWa ? "WhatsApp" : "SMS"}`); } } catch (x) { toast(errText(x)); }
+    setBusy(false);
+  };
+  const verify = async () => {
+    if (!/^\d{6}$/.test(code.trim())) return toast("Enter the 6-digit code");
+    setBusy(true);
+    try { await api.verifyMyPhone(code); await refresh(); toast("Mobile number verified"); setOpen(false); } catch (x) { toast(errText(x)); }
+    setBusy(false);
+  };
+  const rows = [
+    ["E-mail", profile.emailVerified ? "✓ Verified" : "Not verified", profile.emailVerified],
+    ["Mobile number", profile.phoneVerified ? "✓ Verified" : profile.phone ? "Not verified" : "Not added", profile.phoneVerified],
+    ...(IS_OWNER_APP ? [["Profile photo", profile.hasPhoto ? "✓ Added" : "Needed", profile.hasPhoto]] : []),
+    ...(IS_OWNER_APP && business ? [["Business check by LastPick", business.status === "verified" ? "✓ Verified" : business.status === "pending" ? "In progress" : "Action needed", business.status === "verified"]] : []),
+  ];
+  return (
+    <div style={{ background: "#fff", borderRadius: 16, padding: "12px 14px", margin: compact ? 0 : "0 14px 12px", boxShadow: compact ? "none" : "var(--shadow)" }}>
+      <div className="row" style={{ alignItems: "center" }}>
+        <b>KYC</b>
+        <span style={{ fontSize: 12, fontWeight: 800, borderRadius: 999, padding: "4px 10px", background: allOk ? "var(--ok-soft)" : "#FFEDD5", color: allOk ? "var(--ok)" : "#9A3412" }}>{allOk ? "✓ Completed" : "● In progress"}</span>
+      </div>
+      {rows.map(([a, b, ok]) => <div key={a} className="row" style={{ padding: "10px 0", borderBottom: "1px solid var(--soft)", fontSize: 13.5 }}><span>{a}</span><b style={{ color: ok ? "var(--ok)" : "var(--warn)" }}>{b}</b></div>)}
+      {canVerify && <button className="btn main" style={{ marginTop: 12, width: "100%" }} onClick={() => setOpen(true)}>Verify mobile number</button>}
+      {open && <Sheet onClose={() => setOpen(false)}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <h2 style={{ margin: 0 }}>Verify {prettyPhone(profile.phone)}</h2>
+          {!sent ? <>
+            <p className="muted" style={{ margin: 0 }}>We'll send a 6-digit code to this number {viaWa ? "on WhatsApp" : "by SMS"}.</p>
+            {viaWa && <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, lineHeight: 1.45 }}>
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ width: 20, height: 20, flex: "none" }} />
+              <span>I agree to get my verification codes and account messages from {APP_NAME} on WhatsApp at this number.</span></label>}
+            <button className="btn main" disabled={busy} onClick={send}>{busy ? "Sending…" : "Send code"}</button>
+          </> : <>
+            <div className="fld"><label htmlFor="kyc-code">6-digit code from {viaWa ? "WhatsApp" : "SMS"}</label>
+              <input id="kyc-code" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="••••••" autoFocus /></div>
+            <button className="btn main" disabled={busy} onClick={verify}>{busy ? "Checking…" : "Verify"}</button>
+            <button className="link small" onClick={send} disabled={busy}>Send a new code</button>
+          </>}
+        </div>
+      </Sheet>}
+    </div>
+  );
+}
+
 export function Account() {
   return <NeedLogin why="Log in to your account"><AccountInner /></NeedLogin>;
 }
@@ -582,6 +641,7 @@ function AccountInner() {
     <>
       <div className="acchead"><span className="cavatar">{initialsOf(profile?.name) || "?"}</span><div style={{ minWidth: 0 }}><h1>{profile?.name || "Your account"}</h1><div className="muted small ellipsis">{profile?.email}{profile?.phone ? " · " + prettyPhone(profile.phone) : ""}</div></div></div>
       <div className="lift2">
+      <KycStatus />
 
       {["customer", "owner"].map((plan) => {
         const s = subs[plan];
