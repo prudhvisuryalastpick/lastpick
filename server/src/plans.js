@@ -1,10 +1,11 @@
-// Plans. There is no free version: customers need a Customer Pass to see businesses' numbers, and businesses need
-// Business Pro to post. Until the payment gateway is added, an admin activates plans after a payment (Admin → Plans).
-// (The old "free launch mode" is switched off for good; freeMode() is kept so callers stay simple.)
+// Plans: customers need a Customer Pass to see businesses' numbers, and businesses need Business Pro to post.
+// Free launch mode (admin switch, app_settings "free_mode"): while on, every customer can see numbers and every
+// VERIFIED business can post, with no payment. Off by default; switched off again when live payments start.
 import { one } from "./db.js";
+import { getSetting, setSetting } from "./settings.js";
 
-export async function freeMode() { return false; }
-export async function setFreeMode() { /* no free version */ }
+export async function freeMode() { return (await getSetting("free_mode", false)) === true; }
+export async function setFreeMode(on, by) { await setSetting("free_mode", !!on, by); }
 
 export const subActive = (s) => !!s && ["active", "cancelled"].includes(s.status) && s.current_period_end && new Date(s.current_period_end) > new Date();
 
@@ -15,6 +16,11 @@ export const OWNER_ACTIVE_SQL = (b, free) => `(${free} OR ${b}.trial_ends_at > n
 
 // Is this user's plan active? (trial_ends_at is only set when an admin gives someone extra days by hand.)
 export async function planActive(uid, plan) {
+  if (await freeMode()) {
+    if (plan === "customer") return true;
+    const b = await one("SELECT status FROM businesses WHERE id = $1", [uid]);
+    return b?.status === "verified";
+  }
   const r = plan === "customer"
     ? await one(`SELECT (u.trial_ends_at > now()) AS trial, s.status, s.current_period_end FROM users u
                  LEFT JOIN subscriptions s ON s.user_id = u.id AND s.plan = 'customer' WHERE u.id = $1`, [uid])

@@ -191,10 +191,11 @@ export function AppProvider({ children }) {
   const value = {
     ...state, refresh, mode, setMode, location, locationStatus, retryLocation, place, city, setCity, area, setArea, toast: setToastMsg,
     // There is no free version: access needs an active plan (an admin can still add extra days by hand via trialEndsAt).
-    config, setConfig, freeMode: false,
+    config, setConfig, freeMode: !!config?.freeMode,
     trial: { customer: state.profile?.trialEndsAt || null, owner: state.business?.trialEndsAt || null },
-    isCustomer: !!state.session && (!!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
-    isOwner: !!state.session && (!!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
+    // free launch mode (admin switch): everyone has the Customer Pass, verified businesses have Business Pro
+    isCustomer: !!state.session && (!!config?.freeMode || !!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
+    isOwner: !!state.session && ((!!config?.freeMode && state.business?.status === "verified") || !!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
     isAdmin: state.profile?.role === "admin", // super admin: all of India
     isStaff: ["admin", "moderator"].includes(state.profile?.role), // admin or city/state moderator
   };

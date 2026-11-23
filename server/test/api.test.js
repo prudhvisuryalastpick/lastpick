@@ -800,3 +800,25 @@ test("public counts: partners in a pincode and in total, customers, newly joined
   for (const j of all.data.joined) assert.deepEqual(Object.keys(j).sort(), ["area", "at", "name"], "name, area and time only");
   assert.equal((await client("partner").get("/api/stats")).status, 200);
 });
+
+test("free launch mode: customers see numbers without a pass while it's on; off again needs a plan", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const c = client("customer");
+  c.token = (await c.post("/api/auth/signup", { email: "freebie@test.lastpick.in", password: "longpassword", name: "Free Bie", phone: "9811155588", consent: fullConsent() })).data.token;
+  // a live offer the customer can open (lists may be cached for a minute, so try them until one answers)
+  let offer = null, locked = null;
+  for (const o of (await c.get("/api/offers?lat=12.97&lng=77.60&radius=9")).data) {
+    const r = await c.post(`/api/offers/${o.id}/reveal`);
+    if (r.status === 403) { offer = o; locked = r; break; }
+  }
+  assert.ok(offer, "a live offer to try");
+  assert.match(locked.data.error, /Customer Pass/);
+  assert.notEqual((await client("customer").post("/api/admin/settings", { freeMode: true })).status, 200, "not for customers");
+  assert.equal((await a.post("/api/admin/settings", { freeMode: true })).data.freeMode, true);
+  assert.equal((await c.get("/api/config")).data.freeMode, true);
+  const open = await c.post(`/api/offers/${offer.id}/reveal`);
+  assert.ok(!(open.status === 403 && /Customer Pass/.test(open.data.error || "")), JSON.stringify(open.data));
+  assert.equal((await a.post("/api/admin/settings", { freeMode: false })).data.freeMode, false);
+  assert.equal((await c.get("/api/config")).data.freeMode, false);
+  assert.equal((await c.post(`/api/offers/${offer.id}/reveal`)).status, 403);
+});

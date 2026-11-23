@@ -6,6 +6,7 @@ import { BusinessPage, OwnerDashboard, OwnerGate, OwnerLeads, OwnerOffers, PostO
 import { Admin, Help, Login, Plans, Refund, Subscribe } from "./pages/account.jsx";
 import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
 import { About } from "./pages/about.jsx";
+import { HelpButton } from "./pages/help.jsx";
 import { ConsentGate, Contact, DeleteAccountInfo, Grievance, Privacy, PrivacyCenter, Terms } from "./pages/privacy.jsx";
 import { OwnerReviews } from "./pages/reviews.jsx";
 import { BusinessInsights, Rules, Savings, Support, SupportThread } from "./pages/impact.jsx";
@@ -122,6 +123,7 @@ export default function App() {
       {!IS_ADMIN_APP && biz && !fullScreen && !loading && <QuoteStrip partner />}
       <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>
       {!IS_ADMIN_APP && !loading && !fullScreen && <LocationPrompt partner={biz} />}
+      {showNav && !needsConsent && !loading && <HelpButton partner={biz} />}
       {showNav && !needsConsent && !biz && (
         <nav className="nav cust" aria-label="Main">
           {CUSTOMER_NAV.map(([to, icon, label]) => <a key={to} href={"#" + to} className={path === to ? "on" : ""} aria-current={path === to ? "page" : undefined}><LineIcon d={icon} size={22} />{label}</a>)}

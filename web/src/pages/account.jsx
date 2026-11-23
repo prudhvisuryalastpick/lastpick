@@ -22,7 +22,8 @@ export function Plans({ plan: initial }) {
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
   const payOn = !isLive || !!config?.payments; // Razorpay keys saved on the server
-  const canPay = !IS_NATIVE && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
+  const free = !!config?.freeMode;
+  const canPay = !free && !IS_NATIVE && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
@@ -35,7 +36,8 @@ export function Plans({ plan: initial }) {
     else if (left > 0) status = ["ok", "🎁", `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trialEnd)}. After that ${rupee(p.price)} for 30 days, or less on a longer plan.`];
     else if (plan === "owner" && !business) status = ["no", "🏪", "Register your business first", "Business Pro is for business partners we have verified."];
     else if (plan === "owner" && business.status !== "verified") status = ["no", "⏳", "Waiting for verification", "You can buy Business Pro once we verify your business."];
-    else status = ["no", "⚠️", `${p.name} is not active`, `Pick a plan to ${plan === "owner" ? "post offers" : "see businesses' numbers"}. There is no free version.`];
+    else if (config?.freeMode) status = null; // free launch: the green "Free during launch" note says it all
+    else status = ["no", "⚠️", `${p.name} is not active`, `Pick a plan to ${plan === "owner" ? "post offers" : "see businesses' numbers"}.`];
   }
   return (
     <>
@@ -47,6 +49,7 @@ export function Plans({ plan: initial }) {
         <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
       </div>}
       {status && <div className={"status " + status[0]}><span style={{ fontSize: 24 }}>{status[1]}</span><div><b>{status[2]}</b><div className="muted small">{status[3]}</div></div></div>}
+      {free && <div className="banner" style={{ margin: "0 16px 12px", background: "var(--ok-soft, #DCFCE7)", color: "var(--ok, #166534)" }}>🎉 <span><b>Free during launch.</b> {plan === "owner" ? "Verified businesses can post offers" : "You can see every business's number"} at no cost right now. No payment is needed.</span></div>}
       <PlanCard plan={plan} fromDay={cheapestPerDay(plan)} />
       <div className="label-up" style={{ paddingBottom: 14 }}>Choose a pack{plan === "owner" ? " (verified businesses)" : ""}</div>
       <div className="packs">
@@ -115,7 +118,7 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You pay once through Razorpay (UPI, card or netbanking): Customer Pass ₹29 for 5 days, ₹59 for 15 days or ₹99 for 30 days; Business Pro ₹119 for 5 days, ₹299 for 15 days or ₹499 for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
+        <p>You pay once through Razorpay (UPI, card or netbanking): Customer Pass ₹29 for 5 days, ₹59 for 15 days or ₹99 for 30 days; Business Pro ₹119 for 5 days, ₹299 for 15 days or ₹499 for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
         <h2>No auto-renewal</h2>
         <p>Plans do not renew automatically and no mandate is set up. When your days end, the plan stops unless you pay again. Paying again before the end adds the new days to your current end date.</p>
         <h2>Refunds</h2>
@@ -169,6 +172,26 @@ function PaymentsNote() {
   );
 }
 
+// Free launch mode: no payments; customers see numbers and verified businesses post, until switched off.
+function FreeModeSwitch({ toast }) {
+  const { refresh } = useApp();
+  const [on, setOn] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.adminSettings().then((x) => setOn(!!x.freeMode)).catch(() => setOn(false)); }, []);
+  const flip = async (v) => {
+    setBusy(true);
+    try { const r = await api.setAdminSettings({ freeMode: v }); setOn(!!r.freeMode); toast(r.freeMode ? "Free launch mode is on: no payments needed" : "Free launch mode is off: paid plans are needed again"); refresh?.(); } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="panel switchrow" style={{ margin: "4px 16px 12px" }}>
+      <div><b>Free launch mode</b> {on ? <span className="pill p-ok">On</span> : <span className="pill p-mute">Off</span>}
+        <div className="muted small">When on, LastPick is free: every customer can see businesses' numbers and every verified business can post, with no payment. Turn it off when live payments start; paid plans are then needed again.</div></div>
+      {on == null ? <span className="muted small">…</span> : <button type="button" aria-label="Free launch mode on or off" aria-pressed={on} className={"sw " + (on ? "on" : "")} disabled={busy} onClick={() => flip(!on)} />}
+    </div>
+  );
+}
+
 function SingleDeviceSwitch({ toast }) {
   const [on, setOn] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -201,6 +224,7 @@ function AdminOverview({ toast, go }) {
   return (
     <>
       {isAdmin && <PaymentsNote />}
+      {isAdmin && <FreeModeSwitch toast={toast} />}
       {isAdmin && <SingleDeviceSwitch toast={toast} />}
       {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>

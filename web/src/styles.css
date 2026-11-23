@@ -670,6 +670,28 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
 .social-links a:hover { background: var(--brand-soft, #E3F6EF); }
 .social-links .soon { opacity: .5; cursor: default; }
+/* Help button + panel (FAQ boxes; no chat) */
+.helpfab { position: fixed; z-index: 11; bottom: calc(92px + env(safe-area-inset-bottom)); right: max(16px, calc(50% - 320px + 16px)); width: 54px; height: 54px; border-radius: 50%; border: 3px solid #fff; background: var(--deep); color: #fff; display: grid; place-items: center; box-shadow: 0 10px 24px rgba(0,0,0,.25); cursor: pointer; }
+.helpdim { position: fixed; inset: 0; z-index: 30; background: rgba(10, 20, 20, .35); display: flex; align-items: flex-end; justify-content: center; }
+.helppanel { width: 100%; max-width: 640px; height: min(86vh, 720px); background: var(--bg); border-radius: 24px 24px 0 0; display: flex; flex-direction: column; overflow: hidden; animation: fadeUp .25s ease both; }
+.helppanel .hh { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--deep); color: #fff; }
+.helppanel .hh b { display: block; font-size: 15px; } .helppanel .hh span { font-size: 12px; opacity: .85; }
+.helppanel .hav { width: 36px; height: 36px; border-radius: 50%; background: var(--hi); color: var(--hi-ink); display: grid; place-items: center; flex: none; }
+.helppanel .hx { background: rgba(255,255,255,.14); border: 0; color: #fff; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.helppanel .hs { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.helppanel .hs input { width: 100%; height: 44px; border-radius: 99px; border: 1.5px solid var(--line); padding: 0 16px; font-size: 15px; background: #fff; color: var(--ink); outline: 0; }
+.helppanel .hs input:focus { border-color: var(--ink); }
+.helppanel .hl { flex: 1; overflow-y: auto; padding: 8px 14px 14px; }
+.helppanel .hg { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--brand); margin: 14px 2px 8px; }
+.biz .helppanel .hg { color: #9A3412; }
+.helppanel .hq { border: 1.5px solid color-mix(in srgb, var(--ink) 22%, transparent); border-radius: 14px; margin-bottom: 8px; background: #fff; overflow: hidden; }
+.helppanel .hq.open { border-color: var(--ink); }
+.helppanel .hq > button { width: 100%; background: #fff; border: 0; padding: 13px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; font-weight: 700; font-size: 14.5px; color: var(--ink); cursor: pointer; }
+.helppanel .hq.open > button svg { transform: rotate(180deg); }
+.helppanel .ha { padding: 12px 14px 14px; border-top: 1.5px dashed color-mix(in srgb, var(--ink) 18%, transparent); background: var(--soft); font-size: 14px; line-height: 1.55; color: var(--ink); }
+.helppanel .hstuck { margin-top: 8px; font-size: 13px; color: var(--muted); } .helppanel .hstuck .link { background: none; border: 0; padding: 0; font-weight: 700; cursor: pointer; }
+.helppanel .hnone { text-align: center; padding: 30px 10px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); } .helppanel .hnone span { color: var(--muted); }
+.helppanel .hf { padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; display: flex; flex-direction: column; gap: 8px; text-align: center; font-size: 12.5px; color: var(--muted); }
 /* About page */
 .about .acard { background: #fff; border-radius: 20px; padding: 16px; margin-top: 12px; box-shadow: var(--shadow); }
 .about .founder { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,.15); }

@@ -32,7 +32,7 @@ function OwnerPaywall() {
   return (
     <>
       <div className="page-h owner-row">{photo ? <img className="avatar" src={photo} alt="" style={{ objectFit: "cover", borderRadius: "50%" }} /> : <div className="avatar">{business.name[0]}</div>}<div><h1 className="title" style={{ fontSize: 20 }}>{business.name}</h1><div className="muted">Business account · {business.area}</div></div></div>
-      <div className="status no"><span style={{ fontSize: 24 }}>⏰</span><div><b>{PLANS.owner.name} is not active</b><div className="muted small">Pick a plan to post offers for customers within 30 km. There is no free version.</div></div></div>
+      <div className="status no"><span style={{ fontSize: 24 }}>⏰</span><div><b>{PLANS.owner.name} is not active</b><div className="muted small">Pick a plan to post offers for customers within 30 km.</div></div></div>
       <PlanCard plan="owner" />
       <div className="pad">
         <a className="btn main" href="#/plans">{PLANS.owner.tagline} · just {PLANS.owner.perPost}</a>
@@ -97,7 +97,7 @@ function StatusBanner() {
 
 // ------------------------------------------------------------------ Dashboard
 export function OwnerDashboard() {
-  const { business, subs, setMode, trial } = useApp();
+  const { business, subs, setMode, trial, freeMode: freeLaunch } = useApp();
   const [offers, setOffers] = useState(null);
   const [leads, setLeads] = useState(null);
   const now = useNow(30000);
@@ -115,7 +115,7 @@ export function OwnerDashboard() {
   const left = daysLeft(trial?.owner);
   // days left on Business Pro, shown straight away at the top (paid days first, else free days)
   const paidLeft = subs.owner?.active ? daysLeft(subs.owner.currentPeriodEnd) : 0;
-  const daysText = paidLeft > 0 ? `${PLANS.owner.name} · ${paidLeft} day${paidLeft > 1 ? "s" : ""} left`
+  const daysText = freeLaunch && business.status === "verified" ? "Free during launch" : paidLeft > 0 ? `${PLANS.owner.name} · ${paidLeft} day${paidLeft > 1 ? "s" : ""} left`
     : left > 0 ? `Free days · ${left} left` : business.status === "verified" ? `${PLANS.owner.name} · 0 days left` : "";
   const cheapest = PLANS.owner.packs[0];
   const hour = new Date().getHours();
@@ -158,7 +158,7 @@ export function OwnerDashboard() {
       </>}
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
-      <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`
+      <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{freeLaunch && business.status === "verified" ? `Free during launch: post up to 3 offers a day at no cost.` : paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`
         : left > 0 ? `Free days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then from ${rupee(cheapest.price)} for ${cheapest.days} days.`
           : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(cheapest.price)} for ${cheapest.days} days.`
             : `${PLANS.owner.name}: 0 days left. Plans from ${rupee(cheapest.price)} for ${cheapest.days} days.`}</span></a>

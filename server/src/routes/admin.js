@@ -230,14 +230,15 @@ export function adminRoutes(r) {
   });
 
   // Super admins: app switches (one device at a time for customers).
-  const settingsNow = async () => ({ singleDevice: await singleDeviceOn() });
+  const settingsNow = async () => ({ singleDevice: await singleDeviceOn(), freeMode: await freeMode() });
   r.get("/api/admin/settings", async (ctx) => { staff(ctx); return settingsNow(); });
   r.post("/api/admin/settings", async (ctx) => {
     const me = superAdmin(ctx);
-    const { singleDevice } = ctx.body || {};
-    if (typeof singleDevice !== "boolean") throw bad("Say which switch to turn on or off");
+    const { singleDevice, freeMode: free } = ctx.body || {};
+    if (typeof singleDevice !== "boolean" && typeof free !== "boolean") throw bad("Say which switch to turn on or off");
     if (typeof singleDevice === "boolean") await setSetting("single_device", singleDevice, me.id);
-    audit("setting_changed", me.id, { singleDevice });
+    if (typeof free === "boolean") await setFreeMode(free, me.id);
+    audit("setting_changed", me.id, { singleDevice, freeMode: free });
     return settingsNow();
   });
 
