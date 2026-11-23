@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, categoryOf } from "./lib/config.js";
+import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
@@ -9,9 +9,11 @@ export const Spinner = () => <div className="spinner" aria-label="Loading" />;
 
 // Shown under a problem message (customer and partner apps): where to get help, and how long it takes.
 export const TICKET_DAYS = "1–5 working days";
-export function TicketHint({ style }) {
+// payment: ask for a clear screenshot of the payment when they e-mail us
+export function TicketHint({ style, payment = false }) {
   if (IS_ADMIN_APP) return null;
-  return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/grievance">Raise a ticket</a>. We resolve tickets in {TICKET_DAYS}.</div>;
+  const mail = <a className="link" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(payment ? "Payment problem" : "Problem in LastPick")}`}>{SUPPORT_EMAIL}</a>;
+  return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/grievance">Raise a ticket</a>, or e-mail {payment ? "a clear screenshot of the payment" : "the details (a screenshot helps)"} to {mail}. We resolve it in {TICKET_DAYS}.</div>;
 }
 
 export function Empty({ icon, title, children, action }) {

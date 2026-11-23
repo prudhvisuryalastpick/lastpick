@@ -208,7 +208,7 @@ export function Contact() {
         <h2>Who runs {APP_NAME}</h2>
         <p>{operator}{LEGAL.address ? <><br />{LEGAL.address}</> : null}<br />Website: {WEBSITE_URL}</p>
         <h2>Support</h2>
-        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem, <a className="link" href="#/grievance">raise a ticket</a>: we resolve tickets in 1–5 working days.</p>
+        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem, <a className="link" href="#/grievance">raise a ticket</a> or e-mail the details (for payments, a clear screenshot of the payment). We resolve it in 1–5 working days.</p>
         <h2>Complaints (Grievance Officer)</h2>
         <GrievanceOfficer />
         <p style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/grievance">Raise a complaint ticket</a></p>

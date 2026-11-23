@@ -64,7 +64,7 @@ export function Plans({ plan: initial }) {
       </div>
       <div className="pad">
         {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
-        {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}<TicketHint /></div>}
+        {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}<TicketHint payment /></div>}
         {canPay
           ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `${s?.active ? "Add 30 days" : "Pay"} ${rupee(opt.price)}`}</button>
           : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {left > 0
@@ -98,7 +98,7 @@ export function Help() {
         <h2>Your data</h2>
         <p>Account → Privacy & your data: download everything we hold about you, or delete your account.</p>
         <h2>Contact us</h2>
-        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem (payments, your account, an offer or a business), <a className="link" href="#/grievance">raise a ticket</a>: we resolve tickets in {TICKET_DAYS}.</p>
+        <p>For any problem (payments, your account, an offer or a business), <a className="link" href="#/grievance">raise a ticket</a>, or e-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> with the details. For a payment problem, attach a clear screenshot of the payment. We resolve it in {TICKET_DAYS}.</p>
       </div>
     </>
   );
@@ -121,7 +121,7 @@ export function Refund() {
         <h2>Offers and deals</h2>
         <p>{APP_NAME} does not sell, collect payment for, or deliver any offer listed in the app. Payments for offers are made directly to the business, so refunds for offers must be requested from that business.</p>
         <h2>Contact</h2>
-        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> with your registered email and payment details.</p>
+        <p><a className="link" href="#/grievance">Raise a ticket</a>, or e-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> with your registered e-mail and a clear screenshot of the payment. We resolve it in {TICKET_DAYS}.</p>
       </div>
     </>
   );
