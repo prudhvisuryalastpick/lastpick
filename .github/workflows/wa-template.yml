@@ -1,7 +1,7 @@
 # One-off helper: asks Meta to create the WhatsApp OTP template "lastpick_otp"
 # (Authentication, English, Copy code button) on the Lastpick WhatsApp account,
 # then lists the account's templates. Prints only Meta's replies, never the token.
-# Runs when this file changes, or by hand from the Actions tab.
+# Runs when this file changes, or by hand from the Actions tab. (re-check 23 Nov evening)
 name: WhatsApp OTP template
 
 on:
