@@ -11,8 +11,6 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
 #   BREVO_API_KEY             Brevo: sends sign-up / reset codes, receipts and account e-mails (the e-mail provider).
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES: only used while BREVO_API_KEY is not saved. Delete them once Brevo works. Required: no other e-mail provider.
-#                             Optional VARIABLE: AWS_SES_REGION (default ap-south-1, Mumbai)
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code is switched off for now (see the WA_VERIFY line below); WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
 #                             Optional VARIABLES: WA_OTP_TEMPLATE (default lastpick_otp), WA_UPDATE_TEMPLATE (account updates), WA_LANG (default en)
@@ -111,13 +109,8 @@ jobs:
           else
             $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" BREVO_API_KEY >/dev/null 2>&1 || true
           fi
-          # Amazon SES: only a stand-in until the Brevo key is saved; removed from the functions once it is
-          if [ -n "${{ secrets.BREVO_API_KEY }}" ]; then
-            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SES_REGION >/dev/null 2>&1 || true
-          elif [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              "AWS_SES_REGION=${{ vars.AWS_SES_REGION || 'ap-south-1' }}" >/dev/null
-          fi
+          # Amazon SES is not used: its keys are removed from the functions
+          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SES_REGION >/dev/null 2>&1 || true
           # WhatsApp login switch (off unless the variable WA_LOGIN is "on").
           # Mobile check by WhatsApp code is switched OFF for now (owner's choice, Nov 2026: e-mail only).
           # To bring it back, change WA_VERIFY=off below to: WA_VERIFY=${{ vars.WA_VERIFY || 'off' }}

@@ -648,14 +648,6 @@ test("partner sign-up needs a profile photo (KYC); confirm with /api/me and the 
   assert.equal(ph.status, 200); assert.equal(ph.data.photo, PHOTO);
 });
 
-test("Amazon SES signing matches the AWS reference (Signature V4)", async () => {
-  const { signAws } = await import("../src/mail.js");
-  const h = await signAws({ method: "POST", url: "https://email.ap-south-1.amazonaws.com/v2/email/outbound-emails", body: JSON.stringify({ hello: "world" }),
-    region: "ap-south-1", service: "ses", accessKey: "AKIDEXAMPLE", secretKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", now: new Date("2026-11-22T10:15:00Z") });
-  // the same request signed by the aws4 reference library
-  assert.equal(h.authorization, "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261122/ap-south-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=5cc92258e50e14a9de02ffc39a7b9d6d7cfc5fd8045b24586e26a7ffa3ab9ed1");
-});
-
 test("sign-up checks the mobile number with a WhatsApp code when WA_VERIFY is on", async () => {
   const n = client("night"); // this test server runs with WA_VERIFY=on
   { const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;

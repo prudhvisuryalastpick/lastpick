@@ -50,11 +50,6 @@ export const MAIL_FROM = env.MAIL_FROM || "";
 export const CRON_SECRET = env.CRON_SECRET || "";
 // Brevo: the e-mail provider (sign-up codes, password resets, receipts, account e-mails).
 export const BREVO_API_KEY = env.BREVO_API_KEY || "";
-// Amazon SES: used for e-mail only while BREVO_API_KEY is not set. Keys of an IAM user allowed only "ses:SendEmail".
-export const AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID || "";
-export const AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY || "";
-export const AWS_SES_REGION = env.AWS_SES_REGION || "ap-south-1";
-export const SES_API_BASE = env.SES_API_BASE || ""; // tests only: a fake SES server
 // WhatsApp login for customer/partner apps: built and kept, switched on only when WA_LOGIN=on
 export const WA_LOGIN = /^(on|true|yes|1)$/i.test(String(env.WA_LOGIN || "").trim());
 // Mobile number check at sign-up with a WhatsApp code (WhatsApp keys needed), switched on with WA_VERIFY=on
