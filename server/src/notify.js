@@ -1,5 +1,5 @@
-// E-mails to customers and partners about their account (sent through Brevo, see mail.js).
-// Never blocks the action: if e-mail isn't set up or Brevo fails, the action still succeeds and the error is logged.
+// E-mails to customers and partners about their account (sent through Amazon SES, see mail.js).
+// Never blocks the action: if e-mail isn't set up or sending fails, the action still succeeds and the error is logged.
 import { mailProvider, sendEmail } from "./mail.js";
 import { one } from "./db.js";
 import { sendWhatsAppUpdate, updatesOn } from "./whatsapp.js";
@@ -49,7 +49,7 @@ const TEMPLATES = {
 };
 export const PLAN_NAMES = { customer: "Customer Pass", owner: "Business Pro" };
 
-// Sends an account update by e-mail (Amazon SES, Brevo as fallback). Payments, receipts, plan changes and password
+// Sends an account update by e-mail (Amazon SES). Payments, receipts, plan changes and password
 // resets always go by e-mail. WhatsApp is used only for the mobile verification code; the WhatsApp copy of other
 // updates is sent only for kinds listed in WA_KINDS (none for now) when WA_UPDATE_TEMPLATE is set.
 const WA_KINDS = new Set([]);

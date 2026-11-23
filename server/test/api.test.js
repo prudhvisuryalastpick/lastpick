@@ -105,7 +105,7 @@ test("e-mail codes: refused cleanly while e-mail isn't set up", async () => {
   const r = await client("customer").post("/api/auth/otp/send", { email: "someone@test.lastpick.in" });
   assert.equal(r.status, 409);
   // e-mail codes are off here because e-mail isn't set up in tests
-  // SMS codes (Brevo) are off until SMS_SENDER is set
+  // SMS codes are not used (no SMS provider)
   assert.equal((await client("customer").post("/api/auth/otp/send-sms", { phone: "9876501234" })).status, 409);
   const cfg = (await client("customer").get("/api/config")).data;
   assert.equal(cfg.phoneCodes, false);

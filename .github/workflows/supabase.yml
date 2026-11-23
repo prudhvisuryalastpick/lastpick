@@ -10,16 +10,12 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   SMS_SENDER                optional: mobile number check at sign-up by SMS code (Brevo SMS credits). The sender name,
-#                             up to 11 letters/digits, e.g. LASTPK. Only used when the repository VARIABLE SMS_ON is
-#                             "true" (Settings -> Secrets and variables -> Actions -> Variables). Off by default.
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails; Brevo is the fallback).
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  Amazon SES (sends sign-up / reset codes and account e-mails).
 #                             Optional VARIABLE: AWS_SES_REGION (default ap-south-1, Mumbai)
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code when the VARIABLE WA_VERIFY = on; WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
 #                             Optional VARIABLES: WA_OTP_TEMPLATE (default lastpick_otp), WA_UPDATE_TEMPLATE (account updates), WA_LANG (default en)
-#   BREVO_API_KEY, MAIL_FROM  optional: e-mails through Brevo (sign-up codes, welcome, partner approval/rejection, payment receipts)
-#                             MAIL_FROM = a sender verified in Brevo, e.g. "LastPick <support@lastpick.in>"
+#   MAIL_FROM                 the e-mail sender, e.g. "LastPick <no-reply@lastpick.in>" (domain verified in Amazon SES)
 on:
   push:
     branches: [main]
@@ -103,16 +99,11 @@ jobs:
           if ! $S list --project-ref "$SUPABASE_PROJECT_ID" | grep -q JWT_SECRET; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "JWT_SECRET=$(openssl rand -hex 32)" >/dev/null
           fi
-          # e-mail codes through Brevo, only when both secrets are saved in GitHub
-          if [ -n "${{ secrets.BREVO_API_KEY }}" ] && [ -n "${{ secrets.MAIL_FROM }}" ]; then
-            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
+          # e-mail sender address (Amazon SES only; Brevo is not used any more)
+          if [ -n "${{ secrets.MAIL_FROM }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "MAIL_FROM=${{ secrets.MAIL_FROM }}" >/dev/null
           fi
-          # mobile number check by SMS code (Brevo): on only when the SMS_ON variable is "true" and SMS_SENDER is saved
-          if [ "${{ vars.SMS_ON }}" = "true" ] && [ -n "${{ secrets.SMS_SENDER }}" ]; then
-            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "SMS_SENDER=${{ secrets.SMS_SENDER }}" >/dev/null
-          else
-            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" SMS_SENDER >/dev/null 2>&1 || true
-          fi
+          $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" BREVO_API_KEY SMS_SENDER >/dev/null 2>&1 || true
           # Amazon SES for e-mail, only when both keys are saved in GitHub
           if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \

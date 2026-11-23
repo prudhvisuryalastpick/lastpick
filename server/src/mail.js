@@ -1,7 +1,7 @@
 // Sends e-mail (sign-up codes, approvals, payment receipts).
-// Amazon SES when its keys are set (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_REGION); otherwise Brevo.
-// MAIL_FROM is the sender, e.g. "LastPick <no-reply@lastpick.in>" (its domain must be verified in SES / Brevo).
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_REGION, BREVO_API_KEY, MAIL_FROM, MAIL_REPLY_TO, SES_API_BASE, SMS_SENDER } from "./config.js";
+// Amazon SES only (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_REGION). No other e-mail provider is used.
+// MAIL_FROM is the sender, e.g. "LastPick <no-reply@lastpick.in>" (its domain must be verified in Amazon SES).
+import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_REGION, MAIL_FROM, MAIL_REPLY_TO, SES_API_BASE } from "./config.js";
 
 function parseFrom(from) {
   const m = String(from).match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
@@ -9,18 +9,10 @@ function parseFrom(from) {
 }
 
 export const sesOn = () => !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
-export const mailProvider = () => (!MAIL_FROM ? "" : sesOn() ? "ses" : BREVO_API_KEY ? "brevo" : "");
+export const mailProvider = () => (MAIL_FROM && sesOn() ? "ses" : "");
 
-// SMS through Brevo's transactional SMS API (off unless SMS_SENDER is set). `to` is like "+919876543210".
-export async function sendSms(to, content) {
-  if (!SMS_SENDER || !BREVO_API_KEY) throw new Error("SMS is not set up");
-  const r = await fetch("https://api.brevo.com/v3/transactionalSMS/send", {
-    method: "POST",
-    headers: { "api-key": BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ sender: SMS_SENDER, recipient: String(to).replace(/\D/g, ""), content }),
-  });
-  if (!r.ok) throw new Error(`SMS failed (${r.status}): ${(await r.text()).slice(0, 200)}`);
-}
+// SMS codes are not used (mobile numbers are checked on WhatsApp). Kept so older callers fail clearly.
+export async function sendSms() { throw new Error("SMS is not set up"); }
 
 // ---- AWS Signature Version 4 with Web Crypto (works in Node 22, Deno / Supabase and Workers) ----
 const enc = new TextEncoder();
@@ -61,21 +53,7 @@ async function sendSes(to, subject, text) {
   if (!r.ok) throw new Error(`E-mail (SES) failed (${r.status}): ${(await r.text()).slice(0, 300)}`);
 }
 
-async function sendBrevo(to, subject, text) {
-  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ sender: parseFrom(MAIL_FROM), replyTo: { email: MAIL_REPLY_TO }, to: [{ email: to }], subject, textContent: text }),
-  });
-  if (!r.ok) throw new Error(`E-mail (Brevo) failed (${r.status}): ${(await r.text()).slice(0, 200)}`);
-}
-
 export async function sendEmail(to, subject, text) {
-  const p = mailProvider();
-  if (!p) throw new Error("E-mail is not set up");
-  if (p === "ses") {
-    try { return await sendSes(to, subject, text); }
-    catch (e) { if (!BREVO_API_KEY) throw e; console.error(JSON.stringify({ level: "warn", message: "SES failed, using Brevo", error: String(e.message || e) })); }
-  }
-  return sendBrevo(to, subject, text);
+  if (!mailProvider()) throw new Error("E-mail is not set up (Amazon SES keys or MAIL_FROM missing)");
+  return sendSes(to, subject, text);
 }

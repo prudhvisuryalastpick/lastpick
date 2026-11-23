@@ -9,8 +9,8 @@ import { mailProvider, sendEmail, sendSms } from "../mail.js";
 import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
 // WhatsApp login is kept but only used when WA_LOGIN=on (and the WhatsApp keys are set)
 const waLogin = () => WA_LOGIN && whatsappOn();
-// how the mobile number is checked at sign-up: a WhatsApp code (WA_VERIFY=on), an SMS code (SMS_SENDER), or not at all
-const phoneChannel = () => (WA_VERIFY && whatsappOn() ? "whatsapp" : SMS_SENDER ? "sms" : "");
+// how the mobile number is checked at sign-up: a WhatsApp code (WA_VERIFY=on), or not at all
+const phoneChannel = () => (WA_VERIFY && whatsappOn() ? "whatsapp" : "");
 const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";

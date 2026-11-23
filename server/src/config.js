@@ -44,11 +44,10 @@ export const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS || "https://localhost,ca
 // Sign-up through the API. "closed" (default) = test accounts only, until the real login/registration is built.
 export const SIGNUP = env.SIGNUP === "open" ? "open" : "closed";
 export const LOG_LEVEL = env.LOG_LEVEL || "info";
-// E-mail one-time codes (Brevo). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
+// E-mail one-time codes (Amazon SES). When MAIL_FROM is set, new accounts must verify their e-mail with a code.
 export const MAIL_FROM = env.MAIL_FROM || "";
 // Supabase: pg_cron calls the customer function's /cron address with this secret every 5 minutes (background jobs).
 export const CRON_SECRET = env.CRON_SECRET || "";
-export const BREVO_API_KEY = env.BREVO_API_KEY || "";
 // Amazon SES (preferred for e-mail when set). Keys of an IAM user allowed only "ses:SendEmail".
 export const AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID || "";
 export const AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY || "";
@@ -58,9 +57,8 @@ export const SES_API_BASE = env.SES_API_BASE || ""; // tests only: a fake SES se
 export const WA_LOGIN = /^(on|true|yes|1)$/i.test(String(env.WA_LOGIN || "").trim());
 // Mobile number check at sign-up with a WhatsApp code (WhatsApp keys needed), switched on with WA_VERIFY=on
 export const WA_VERIFY = /^(on|true|yes|1)$/i.test(String(env.WA_VERIFY || "").trim());
-// Mobile number check at sign-up: a 6-digit SMS code through Brevo (SMS credits bought in Brevo). On when SMS_SENDER
-// is set (the sender name, up to 11 letters/digits, e.g. LASTPK).
-export const SMS_SENDER = (env.SMS_SENDER || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
+// SMS codes are not used (no SMS provider); mobile numbers are checked with a WhatsApp code.
+export const SMS_SENDER = "";
 // WhatsApp Cloud API (Meta): login codes and account updates for customers and partners. See src/whatsapp.js.
 export const WA_PHONE_NUMBER_ID = env.WA_PHONE_NUMBER_ID || "";
 export const WA_ACCESS_TOKEN = env.WA_ACCESS_TOKEN || "";
