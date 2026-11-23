@@ -566,7 +566,8 @@ export function KycStatus({ compact }) {
   if (!profile) return null;
   const viaWa = profile.phoneCheck === "whatsapp";
   const canVerify = !!profile.phoneCheck && !!profile.phone && !profile.phoneVerified;
-  const allOk = profile.emailVerified && profile.phoneVerified && (!IS_OWNER_APP || profile.hasPhoto);
+  const phoneCheckOn = !!profile.phoneCheck; // mobile check switched off: the number is only saved, not verified
+  const allOk = profile.emailVerified && (!phoneCheckOn || profile.phoneVerified) && (!IS_OWNER_APP || profile.hasPhoto);
   const send = async () => {
     if (viaWa && !agree) return toast("Please tick the WhatsApp box first");
     setBusy(true);
@@ -581,7 +582,9 @@ export function KycStatus({ compact }) {
   };
   const rows = [
     ["E-mail", profile.emailVerified ? "✓ Verified" : "Not verified", profile.emailVerified],
-    ["Mobile number", profile.phoneVerified ? "✓ Verified" : profile.phone ? "Not verified" : "Not added", profile.phoneVerified],
+    phoneCheckOn
+      ? ["Mobile number", profile.phoneVerified ? "✓ Verified" : profile.phone ? "Not verified" : "Not added", profile.phoneVerified]
+      : ["Mobile number", profile.phone ? "✓ Added" : "Not added", !!profile.phone],
     ...(IS_OWNER_APP ? [["Profile photo", profile.hasPhoto ? "✓ Added" : "Needed", profile.hasPhoto]] : []),
     ...(IS_OWNER_APP && business ? [["Business check by LastPick", business.status === "verified" ? "✓ Verified" : business.status === "pending" ? "In progress" : "Action needed", business.status === "verified"]] : []),
   ];

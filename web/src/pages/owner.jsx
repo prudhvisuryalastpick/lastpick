@@ -58,7 +58,9 @@ function KycCard() {
   const rows = [
     ["Profile photo", profile?.hasPhoto ? "✓ Added" : "Needed", profile?.hasPhoto ? "var(--ok)" : "var(--bad)"],
     ["E-mail", profile?.emailVerified ? "✓ Verified" : "Not verified", profile?.emailVerified ? "var(--ok)" : "var(--warn)"],
-    ["Mobile number", profile?.phoneVerified ? "✓ Verified" : "Not verified (verify in Account)", profile?.phoneVerified ? "var(--ok)" : "var(--warn)"],
+    profile?.phoneCheck
+      ? ["Mobile number", profile?.phoneVerified ? "✓ Verified" : "Not verified (verify in Account)", profile?.phoneVerified ? "var(--ok)" : "var(--warn)"]
+      : ["Mobile number", profile?.phone ? "✓ Added" : "Not added", profile?.phone ? "var(--ok)" : "var(--warn)"],
     ["Business details & location", "✓ Sent", "var(--ok)"],
     ["KYC check by LastPick", "In progress", "var(--warn)"],
   ];
