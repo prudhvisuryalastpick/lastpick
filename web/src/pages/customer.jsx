@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
-import { BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -103,7 +103,7 @@ export function Home() {
           ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels, travel and logistics are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
           : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels, travel and logistics are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>{PLANS.customer.tagline} · just {PLANS.customer.perDay} ({rupee(PLANS.customer.price)} for {PLANS.customer.period}). See shops' numbers and contact them.</span></a>}
-        {error && <div className="pad"><div className="error">{error}</div></div>}
+        {error && <div className="pad"><div className="error">{error}</div><TicketHint /></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
           {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = live.filter((o) => o.category === t.id).length; return (
@@ -148,7 +148,7 @@ export function CategoryPage({ id }) {
       <div className="chips" style={{ padding: "4px 14px 10px" }}>
         {[["ending", "Ending soon"], ["near", "Nearest"], ["off", "Biggest discount"]].map(([k, l]) => <button key={k} className={"chip " + (sort === k ? "on" : "")} onClick={() => setSort(k)}>{l}</button>)}
       </div>
-      {error && <div className="pad"><div className="error">{error}</div></div>}
+      {error && <div className="pad"><div className="error">{error}</div><TicketHint /></div>}
       {!offers && !error && !needGps && <Spinner />}
       {offers && list.length === 0 && <Empty icon={<span className="emptyic"><Icon d={st.icon} size={30} /></span>} title="Nothing here right now" action={<a className="btn ghost" href="#/">Back to all categories</a>}>New deals appear through the day. Check back this evening.</Empty>}
       {list.map((o) => <OfferCard key={o.id} offer={o} />)}
@@ -412,7 +412,7 @@ export function OfferPage({ id }) {
               </>}
             </>
           ) : contactErr ? (
-            <div className="error" style={{ marginTop: 12 }}>{contactErr}</div>
+            <div className="error" style={{ marginTop: 12 }}>{contactErr}</div><TicketHint />
           ) : !contact ? <Spinner /> : (
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>

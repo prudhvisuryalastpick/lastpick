@@ -208,7 +208,7 @@ export function Contact() {
         <h2>Who runs {APP_NAME}</h2>
         <p>{operator}{LEGAL.address ? <><br />{LEGAL.address}</> : null}<br />Website: {WEBSITE_URL}</p>
         <h2>Support</h2>
-        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. We usually reply within 2 working days.</p>
+        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem, <a className="link" href="#/grievance">raise a ticket</a>: we resolve tickets in 1–5 working days.</p>
         <h2>Complaints (Grievance Officer)</h2>
         <GrievanceOfficer />
         <p style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/grievance">Raise a complaint ticket</a></p>
@@ -226,7 +226,7 @@ export function Grievance() {
     <>
       <Back />
       <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">Complaints</h1>
-        <div className="muted">Every complaint gets a ticket number. We acknowledge within 24 hours and resolve within 15 days.</div></div>
+        <div className="muted">Every complaint gets a ticket number. We acknowledge within 24 hours and resolve tickets in 1–5 working days (never later than 15 days, as the law requires).</div></div>
       <div className="pad" style={{ paddingTop: 0 }}><GrievanceOfficer /></div>
       {session ? <GrievanceForm /> : <div className="pad"><a className="btn main" href={`#/login?next=${encodeURIComponent("/grievance")}`}>Log in to raise a ticket</a>
         <div className="note">Or e-mail {LEGAL.grievanceEmail} and include your registered mobile number.</div></div>}
@@ -242,7 +242,7 @@ function GrievanceForm() {
   useEffect(() => { load(); }, []);
   const send = async () => {
     setBusy(true);
-    try { const r = await api.submitGrievance(f); toast(`Ticket ${r.ticket} raised. We'll reply within 24 hours.`); setF({ ...f, subject: "", details: "" }); load(); }
+    try { const r = await api.submitGrievance(f); toast(`Ticket ${r.ticket} raised. We'll resolve it in 1–5 working days.`); setF({ ...f, subject: "", details: "" }); load(); }
     catch (e) { toast(errText(e)); }
     setBusy(false);
   };

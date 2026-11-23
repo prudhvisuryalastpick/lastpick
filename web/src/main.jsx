@@ -31,6 +31,7 @@ class CrashGuard extends React.Component {
           <h2 style={{ margin: "0 0 8px" }}>Something went wrong</h2>
           <p style={{ color: "#4E6366", margin: "0 0 18px" }}>Sorry, this screen didn't load. We've been told about it. Please try again.</p>
           <button type="button" className="btn main" onClick={() => { location.hash = "#/"; location.reload(); }}>Reload LastPick</button>
+          {APP_VARIANT !== "admin" && <p style={{ color: "#4E6366", margin: "16px 0 0", fontSize: 14 }}>Still not working? <a href="#/grievance" onClick={(e) => { e.preventDefault(); location.hash = "#/grievance"; location.reload(); }} style={{ color: "inherit", fontWeight: 700 }}>Raise a ticket</a>. We resolve tickets in 1–5 working days.</p>}
         </div>
       </div>
     );

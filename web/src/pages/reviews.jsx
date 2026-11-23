@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { api } from "../api/index.js";
-import { Empty, Sheet, Spinner } from "../components.jsx";
+import { TicketHint, Empty, Sheet, Spinner } from "../components.jsx";
 import { APP_NAME, REVIEW_REPORT_REASONS } from "../lib/config.js";
 import { ago, errText } from "../lib/format.js";
 import { useApp } from "../state.jsx";
@@ -86,7 +86,7 @@ export function ReviewSheet({ businessId, businessName, existing, onClose, onDon
       <div className="fld"><label className="small">Your experience (optional)</label>
         <textarea rows="3" maxLength={500} value={text} onChange={(e) => setText(e.target.value)} placeholder="Did they honour the offer? How was it?" /></div>
       <div className="muted small" style={{ marginTop: 6 }}>Shown with your first name. No phone numbers, e-mails or links. Write only about your own experience.</div>
-      {err && <div className="error" style={{ marginTop: 8 }}>{err}</div>}
+      {err && <><div className="error" style={{ marginTop: 8 }}>{err}</div><TicketHint /></>}
       <button className="btn main" style={{ marginTop: 12 }} disabled={busy || !rating} onClick={send}>{busy ? "Saving…" : existing ? "Update review" : "Post review"}</button>
     </Sheet>
   );

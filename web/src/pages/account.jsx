@@ -2,7 +2,7 @@ import { Logo } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
-import { BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
+import { TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, savePct, categoryOf } from "../lib/config.js";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
@@ -64,7 +64,7 @@ export function Plans({ plan: initial }) {
       </div>
       <div className="pad">
         {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
-        {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}</div>}
+        {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}<TicketHint /></div>}
         {canPay
           ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `${s?.active ? "Add 30 days" : "Pay"} ${rupee(opt.price)}`}</button>
           : <div className="box small"><b>{planLabel(opt.months)}: {rupee(opt.price)}.</b> {left > 0
@@ -98,7 +98,7 @@ export function Help() {
         <h2>Your data</h2>
         <p>Account → Privacy & your data: download everything we hold about you, or delete your account.</p>
         <h2>Contact us</h2>
-        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. We reply within 2 working days. For complaints, raise a <a className="link" href="#/grievance">ticket</a>.</p>
+        <p>Email <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem (payments, your account, an offer or a business), <a className="link" href="#/grievance">raise a ticket</a>: we resolve tickets in {TICKET_DAYS}.</p>
       </div>
     </>
   );

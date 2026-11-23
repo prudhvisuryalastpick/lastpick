@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, PLANS, SOCIAL, categoryOf } from "./lib/config.js";
+import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, categoryOf } from "./lib/config.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
 import { msToNextSlot, quoteForOffer, stripQuotes } from "./lib/quotes.js";
 
 export const Spinner = () => <div className="spinner" aria-label="Loading" />;
+
+// Shown under a problem message (customer and partner apps): where to get help, and how long it takes.
+export const TICKET_DAYS = "1–5 working days";
+export function TicketHint({ style }) {
+  if (IS_ADMIN_APP) return null;
+  return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/grievance">Raise a ticket</a>. We resolve tickets in {TICKET_DAYS}.</div>;
+}
 
 export function Empty({ icon, title, children, action }) {
   return <div className="empty"><div className="e">{icon}</div><b>{title}</b><div>{children}</div>{action && <div style={{ marginTop: 16 }}>{action}</div>}</div>;

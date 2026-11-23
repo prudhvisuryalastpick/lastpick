@@ -2,7 +2,7 @@ import { TermsBox } from "./privacy.jsx";
 import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
+import { TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, validPhone, waLink } from "../lib/format.js";
@@ -404,7 +404,7 @@ export function PostOffer() {
       <div className="label-up">How customers see it</div>
       <div style={{ paddingTop: 8 }}><OfferCard offer={preview} preview /></div>
       <div className="pad" style={{ paddingTop: 0 }}>
-        {err && <div className="error" style={{ marginBottom: 10 }}>{err}</div>}
+        {err && <><div className="error">{err}</div><TicketHint style={{ marginBottom: 10 }} /></>}
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
