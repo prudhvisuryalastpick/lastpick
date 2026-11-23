@@ -48,7 +48,7 @@ export function Welcome() {
         <h1>Deals from local businesses, near you.</h1>
         <p className="lead2">Same-day discounts from local food places, hotels, travel, salons, laundries, shops and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
         <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
-        <p className="fine">{PLANS.customer.name}: {rupee(PLANS.customer.price)}/month, or less on longer plans.</p>
+        <p className="fine">{PLANS.customer.name}: {rupee(PLANS.customer.price)} for 30 days, or less on longer plans.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20, animation: "fadeUp .6s ease .35s both" }}>
         <button className="btn main" onClick={() => go("/login")}>Get started</button>
@@ -252,7 +252,7 @@ export function Login({ next = "/" }) {
         </form>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           <div className="trust"><span className="ti" style={{ background: "var(--ok-soft)" }}>🛡️</span><div><b style={{ fontSize: 14 }}>Your number stays private</b><div className="muted small">A business sees it only when you tap "Share my number".</div></div></div>
-          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month` : `${PLANS.customer.name} from ${rupee(PLANS.customer.price)}/month`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
+          <div className="trust"><span className="ti" style={{ background: "var(--brand-soft)" }}>💳</span><div><b style={{ fontSize: 14 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline} · just ${PLANS.owner.perPost}` : `${PLANS.customer.tagline} · ${rupee(PLANS.customer.price)} for ${PLANS.customer.period}`}</b><div className="muted small">{IS_OWNER_APP ? "After we verify your business. Post up to 3 offers a day in your own category." : "Nothing is charged without asking you."}</div></div></div>
         </div>
         {!WA && <button className="link small" style={{ marginTop: 22, alignSelf: "center" }} onClick={() => { setStep("password"); setErr(""); }}>Have a password? Log in with e-mail and password</button>}
         {!isLive && <div style={{ marginTop: 18 }}>
@@ -401,8 +401,8 @@ export function CompleteProfile() {
     <form className="auth" onSubmit={save}>
       <div className="plan" style={{ margin: "8px 0 0" }}>
         <div className="row"><span className="small" style={{ fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", color: "var(--hi)" }}>Your plan</span><span className="small" style={{ opacity: .75 }}>{IS_OWNER_APP ? PLANS.owner.name : PLANS.customer.name}</span></div>
-        <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{rupee(IS_OWNER_APP ? PLANS.owner.price : PLANS.customer.price)}/month</div>
-        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? "After we verify your business." : "You pick a plan after this step."}</div>
+        <div style={{ fontFamily: "var(--font-h)", fontWeight: 800, fontSize: 28, marginTop: 6 }}>{rupee(IS_OWNER_APP ? PLANS.owner.price : PLANS.customer.price)} / {PLANS.customer.period}</div>
+        <div className="small" style={{ opacity: .8, marginTop: 2 }}>{IS_OWNER_APP ? `${PLANS.owner.tagline}: just ${PLANS.owner.perPost}. After we verify your business.` : `${PLANS.customer.tagline}. You pick a plan after this step.`}</div>
         <div style={{ height: 8, background: "rgba(255,255,255,.18)", borderRadius: 99, marginTop: 14, overflow: "hidden" }}><div style={{ height: "100%", background: "var(--hi)", borderRadius: 99, animation: "grow 1.4s ease .3s both", transformOrigin: "left" }} /></div>
       </div>
       <h1 style={{ fontSize: 26 }}>A few details</h1>

@@ -30,7 +30,7 @@ function OwnerPaywall() {
       <div className="status no"><span style={{ fontSize: 24 }}>⏰</span><div><b>{PLANS.owner.name} is not active</b><div className="muted small">Pick a plan to post offers for customers within 30 km. There is no free version.</div></div></div>
       <PlanCard plan="owner" />
       <div className="pad">
-        <a className="btn main" href="#/plans">See plans · from {rupee(PLANS.owner.price)}/month</a>
+        <a className="btn main" href="#/plans">{PLANS.owner.tagline} · just {PLANS.owner.perPost}</a>
         <div className="note">Turn empty rooms, seats, halls, slots and leftover stock into sales instead of losses.</div>
       </div>
     </>
@@ -138,9 +138,9 @@ export function OwnerDashboard() {
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
       <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{subs.owner?.active ? `${PLANS.owner.name} active till ${day(subs.owner.currentPeriodEnd)}`
-        : left > 0 ? `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then ${rupee(PLANS.owner.price)}/month, or less on longer plans.`
-          : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month. There is no free version.`
-            : `${PLANS.owner.name} is not active. Plans from ${rupee(PLANS.owner.price)}/month.`}</span></a>
+        : left > 0 ? `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then ${rupee(PLANS.owner.price)} for 30 days, or less on longer plans.`
+          : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)} for 30 days. There is no free version.`
+            : `${PLANS.owner.name} is not active. Plans from ${rupee(PLANS.owner.price)} for 30 days.`}</span></a>
       {live.length > 0 && <>
         <div className="sect"><h3>Live now</h3><a className="link small" href="#/owner/offers">All offers</a></div>
         {live.slice(0, 3).map((o) => (

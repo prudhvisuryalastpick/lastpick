@@ -30,7 +30,7 @@ export function Plans({ plan: initial }) {
   let status = null;
   if (session) {
     if (s?.active) status = ["ok", "✅", `${p.name} is active`, `Till ${day(s.currentPeriodEnd)}`];
-    else if (left > 0) status = ["ok", "🎁", `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trialEnd)}. After that ${rupee(p.price)}/month, or less on a longer plan.`];
+    else if (left > 0) status = ["ok", "🎁", `Extra days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trialEnd)}. After that ${rupee(p.price)} for 30 days, or less on a longer plan.`];
     else if (plan === "owner" && !business) status = ["no", "🏪", "Register your business first", "Business Pro is for business partners we have verified."];
     else if (plan === "owner" && business.status !== "verified") status = ["no", "⏳", "Waiting for verification", "You can buy Business Pro once we verify your business."];
     else status = ["no", "⚠️", `${p.name} is not active`, `Pick a plan to ${plan === "owner" ? "post offers" : "see businesses' numbers"}. There is no free version.`];
@@ -55,7 +55,7 @@ export function Plans({ plan: initial }) {
               {save > 0 && <span className="save">Save {save}%</span>}
               <div className="m">{planLabel(o.months)}</div>
               <div className="p">{rupee(o.price)}</div>
-              <div className="pm">{o.months > 1 ? `${rupee(Math.round(o.price / o.months))}/month` : "per month"}</div>
+              <div className="pm">{o.months > 1 ? `${rupee(Math.round(o.price / o.months))}/month` : "for 30 days"}</div>
             </button>
           );
         })}
@@ -111,7 +111,7 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)}/month and Business Pro (for verified business partners) {rupee(PLANS.owner.price)}/month. You are never charged without choosing a plan and confirming the payment.</p>
+        <p>There is no free version. The Customer Pass costs {rupee(PLANS.customer.price)} for 30 days and Business Pro (for verified business partners) {rupee(PLANS.owner.price)} for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
         <h2>Cancelling</h2>
         <p>You can cancel anytime in Account. Cancelling stops the next renewal and cancels the mandate; your plan stays active until the end of the period you already paid for.</p>
         <h2>Refunds</h2>

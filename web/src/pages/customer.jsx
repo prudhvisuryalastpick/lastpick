@@ -103,7 +103,7 @@ export function Home() {
         {config?.night
           ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels, travel and logistics are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
           : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels, travel and logistics are available 24×7.</span></div>}
-        {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>Get the {PLANS.customer.name} to see shops' numbers · from {rupee(PLANS.customer.price)}/month</span></a>}
+        {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>{PLANS.customer.tagline} · {rupee(PLANS.customer.price)} for {PLANS.customer.period}. See shops' numbers and contact them.</span></a>}
         {error && <div className="pad"><div className="error">{error}</div></div>}
         <SectionHead title="Shop by category" action="All" onAction={() => setAllCats(true)} />
         <div className="catgrid">
@@ -430,7 +430,7 @@ export function OfferPage({ id }) {
               </> : <>
                 <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number and contact them, and share your number with them.</div>
                 <a className="btn main" style={{ marginTop: 12 }} href={session ? "#/plans" : `#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>
-                  {session ? `🔓 See plans · from ${rupee(PLANS.customer.price)}/month` : "🔓 Log in to see the number"}
+                  {session ? `🔓 ${PLANS.customer.tagline} · ${rupee(PLANS.customer.price)} for ${PLANS.customer.period}` : "🔓 Log in to see the number"}
                 </a>
               </>}
             </>
@@ -508,7 +508,7 @@ function ContactsInner() {
       <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted, with their numbers.</div></div></div>
       <div style={{ height: 12 }} />
       {!isCustomer ? (
-        <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={`Needs the ${PLANS.customer.name}`} action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)}/month</a>}>Businesses you contact will appear here.</Empty>
+        <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={`Needs the ${PLANS.customer.name}`} action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)} for 30 days</a>}>Businesses you contact will appear here.</Empty>
       ) : !list ? <Spinner /> : list.length === 0 ? (
         <Empty icon={<span className="emptyic"><Icon d="phone" size={30} /></span>} title="No businesses contacted yet" action={<a className="btn ghost" href="#/">Browse deals</a>}>Open a deal to see the owner's number. Everyone you contact shows up here.</Empty>
       ) : list.map((c) => {
@@ -650,8 +650,8 @@ function AccountInner() {
         const left = daysLeft(trial?.[plan]);
         const [cls, icon, title, sub] = s?.active
           ? ["ok", "✅", `${PLANS[plan].name} · ${s.status === "cancelled" ? "cancelled" : "active"}`, `${s.status === "cancelled" ? "Ends" : "Renews"} ${day(s.currentPeriodEnd)}`]
-          : left > 0 ? ["ok", "🎁", `Extra days from ${APP_NAME} · ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)}/month.`]
-            : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Waiting for verification", `After that, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)}/month.`]
+          : left > 0 ? ["ok", "🎁", `Extra days from ${APP_NAME} · ${left} day${left > 1 ? "s" : ""} left`, `Until ${day(trial[plan])}. Then ${PLANS[plan].name} from ${rupee(PLANS[plan].price)} for 30 days.`]
+            : plan === "owner" && business.status !== "verified" ? ["no", "⏳", "Waiting for verification", `After that, ${PLANS.owner.name} from ${rupee(PLANS.owner.price)} for 30 days.`]
               : ["no", "⚠️", `${PLANS[plan].name} · not active`, plan === "customer" ? "Pick a plan to see businesses' numbers" : "Pick a plan to keep posting offers"];
         return (
           <div key={plan} className={"status " + cls} style={{ margin: "0 14px 12px", background: "#fff", boxShadow: "var(--shadow)" }}>
