@@ -58,6 +58,14 @@ jobs:
       - name: Tests (Supabase function code, in Deno like Supabase)
         run: npm test
         env: { LP_TEST_TARGET: deno }
+      # A screen that uses a name it never defined crashes with "Something went wrong": stop the deploy instead.
+      - name: Web apps - no undefined names
+        working-directory: web
+        run: |
+          out=$(npx --yes -p typescript@5 tsc --noEmit --allowJs --checkJs --jsx preserve --target es2022 --module esnext \
+            --moduleResolution bundler --skipLibCheck src/*.jsx src/**/*.jsx src/**/*.js 2>&1 | grep -E "TS2304|TS2552" || true)
+          if [ -n "$out" ]; then echo "$out"; echo "::error::A web screen uses a name that isn't defined (it would crash)"; exit 1; fi
+          echo "no undefined names"
 
   deploy:
     needs: test

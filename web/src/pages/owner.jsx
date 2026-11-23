@@ -24,6 +24,7 @@ function Gate({ children, allowWithoutPlan }) {
 
 function OwnerPaywall() {
   const { business } = useApp();
+  const [photo] = useMyPhoto();
   return (
     <>
       <div className="page-h owner-row">{photo ? <img className="avatar" src={photo} alt="" style={{ objectFit: "cover", borderRadius: "50%" }} /> : <div className="avatar">{business.name[0]}</div>}<div><h1 className="title" style={{ fontSize: 20 }}>{business.name}</h1><div className="muted">Business account · {business.area}</div></div></div>
