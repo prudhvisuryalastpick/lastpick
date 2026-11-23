@@ -10,7 +10,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
-#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET  Razorpay online payments (keys saved Nov 2026) (Customer Pass ₹99 / Business Pro ₹499, 30 days per payment).
+#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET  Razorpay online payments (keys saved Nov 2026, updated) (Customer Pass ₹99 / Business Pro ₹499, 30 days per payment).
 #                             Razorpay Dashboard → Account & Settings → API Keys. Test keys (rzp_test_…) take no real money.
 #   BREVO_API_KEY             Brevo: sends sign-up / reset codes, receipts and account e-mails (the e-mail provider).
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code is switched off for now (see the WA_VERIFY line below); WhatsApp login only when WA_LOGIN = on.
