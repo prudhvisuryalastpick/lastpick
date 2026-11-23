@@ -522,7 +522,7 @@ function BusinessForm({ first = false }) {
         <div className="fld"><label>Main category</label>
           <select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
           <span className="hint">You post offers only in this category.</span></div>
-        <div className="fld"><label>Contact number for customers</label><input inputMode="numeric" maxLength={14} value={f.phone} onChange={(e) => set("phone", typePhone(e.target.value, { landline: true }))} placeholder="10-digit Indian mobile or landline with STD code" />
+        <div className="fld"><label>Contact number for customers</label><div className="pfx"><span aria-hidden="true">+91</span><input inputMode="numeric" maxLength={14} value={typePhone(f.phone, { landline: true })} onChange={(e) => set("phone", typePhone(e.target.value, { landline: true }))} placeholder="Mobile, or landline with STD code" /></div>
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
         <div className="toggle">
           <div><b style={{ fontSize: 14 }}>Shop location (required)</b><div className="muted small">{locating ? "Finding your shop's location…" : f.lat != null ? "Found from your phone's GPS. Do this while you are at your shop." : "Turn on location and be at your shop. We fill the pincode, state, city and area from it."}</div></div>

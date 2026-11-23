@@ -646,7 +646,7 @@ function AccountInner() {
       <div className="secthead">Your details</div>
       <div className="form panel" style={{ margin: "0 14px 6px", padding: 14 }}>
         <div className="fld"><label>Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="fld"><label>Phone number</label><input inputMode="numeric" autoComplete="tel-national" maxLength={14} value={phone} onChange={(e) => setPhone(typePhone(e.target.value))} placeholder="10-digit mobile number" />
+        <div className="fld"><label>Phone number</label><div className="pfx"><span aria-hidden="true">+91</span><input inputMode="numeric" autoComplete="tel-national" maxLength={14} value={typePhone(phone)} onChange={(e) => setPhone(typePhone(e.target.value))} placeholder="10-digit mobile number" /></div>
           <span className="hint">Never shown to businesses.</span></div>
         {dirty && <button className="btn dark" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>}
       </div>
