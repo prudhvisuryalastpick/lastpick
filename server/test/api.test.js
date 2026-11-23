@@ -77,7 +77,11 @@ before(async () => {
   const http = await import("node:http");
   const wa = http.createServer((req, res) => {
     let b = ""; req.on("data", (d) => (b += d));
-    req.on("end", () => { waSent.push({ url: req.url, auth: req.headers.authorization, body: JSON.parse(b || "{}") }); res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"messages":[{"id":"wamid.test"}]}'); });
+    req.on("end", () => {
+      const body = JSON.parse(b || "{}");
+      if (body.to === "919812345679") { res.writeHead(404, { "Content-Type": "application/json" }); return res.end('{"error":{"message":"(#132001) Template name does not exist in the translation","type":"OAuthException","code":132001}}'); }
+      waSent.push({ url: req.url, auth: req.headers.authorization, body }); res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"messages":[{"id":"wamid.test"}]}');
+    });
   });
   await new Promise((r) => wa.listen(WA_PORT, r));
   procs.push({ kill: () => wa.close() });
@@ -673,4 +677,14 @@ test("sign-up checks the mobile number with a WhatsApp code when WA_VERIFY is on
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   const me = client("night"); me.token = ok.data.token;
   assert.equal((await me.get("/api/me")).data.phoneVerified, true);
+});
+
+test("if Meta refuses the WhatsApp template, sign-up still works with the e-mail code only", async () => {
+  const n = client("night");
+  const r = await n.post("/api/auth/otp/send-phone", { phone: "9812345679" });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.skipped, true);
+  const ok = await n.post("/api/auth/signup", { email: "skip@test.lastpick.in", password: "longpassword", name: "Skip", phone: "9812345679", consent: fullConsent() });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  const me = client("night"); me.token = ok.data.token;
+  assert.equal((await me.get("/api/me")).data.phoneVerified, false);
 });

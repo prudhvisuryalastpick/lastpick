@@ -113,7 +113,8 @@ export function Login({ next = "/" }) {
   // the e-mail code at sign-up has a 10-minute expiry and a 30-second resend wait
   const [emailSentAt, setEmailSentAt] = useState(0);
   // mobile check at sign-up with a code on WhatsApp (or SMS): only when the server says it's switched on
-  const phoneOn = !!config?.phoneCodes;
+  const [phoneSkipped, setPhoneSkipped] = useState(false); // server couldn't send the WhatsApp code: e-mail code only
+  const phoneOn = !!config?.phoneCodes && !phoneSkipped;
   const viaWa = config?.phoneChannel === "whatsapp";
   const phoneWord = viaWa ? "WhatsApp" : "SMS";
   const [phoneCode, setPhoneCode] = useState("");
@@ -177,7 +178,7 @@ export function Login({ next = "/" }) {
     setBusy(false);
   };
   const signUp = async (e) => {
-    e?.preventDefault(); setErr("");
+    e?.preventDefault(); setErr(""); let skippedNow = false;
     if (name.trim().length < 2) return setErr("Enter your name");
     if (mobileProblem(mobile)) return setErr(mobileProblem(mobile));
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr("Enter a valid e-mail");
@@ -195,12 +196,12 @@ export function Login({ next = "/" }) {
         if (sent) setEmailSentAt(Date.now());
         // and an SMS code to the mobile (when switched on)
         if (phoneOn) {
-          try { await api.sendSmsOtp(mobile); setPhoneSentAt(Date.now()); }
+          try { const r = await api.sendSmsOtp(mobile); if (r?.skipped) { setPhoneSkipped(true); skippedNow = true; } else setPhoneSentAt(Date.now()); }
           catch (x) { setBusy(false); return setErr(errText(x)); }
         }
         if (sent || phoneOn) {
           setCodeSent(true);
-          toast(sent && phoneOn ? `We sent a code to your e-mail and a ${phoneWord} code to your mobile` : sent ? `We sent a 6-digit code to ${email.trim()}` : `We sent a ${phoneWord} code to your mobile`);
+          toast(sent && phoneOn && !skippedNow ? `We sent a code to your e-mail and a ${phoneWord} code to your mobile` : sent ? `We sent a 6-digit code to ${email.trim()}` : `We sent a ${phoneWord} code to your mobile`);
           setBusy(false); return;
         }
       } else {

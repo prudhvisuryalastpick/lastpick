@@ -160,7 +160,17 @@ export function accountRoutes(r) {
       [key, codeHash(key, code)]);
     if (channel === "whatsapp") {
       try { await sendWhatsAppCode(phone, code); }
-      catch (e) { log.error("whatsapp verify code failed", { error: e.message }); throw precondition("We couldn't send the WhatsApp code. Check this number has WhatsApp, and try again in a minute."); }
+      catch (e) {
+        log.error("whatsapp verify code failed", { error: e.message });
+        // Our side isn't ready (template missing or not approved, account not allowed yet): don't block sign-ups.
+        // The number is saved without a code for this sign-up (30 minutes), and the admin sees it in the logs.
+        if (/\((?:132000|132001|132005|132007|132012|132015|132016|131031|131042|131047|10|100|190|200)\)|template|permission|OAuthException/i.test(e.message)) {
+          await q(`INSERT INTO rate_limits (key, action, window_start, n) VALUES ($1, 'waSkip', now(), 1)
+                   ON CONFLICT (key, action) DO UPDATE SET window_start = now(), n = 1`, ["phone:" + phone]);
+          return { sent: false, skipped: true, channel, expiresIn: 0 };
+        }
+        throw precondition("We couldn't send the WhatsApp code. Check this number has WhatsApp, and try again in a minute.");
+      }
     } else {
       try { await sendSms(phone, `${code} is your LastPick code to verify your mobile number. It expires in 10 minutes. Never share it with anyone.`); }
       catch (e) { log.error("sms failed", { error: e.message }); throw precondition("We couldn't send the SMS right now. Please try again in a few minutes."); }
@@ -191,7 +201,10 @@ export function accountRoutes(r) {
     if (SERVICE === "partner" && !photo) throw bad("Please add your profile photo");
     if (MAIL_FROM) await checkCode(email, body.otp); // e-mail must be verified with a one-time code
     const channel = phoneChannel(); // and the mobile number with a WhatsApp or SMS code, when switched on
-    if (channel) await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + phone, body.phoneOtp);
+    // WhatsApp sending was skipped for this number (our side not ready): sign up without the mobile code
+    const waSkipped = channel === "whatsapp" && !!(await one(
+      "SELECT 1 FROM rate_limits WHERE key = $1 AND action = 'waSkip' AND window_start > now() - interval '30 minutes'", ["phone:" + phone]));
+    if (channel && !waSkipped) await checkCode((channel === "whatsapp" ? "wav:" : "sms:") + phone, body.phoneOtp);
     const hash = await hashPassword(body.password);
     const u = await tx(async (c) => {
       const dup = await c.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
@@ -205,7 +218,7 @@ export function accountRoutes(r) {
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);
       if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
       if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
-      if (channel) await c.query("UPDATE users SET phone_verified_at = now() WHERE id = $1", [rows[0].id]);
+      if (channel && !waSkipped) await c.query("UPDATE users SET phone_verified_at = now() WHERE id = $1", [rows[0].id]);
       return rows[0];
     });
     audit("signup", u.id, { service: SERVICE });
