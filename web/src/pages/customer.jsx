@@ -672,6 +672,7 @@ function AccountInner() {
         ["handshake", `How ${APP_NAME} works & rules`, "#/rules"],
         ["receipt", "Complaints", "#/grievance"],
         ["mail", "Contact us", "#/contact"],
+        ["star", `About ${APP_NAME}`, "#/about"],
       ]} />
       <MenuGroup title="Privacy & legal" items={[
         ["lock", "Privacy & your data", "#/account/privacy"],

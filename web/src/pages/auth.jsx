@@ -5,13 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
 import { CompanyLine, Sheet, SocialLinks, Spinner } from "../components.jsx";
-import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
+import { CATEGORIES, APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, typePhone, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
 import { Icon, catStyle } from "../lib/icons.jsx";
 
 export const markWelcomed = () => { try { localStorage.setItem("lastpick-welcomed", "1"); } catch { /* ignore */ } };
+// partner sign-up: the business type chosen on the form, used to fill in the business details next
+export const BIZ_TYPE_KEY = "lastpick-signup-biztype";
 export const welcomed = () => { try { return localStorage.getItem("lastpick-welcomed") === "1"; } catch { return true; } };
 
 // Opening animation for the customer app: radar rings, deal cards floating in, the categories locals post in.
@@ -108,6 +110,7 @@ export function Login({ next = "/", start }) {
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [consent, setConsent] = useState({ adult: false, agree: false });
+  const [bizType, setBizType] = useState(() => { try { return localStorage.getItem(BIZ_TYPE_KEY) || ""; } catch { return ""; } });
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   // the e-mail code at sign-up has a 10-minute expiry and a 30-second resend wait
@@ -188,7 +191,9 @@ export function Login({ next = "/", start }) {
     if (password2 !== password) return setErr("Passwords don't match. Type the same password in both boxes.");
     if (IS_OWNER_APP && !photo) return setErr("Please add your profile photo");
     if (phoneWanted && viaWa && !waOk) return setErr("Please tick the WhatsApp box to get your code on WhatsApp");
+    if (IS_OWNER_APP && !bizType) return setErr("Choose your business type");
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
+    try { if (IS_OWNER_APP) localStorage.setItem(BIZ_TYPE_KEY, bizType); } catch { /* ignore */ }
     if (!codeSent && mobileOk.current !== mobile.replace(/\D/g, "")) { setAskMobile(true); return; }
     setBusy(true);
     try {
@@ -309,6 +314,12 @@ export function Login({ next = "/", start }) {
                 <input type="file" accept="image/*" capture="user" style={{ display: "none" }} onChange={(e) => pickPhoto(e.target.files?.[0])} /></label>
             </div>
           </div>}
+          {IS_OWNER_APP && <div className="fld"><label htmlFor="su-cat">Business type</label>
+            <select id="su-cat" value={bizType} onChange={(e) => setBizType(e.target.value)}>
+              <option value="" disabled>Choose what your business is</option>
+              {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+            </select>
+            <span className="note">You'll post offers in this category. You can change it in your business details.</span></div>}
           <div className="fld"><label htmlFor="su-name">{IS_OWNER_APP ? "Owner name" : "Your name"}</label><input id="su-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="fld"><label htmlFor="su-phone">Mobile number</label><div className="pfx"><span aria-hidden="true">+91</span><input id="su-phone" inputMode="numeric" autoComplete="tel-national" maxLength={14} placeholder="98765 43210" value={typePhone(mobile)} disabled={codeSent} onChange={(e) => { setMobile(typePhone(e.target.value)); mobileOk.current = ""; }} /></div>
             <span className="hint">{phoneOn ? `We'll send a 6-digit code to this number on ${phoneWord} to check it.` : "Saved for your account. Not checked with a code."}</span></div>

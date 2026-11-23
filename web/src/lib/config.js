@@ -8,13 +8,16 @@ export const SOCIAL = {
   youtube: import.meta.env?.VITE_YOUTUBE_URL || "https://www.youtube.com/@LastPick-c2m",
 };
 // Shown in the footer of the apps and lastpick.in (lower case on purpose, as the owner asked).
-export const COMPANY_LINE = "lastpick is a registered company under msme, owned by prudhvi surya";
+export const COMPANY_LINE = "lastpick is a unit of doormate online, msme (udyam) registered, owned by prudhvi surya";
+// From the Udyam Registration Certificate (Ministry of MSME). Shown on the About page.
+export const COMPANY = { owner: "Prudhvi Surya", enterprise: "Doormate Online", udyam: "UDYAM-TS-20-0228036", registered: "17 Nov 2026", place: "Hyderabad, Telangana" };
 // Optional support phone / WhatsApp (shown in Help & support when set at build time).
 export const SUPPORT_PHONE = import.meta.env?.VITE_SUPPORT_PHONE || "";
 export const SUPPORT_WHATSAPP = import.meta.env?.VITE_SUPPORT_WHATSAPP || "";
 export const SUPPORT_HOURS = "9 AM – 9 PM, all days";
 // Public addresses of the three sites (set at build time).
-export const WEBSITE_URL = import.meta.env?.VITE_CUSTOMER_URL || "https://lastpick.in";
+// This app's own website (shown in the Terms and privacy notice): partner.lastpick.in in the partner app.
+export const WEBSITE_URL = (import.meta.env?.VITE_APP_VARIANT === "owner" ? import.meta.env?.VITE_PARTNER_URL : import.meta.env?.VITE_CUSTOMER_URL) || "https://lastpick.in";
 export const PARTNER_URL = import.meta.env?.VITE_PARTNER_URL || WEBSITE_URL;
 
 // Which app this build is: "customer" (customer server), "owner" (partner server), "admin" (admin server) or "web" (everything, local dev).

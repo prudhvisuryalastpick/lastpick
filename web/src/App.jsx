@@ -5,6 +5,7 @@ import { Account, Contacts, Home, MapPage, OfferPage, CategoryPage } from "./pag
 import { BusinessPage, OwnerDashboard, OwnerGate, OwnerLeads, OwnerOffers, PostOffer } from "./pages/owner.jsx";
 import { Admin, Help, Login, Plans, Refund, Subscribe } from "./pages/account.jsx";
 import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
+import { About } from "./pages/about.jsx";
 import { ConsentGate, Contact, DeleteAccountInfo, Grievance, Privacy, PrivacyCenter, Terms } from "./pages/privacy.jsx";
 import { OwnerReviews } from "./pages/reviews.jsx";
 import { BusinessInsights, Rules, Savings, Support, SupportThread } from "./pages/impact.jsx";
@@ -28,7 +29,7 @@ const Icon = ({ d }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["/contacts", "phone", "History"], ["/account", "user", "Account"]];
 const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"]];
 // pages anyone can open without accepting the privacy notice first
-const OPEN_PAGES = ["/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
+const OPEN_PAGES = ["/about", "/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
 
 function Page({ path, query }) {
   let m;
@@ -64,6 +65,7 @@ function Page({ path, query }) {
   if (path === "/help") return <Help />;
   if (path === "/refund") return <Refund />;
   if (path === "/contact") return <Contact />;
+  if (path === "/about") return <About />;
   return <Empty icon="🧭" title="Page not found" action={<a className="btn main" href="#/">Go to offers</a>}>The link may be broken.</Empty>;
 }
 

@@ -1,3 +1,4 @@
+import { BIZ_TYPE_KEY } from "./auth.jsx";
 import { TermsBox } from "./privacy.jsx";
 import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +22,9 @@ function Gate({ children, allowWithoutPlan }) {
   if (!isOwner && !allowWithoutPlan) return <OwnerPaywall />;
   return children;
 }
+
+// the business type picked on the sign-up form (first time only)
+const signupBizType = () => { try { const c = localStorage.getItem(BIZ_TYPE_KEY); return CATEGORIES.some((x) => x.id === c) ? c : ""; } catch { return ""; } };
 
 function OwnerPaywall() {
   const { business } = useApp();
@@ -440,7 +444,7 @@ function BusinessForm({ first = false }) {
   const { business, profile, refresh, toast } = useApp();
   const needsConsent = profile?.partnerConsentVersion !== CONSENT_VERSION;
   const [f, setF] = useState(() => ({
-    name: business?.name || "", category: business?.category || "food", about: business?.about || "", address: business?.address || "",
+    name: business?.name || "", category: business?.category || signupBizType() || "food", about: business?.about || "", address: business?.address || "",
     area: business?.area || "", city: business?.city || "", state: business?.state || "", pincode: business?.pincode || "", lat: business?.lat ?? null, lng: business?.lng ?? null,
     phone: business?.phone || profile?.phone || "", agree: false,
   }));

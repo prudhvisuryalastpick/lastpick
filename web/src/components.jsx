@@ -71,7 +71,7 @@ export function JoinedTicker({ joined }) {
   );
 }
 export function CompanyLine({ style }) {
-  return <div className="muted small center" style={{ padding: "4px 16px 18px", ...style }}>{COMPANY_LINE}</div>;
+  return <div className="muted small center" style={{ padding: "4px 16px 18px", ...style }}>{COMPANY_LINE} · <a className="link" href="#/about">about us</a></div>;
 }
 
 export function Empty({ icon, title, children, action }) {

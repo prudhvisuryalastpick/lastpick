@@ -670,6 +670,11 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
 .social-links a:hover { background: var(--brand-soft, #E3F6EF); }
 .social-links .soon { opacity: .5; cursor: default; }
+/* About page */
+.about .acard { background: #fff; border-radius: 20px; padding: 16px; margin-top: 12px; box-shadow: var(--shadow); }
+.about .founder { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,.15); }
+.about .okpill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 99px; background: #DCFCE7; color: #166534; font-size: 12px; font-weight: 700; }
+.about .arow { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 7px 0; border-top: 1px solid var(--line); }
 /* live counts: [area] [LastPick total] side by side, and the "just joined" line */
 .statpair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 0 16px; margin: 12px 0; }
 .statbox { border-radius: 18px; padding: 13px 14px; background: var(--hero); color: #fff; }
