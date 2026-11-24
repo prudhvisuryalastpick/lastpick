@@ -48,7 +48,7 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 - **Logistics (24×7):** spare space in trucks/vans at a low price; posts any time like hotels and travel.
 - **Old offers wiped at once:** ended offers leave the live table on the next 5-minute run (summary kept in the partner's History).
 - **Partner Agreement per category (lib/terms.js PARTNER_RULES):** general partner commitments + rules for that kind of business (food, hotels, travel, logistics, salon, makeup, fashion, appliances, shops, other) + the full Terms; shown on the business registration screen, must be read to the end; the exact text (with the category) is stored.
-- **Instagram / YouTube icons:** on the home page footer, login screen and Account page; "coming soon" until the links are set (SOCIAL in web/src/lib/config.js, and the two hrefs in web/landing/index.html).
+- **Instagram icon:** on the home page footer, login screen and Account page; "coming soon" until the links are set (SOCIAL in web/src/lib/config.js, and the href in web/landing/index.html).
 - **Idle logout:** after 15 minutes without activity the app logs out (also when reopened after a longer break).
 - **Offers close at 11 PM automatically:** a job every 5 minutes ends offers whose time is up, and after 11 PM closes everything except hotels and travel, even if the partner forgets.
 - **Terms and Conditions (lib/terms.js):** one document for customers and partners. The Agree box unlocks only after scrolling to the end. Each acceptance stores the exact text (SHA-256 fingerprint), version, time, device and network address; Admin → Users → Terms → Record shows and downloads it. Changing the Terms: bump CONSENT_VERSION in web/src/lib/config.js and server/src/util.js.

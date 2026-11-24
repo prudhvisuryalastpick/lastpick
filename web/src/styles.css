@@ -575,11 +575,11 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .shero-switch.counts .cv { display: flex; flex-direction: column; line-height: 1.1; }
 .shero-switch.counts .cv b { font-family: var(--font-h); font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
 .shero-switch.counts .cv small { font-size: 11.5px; font-weight: 700; opacity: .75; }
-/* Instagram / YouTube icons beside the pill on the login page */
+/* Instagram icon beside the pill on the login page */
 .social-links.pill-icons { gap: 6px; padding: 0; margin: 0; }
 .social-links.pill-icons a, .social-links.pill-icons .soon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--hi); color: var(--hi-ink); }
 .social-links.pill-icons svg { width: 17px; height: 17px; }
-/* Instagram / YouTube icons beside Log in, on the banner */
+/* Instagram icon beside Log in, on the banner */
 .social-links.glassy-icons { gap: 6px; padding: 0; margin: 0; }
 .social-links.glassy-icons a, .social-links.glassy-icons .soon { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .social-links.glassy-icons svg { width: 18px; height: 18px; }
@@ -666,7 +666,7 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .termsbox-foot.ok { color: #0F7B4F; background: #E9F8F0; }
 .legal section h3 { font-size: 17px; margin: 20px 0 6px; }
 
-/* Instagram / YouTube icons ("coming soon" until the links are set in lib/config.js SOCIAL) */
+/* Instagram icon ("coming soon" until the links are set in lib/config.js SOCIAL) */
 .social-links { display: flex; gap: 10px; }
 .social-links a, .social-links span { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: var(--soft); color: var(--ink); }
 .social-links a:hover { background: var(--brand-soft, #E3F6EF); }

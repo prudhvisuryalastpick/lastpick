@@ -1,11 +1,10 @@
 // ---- Change these to rebrand or reprice the app ----
 export const APP_NAME = "LastPick";
 export const SUPPORT_EMAIL = import.meta.env?.VITE_SUPPORT_EMAIL || "support@lastpick.in";
-// LastPick's Instagram and YouTube pages. Empty = not created yet: the icons show "coming soon".
-// Add the links here (or as VITE_INSTAGRAM_URL / VITE_YOUTUBE_URL) once the pages exist.
+// LastPick's Instagram page. Empty = not created yet: the icons show "coming soon".
+// Add the links here (or as VITE_INSTAGRAM_URL) once the page exists.
 export const SOCIAL = {
   instagram: import.meta.env?.VITE_INSTAGRAM_URL || "https://www.instagram.com/lastpick_partner/",
-  youtube: import.meta.env?.VITE_YOUTUBE_URL || "https://www.youtube.com/@LastPick-c2m",
 };
 // Shown in the footer of the apps and lastpick.in (lower case on purpose, as the owner asked).
 // From the Udyam Registration Certificate (Ministry of MSME). Shown on the About page.
