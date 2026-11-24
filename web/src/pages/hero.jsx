@@ -47,20 +47,23 @@ const SLIDES = {
 };
 
 // counts: [{ icon, n, label }] shown in the bar at the bottom of the banner (live numbers, counted up with "+")
-export function StickerHero({ top, liveCount, onOpen, counts }) {
+// slide/badge/variant let the partner app reuse the same hero with its own words, stickers and colours
+export function StickerHero({ top, liveCount, onOpen, counts, slide, badge = "DEALS · BEFORE · MIDNIGHT · ", badgeIcon = "clock", variant = "", pill }) {
   const [cat] = useState("food");
-  const s = SLIDES[cat];
+  const s = slide || SLIDES[cat];
   return (
-    <section className="shero" aria-label="Today's deals">
+    <section className={"shero" + (variant ? " " + variant : "")} aria-label={slide ? "LastPick Partner" : "Today's deals"}>
       <div className="rays" aria-hidden="true">{[18, 28, 40, 55, 66].map((x, i) => <span key={i} style={{ left: x + "%", width: [60, 26, 90, 30, 70][i] }} />)}</div>
       <div className="bubbles" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <span key={i} style={{ left: (i * 37) % 100 + "%", top: 40 + ((i * 53) % 60) + "%", width: [8, 12, 18, 10, 24, 14][i % 6], height: [8, 12, 18, 10, 24, 14][i % 6], animationDelay: (i * 0.8) % 9 + "s" }} />)}</div>
       {top}
       <div className="shero-badge" aria-hidden="true">
-        <svg viewBox="0 0 100 100"><defs><path id="hb" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0" /></defs><text><textPath href="#hb">DEALS · BEFORE · MIDNIGHT · </textPath></text></svg>
-        <Icon d="clock" size={26} stroke={2.4} />
+        <svg viewBox="0 0 100 100"><defs><path id="hb" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0" /></defs><text><textPath href="#hb">{badge}</textPath></text></svg>
+        <Icon d={badgeIcon} size={26} stroke={2.4} />
       </div>
       <div className="shero-art" key={cat}>
-        {cat === "food"
+        {slide
+          ? s.art.map(([i, bg, fg], k) => <span key={k} className={"stk p" + (k + 1)}><IconSticker icon={i} bg={bg} fg={fg} size={[86, 70, 64, 60][k]} rot={[-8, 10, -5, 8][k]} /></span>)
+          : cat === "food"
           ? s.art.map(([el, cls]) => <span key={cls} className={"stk " + cls}>{el}</span>)
           : s.art.map(([i, bg, fg], k) => <span key={k} className={"stk s" + (k + 1)}><IconSticker icon={i} bg={bg} fg={fg} size={[110, 84, 70][k]} rot={[-8, 10, -4][k]} /></span>)}
       </div>
@@ -70,7 +73,7 @@ export function StickerHero({ top, liveCount, onOpen, counts }) {
         <p>{s.sub}</p>
         <div className="row2">
           <button className="pill dark" onClick={() => onOpen(cat)}>{s.cta}</button>
-          <span className="pill light">{liveCount != null ? `${liveCount} live near you` : "Live near you"}</span>
+          {pill || <span className="pill light">{liveCount != null ? `${liveCount} live near you` : "Live near you"}</span>}
         </div>
       </div>
       {counts?.length > 0 && (

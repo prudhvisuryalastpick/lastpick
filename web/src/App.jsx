@@ -8,6 +8,7 @@ import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
 import { About } from "./pages/about.jsx";
 import { Guide } from "./pages/guide.jsx";
 import { ContactUs } from "./pages/contactus.jsx";
+import { PartnerLanding } from "./pages/partnerhome.jsx";
 import { HelpButton } from "./pages/help.jsx";
 import { ConsentGate, Contact, DeleteAccountInfo, Grievance, Privacy, PrivacyCenter, Terms } from "./pages/privacy.jsx";
 import { OwnerReviews } from "./pages/reviews.jsx";
@@ -36,6 +37,7 @@ const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], 
 const OPEN_PAGES = ["/about", "/guide", "/get-help", "/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
 
 function Page({ path, query }) {
+  const { session } = useApp();
   let m;
   // the admin server serves only the admin panel, its login and the legal pages
   if (IS_ADMIN_APP && !["/", "/admin", "/login", "/privacy", "/terms", "/contact", "/help", "/rules"].includes(path) && !match("/offer/:id", path)) return <Empty icon="🔒" title="Admin panel" action={<a className="btn main" href="#/">Go to admin</a>}>This site is only for the LastPick team.</Empty>;
@@ -49,7 +51,7 @@ function Page({ path, query }) {
   if (path === "/plans") return <Plans plan={query.plan} />;
   if (path === "/welcome") return <Welcome />;
   if (path === "/login") return <Login next={query.next} start={query.start} />;
-  if (path === "/owner") return <OwnerGate><OwnerDashboard /></OwnerGate>;
+  if (path === "/owner") return IS_OWNER_APP && !session ? <PartnerLanding /> : <OwnerGate><OwnerDashboard /></OwnerGate>;
   if (path === "/owner/post") return <OwnerGate><PostOffer /></OwnerGate>;
   if (path === "/owner/leads") return <OwnerGate><OwnerLeads /></OwnerGate>;
   if (path === "/owner/offers") return <OwnerGate allowWithoutPlan><OwnerOffers /></OwnerGate>;
@@ -105,9 +107,10 @@ export default function App() {
 
   // the Business app always opens on the owner dashboard
   useEffect(() => { if (IS_OWNER_APP && ["/", "/map", "/contacts"].includes(path)) navigate("/owner", { replace: true }); }, [path]);
-  // partner app, not logged in (after the opening animation): straight to the login page, not a "log in" placeholder
+  // partner app, not logged in (after the opening animation): "/owner" shows the partner home with Log in / Create account;
+  // the other partner pages ask to log in
   useEffect(() => {
-    if (IS_OWNER_APP && !loading && !session && welcomed() && (path === "/" || path.startsWith("/owner"))) navigate("/login", { replace: true });
+    if (IS_OWNER_APP && !loading && !session && welcomed() && path.startsWith("/owner/")) navigate("/login", { replace: true });
   }, [path, loading, session]);
 
   // keep the bottom bar in sync with where the user is
@@ -120,7 +123,7 @@ export default function App() {
   const biz = IS_OWNER_APP || ownerArea || (mode === "owner" && ["/account", "/plans"].includes(path));
   const nav = biz ? OWNER_NAV : CUSTOMER_NAV;
   const fullScreen = path === "/login" || path === "/welcome" || firstVisit || needsProfile;
-  const showNav = !fullScreen && !IS_ADMIN_APP;
+  const showNav = !fullScreen && !IS_ADMIN_APP && !(IS_OWNER_APP && !session); // logged-out partners see the landing page without the bottom bar
 
   return (
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>

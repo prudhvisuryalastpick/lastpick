@@ -199,7 +199,7 @@ function Featured({ offers }) {
   );
 }
 
-function SectionHead({ title, icon, color, action, onAction, badge }) {
+export function SectionHead({ title, icon, color, action, onAction, badge }) {
   return (
     <div className="shead">
       <h2>{icon && <Icon d={icon} size={18} stroke={2.2} style={{ color }} />}{title}</h2>
