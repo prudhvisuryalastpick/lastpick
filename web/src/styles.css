@@ -423,7 +423,8 @@ table.admin.users tr:hover td { background: #FAFDFC; }
 
 
 /* bottom bar with the raised centre button */
-.nav.cust { left: 0; right: 0; bottom: 0; transform: none; width: auto; max-width: 640px; margin: 0 auto; border-radius: 0; padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(11, 36, 64, .06); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; }
+.nav.cust { left: 0; right: 0; bottom: 0; transform: none; width: auto; max-width: 640px; margin: 0 auto; border-radius: 0; padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(11, 36, 64, .06); display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; }
+.nav.cust a { font-size: 10.5px; min-width: 0; }
 .nav.cust a { min-height: 54px; font-weight: 600; }
 .nav.cust a.on { color: var(--nav-on); font-weight: 800; }
 .nav.cust a.centre { margin-top: -26px; color: var(--ink); font-weight: 700; justify-content: flex-start; }
@@ -698,8 +699,10 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .about .arow > span:first-child { flex: none; min-width: 108px; color: var(--muted); }
 .about .arow.first { border-top: 0; margin-top: 6px; }
 .about .udyam { color: var(--brand); font-size: 15px; font-weight: 800; letter-spacing: .2px; }
-.nav.six a { font-size: 10px; min-width: 0; }
-.nav.six a svg { width: 21px; height: 21px; }
+.nav.seven { padding: 8px 2px; }
+.nav.seven a { font-size: 9.5px; min-width: 0; letter-spacing: -.1px; }
+.nav.seven a svg { width: 20px; height: 20px; }
+.guide video { width: 100%; max-height: 70vh; aspect-ratio: 9 / 16; border-radius: 18px; background: #000; display: block; margin-top: 12px; box-shadow: var(--shadow); }
 /* live counts: [area] [LastPick total] side by side, and the "just joined" line */
 .statpair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 0 16px; margin: 12px 0; }
 .statbox { border-radius: 18px; padding: 13px 14px; background: var(--hero); color: #fff; }
