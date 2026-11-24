@@ -15,6 +15,7 @@ const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode } from "../plans.js";
+import { maintenanceNow } from "../maintenance.js";
 import { paymentsOn } from "./payments.js";
 import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
@@ -420,7 +421,7 @@ export function accountRoutes(r) {
     throw precondition("Please update the app to pay online.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
+    freeMode: await freeMode(), maintenance: await maintenanceNow(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
   }), { cache: "public, max-age=15" });
 
   // ---------- consent ----------

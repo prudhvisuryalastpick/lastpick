@@ -80,7 +80,14 @@ export function AppProvider({ children }) {
   const [place, setPlace] = useState(null); // { area, city, pincode } for the live location, shown on Home
   const [locationStatus, setLocationStatus] = useState("asking"); // asking | granted | denied | unavailable
   const [config, setConfig] = useState({ freeMode: false });
-  useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
+  // app settings (free launch mode, maintenance…), refreshed every minute so a maintenance window starts and ends on time
+  useEffect(() => {
+    let stop = false;
+    const load = (fresh) => api.getConfig(fresh).then((c) => { if (!stop) setConfig((prev) => (c?.unreachable ? { ...prev, unreachable: true } : c)); }).catch(() => {});
+    load(false);
+    const t = setInterval(() => load(true), 60000);
+    return () => { stop = true; clearInterval(t); };
+  }, []);
 
   const refresh = useCallback(async () => {
     try {

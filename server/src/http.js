@@ -1,4 +1,5 @@
 // Tiny HTTP layer on node:http: routing, JSON bodies, security headers, CORS, static files, rate limits.
+import { guardMaintenance } from "./maintenance.js";
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -182,6 +183,7 @@ export function makeHandler(router, { webDir, guard } = {}) {
       const body = ["POST", "PUT", "PATCH"].includes(req.method) ? await readBody(req) : {};
       const auth = await userFromRequest(req);
       const ctx = { req, res, ip, params, body, query: Object.fromEntries(url.searchParams), user: auth.user || null, authReason: auth.reason || null, userAgent: String(req.headers["user-agent"] || "").slice(0, 200) };
+      await guardMaintenance(req.method, pathname);
       const out = await route.handler(ctx);
       if (res.headersSent) return;
       send(res, 200, out === undefined ? { ok: true } : out, route.opts.cache ? { "Cache-Control": route.opts.cache } : {});
@@ -242,6 +244,7 @@ export async function handleFetch(router, request, { ip: givenIp, guard } = {}) 
     const auth = await userFromRequest(req);
     const res = { headersSent: false, setHeader() {} };
     const ctx = { req, res, ip, params, body, query: Object.fromEntries(url.searchParams), user: auth.user || null, authReason: auth.reason || null, userAgent: String(request.headers.get("user-agent") || "").slice(0, 200) };
+    await guardMaintenance(request.method, pathname);
     const out = await route.handler(ctx);
     return json(200, out === undefined ? { ok: true } : out, { ...cors, ...(route.opts.cache ? { "Cache-Control": route.opts.cache } : {}) });
   } catch (e) {

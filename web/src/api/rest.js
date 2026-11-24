@@ -141,7 +141,13 @@ export const api = {
     return live(await cached(key, 60000, () => publicGet(`/api/offers?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}&radius=${radiusKm}`)));
   },
   async listByPincode(pincode) { return live(await cached("pin:" + pincode, 60000, () => publicGet(`/api/offers?pincode=${enc(pincode)}`))); },
-  async getConfig() { return cached("config", 60000, () => get("/api/config").catch(() => ({ freeMode: false }))); },
+  // fresh: skip the 60-second memo (used by the 1-minute refresh). If the server can't be reached the result says so,
+  // and the apps show the "We'll be right back" page.
+  async getConfig(fresh = false) {
+    const load = () => get("/api/config").catch(() => ({ freeMode: false, unreachable: true }));
+    if (fresh) { const r = await load(); memo.delete?.("config"); return r; }
+    return cached("config", 60000, load);
+  },
   async listCities() { return cached("cities", 300000, () => get("/api/cities")); },
   async getOfferPhoto(id) { try { return (await get(`/api/offers/${enc(id)}/photo`)).photo; } catch { return null; } },
   async myArchive() { return get("/api/owner/archive"); },

@@ -34,14 +34,14 @@ export function CountUp({ n }) {
   const [v, setV] = useState(0);
   const from = useRef(0);
   useEffect(() => {
-    const start = from.current, to = Number(n) || 0, t0 = performance.now(), dur = 900;
+    const start = from.current, to = Number(n) || 0, t0 = performance.now(), dur = Math.min(1400, Math.max(500, Math.abs(to - start) * 160));
     if (matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setV(to); from.current = to; return; }
     let raf;
-    const step = (t) => { const k = Math.min(1, (t - t0) / dur); setV(Math.round(start + (to - start) * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); else from.current = to; };
+    const step = (t) => { const k = Math.min(1, (t - t0) / dur); setV(Math.round(start + (to - start) * (Math.abs(to - start) <= 12 ? k : 1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); else from.current = to; };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [n]);
-  return <>{v.toLocaleString("en-IN")}{Number(n) > 0 ? "+" : ""}</>;
+  return <>{v.toLocaleString("en-IN")}</>;
 }
 // two boxes side by side: [area count] [LastPick total]
 export function StatPair({ left, right }) {
@@ -298,12 +298,10 @@ export function SocialLinks({ style, className = "" }) {
 // ------------------------------------------------------------------ Install app (add to home screen)
 // Shown only to subscribed users (during free launch: logged-in customers and verified partners), and never once installed.
 export function useCanInstall() {
-  const { session, subs, business, config } = useApp();
   const [, bump] = useState(0);
   useEffect(() => onInstallChange(() => bump((n) => n + 1)), []);
-  if (!session || IS_NATIVE || isInstalled()) return false;
-  const free = !!config?.freeMode;
-  return IS_OWNER_APP ? (!!subs?.owner?.active || (free && business?.status === "verified")) : (!!subs?.customer?.active || free);
+  // anyone can install, signed in or not, subscribed or not
+  return !IS_NATIVE && !isInstalled();
 }
 
 export function InstallSheet({ mode, onClose }) {
@@ -338,4 +336,20 @@ export function useInstall() {
   const run = async () => { const r = await install(); if (r === "ios" || r === "inapp" || r === "manual") setSheet(r); };
   const ui = sheet ? <InstallSheet mode={sheet} onClose={() => setSheet(null)} /> : null;
   return [run, ui];
+}
+
+// Round "Install app" button for the top bar of the home pages (before Instagram). Hidden once installed.
+export function InstallTopButton() {
+  const [, bump] = useState(0);
+  useEffect(() => onInstallChange(() => bump((n) => n + 1)), []);
+  const [run, ui] = useInstall();
+  if (IS_NATIVE || isInstalled()) return null;
+  return (
+    <>
+      <button type="button" className="cround glassy installtop" onClick={run} aria-label="Install app" title="Install app">
+        <Icon d="install" size={18} stroke={2} />
+      </button>
+      {ui}
+    </>
+  );
 }

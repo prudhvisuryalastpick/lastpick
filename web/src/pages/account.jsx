@@ -208,6 +208,52 @@ function FreeModeSwitch({ toast }) {
   );
 }
 
+// Admin → Overview → Maintenance: switch it on now, or schedule a window; pick the apps and an optional message.
+// It switches off by itself at "Until". The admin app is never paused.
+const toLocal = (ms) => { if (!ms) return ""; const d = new Date(ms + 5.5 * 3600000); return d.toISOString().slice(0, 16); }; // shown in India time
+const fromLocal = (v) => (v ? new Date(v + ":00+05:30").getTime() : null);
+function MaintenanceSwitch({ toast }) {
+  const [m, setM] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.adminSettings().then((x) => setM(x.maintenance || { on: false, from: null, until: null, apps: ["customer", "partner"], message: "" })).catch(() => setM(null)); }, []);
+  if (!m) return null;
+  const save = async (patch = {}) => {
+    const next = { ...m, ...patch };
+    setBusy(true);
+    try {
+      const r = await api.setAdminSettings({ maintenance: next });
+      setM(r.maintenance || next);
+      toast(next.on ? "Maintenance is on: the apps show the maintenance page" : next.from ? "Maintenance scheduled" : "Maintenance is off");
+    } catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  const app = (a) => setM({ ...m, apps: m.apps.includes(a) ? m.apps.filter((x) => x !== a) : [...m.apps, a] });
+  return (
+    <div className="panel" style={{ margin: "4px 16px 12px" }}>
+      <div className="switchrow" style={{ padding: 0, margin: 0, boxShadow: "none" }}>
+        <div><b>Maintenance</b> {m.on ? <span className="pill p-bad">On now</span> : m.from ? <span className="pill p-warn">Scheduled</span> : <span className="pill p-mute">Off</span>}
+          <div className="muted small">On = the customer and/or partner app show the maintenance page now. The admin app keeps working.</div></div>
+        <button type="button" aria-label="Maintenance on or off" aria-pressed={m.on} className={"sw " + (m.on ? "on" : "")} disabled={busy} onClick={() => save({ on: !m.on })} />
+      </div>
+      <div className="maint-form">
+        <b className="small">Or schedule it (India time)</b>
+        <div className="maint-times">
+          <label>From<input type="datetime-local" value={toLocal(m.from)} onChange={(e) => setM({ ...m, from: fromLocal(e.target.value) })} /></label>
+          <label>Until<input type="datetime-local" value={toLocal(m.until)} onChange={(e) => setM({ ...m, until: fromLocal(e.target.value) })} /></label>
+        </div>
+        <div className="chips" style={{ padding: "6px 0 0" }}>{[["customer", "Customer app"], ["partner", "Partner app"]].map(([a, l]) => <button key={a} type="button" className={"chip " + (m.apps.includes(a) ? "on" : "")} onClick={() => app(a)}>{l}</button>)}</div>
+        <label className="small" style={{ display: "block", marginTop: 8 }}>Message (optional)
+          <textarea rows={2} maxLength={300} value={m.message} placeholder="Quick maintenance in progress. Deals will be back soon." onChange={(e) => setM({ ...m, message: e.target.value })} /></label>
+        <div className="gap" style={{ marginTop: 8 }}>
+          <button type="button" className="btn dark sm" disabled={busy} onClick={() => save()}>Save</button>
+          {(m.from || m.until) && <button type="button" className="btn ghost sm" disabled={busy} onClick={() => save({ from: null, until: null })}>Clear schedule</button>}
+        </div>
+        <div className="muted small" style={{ marginTop: 6 }}>Customers see a warning banner up to 24 hours before. It ends by itself at "Until".</div>
+      </div>
+    </div>
+  );
+}
+
 function SingleDeviceSwitch({ toast }) {
   const [on, setOn] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -241,6 +287,7 @@ function AdminOverview({ toast, go }) {
     <>
       {isAdmin && <PaymentsNote />}
       {isAdmin && <FreeModeSwitch toast={toast} />}
+      {isAdmin && <MaintenanceSwitch toast={toast} />}
       {isAdmin && <SingleDeviceSwitch toast={toast} />}
       {<div className="plan" style={{ padding: 16, marginTop: 4 }}>
         <div style={{ opacity: .75, fontSize: 13 }}>Monthly recurring revenue (active plans)</div>

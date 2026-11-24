@@ -763,7 +763,7 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .shero.partner .shero-badge > svg:last-child { position: static; inset: auto; width: 30px; height: 30px; animation: none; }
 
 /* About: "With love and thanks" card and the founder's quote */
-.about { padding-bottom: 120px; }
+.about { padding-bottom: 0; }
 .lovecard { margin-top: 14px; border-radius: 22px; padding: 20px 16px 16px; background: linear-gradient(160deg, #fff 0%, var(--brand-soft) 60%, #FFF6E6 100%); border: 1px solid var(--line); box-shadow: var(--shadow); text-align: center; }
 .lovecard .lcheart { width: 46px; height: 46px; border-radius: 14px; background: var(--brand); color: #FFD9E6; display: grid; place-items: center; margin: 0 auto; }
 .lovecard h2 { margin: 10px 0 0; font-family: var(--font-h); font-size: 19px; }
@@ -860,3 +860,40 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .everyone { margin-top: 14px; border-radius: 20px; padding: 16px; background: #fff; border: 1px solid #F3E4C9; text-align: center; }
 .everyone b { font-size: 15px; }
 .everyone p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+/* end of the About page: film-style credit, and no empty gap below it */
+.lifted { margin-top: 16px; }
+.credit { margin: 20px 0 6px; text-align: center; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; line-height: 1.6; }
+.credit span { display: block; }
+.credit b { display: block; font: italic 500 26px/1.2 Georgia, serif; letter-spacing: 1px; text-transform: none; color: var(--ink); }
+
+/* Maintenance: full page (customer teal, partner gold), the warning banner, and the admin form */
+.maint { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px 26px; text-align: center; color: #fff; background: linear-gradient(170deg, #06373A, #0E6B66 55%, #5BC3A8); }
+.maint.partner { background: linear-gradient(170deg, #3B1606, #8A3B0E 55%, #E39A4C); }
+.maint-ic { width: 96px; height: 96px; border-radius: 30px; display: grid; place-items: center; background: rgba(255,255,255,.16); color: #D6F578; }
+.maint.partner .maint-ic { color: #FFC45C; }
+.maint h1 { margin: 6px 0 0; font-family: var(--font-h); font-size: 26px; line-height: 1.15; max-width: 320px; }
+.maint p { margin: 0; max-width: 320px; font-size: 15px; line-height: 1.55; opacity: .9; }
+.maint-back { display: inline-block; border: 0; border-radius: 999px; padding: 10px 18px; font: inherit; font-weight: 800; font-size: 14px; background: #D6F578; color: #0C3A32; cursor: default; }
+button.maint-back { cursor: pointer; }
+.maint.partner .maint-back { background: #FFC45C; color: #3B1606; }
+.maint small { opacity: .75; font-size: 12.5px; }
+.maint-ban { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #FFF4D6; color: #7A5200; font-size: 13px; font-weight: 600; border-bottom: 1px solid #F3DFA6; }
+.maint-ban span { flex: 1; }
+.maint-ban button { border: 0; background: none; color: inherit; padding: 4px; cursor: pointer; }
+.maint-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.maint-times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.maint-times label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.maint-times input, .maint-form textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px; font: inherit; font-size: 13px; color: var(--ink); background: #fff; }
+.shero-top .installtop { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer; }
+
+/* partner hero: the two buttons stay on one line */
+.shero.partner .shero-card .row2 { flex-wrap: nowrap; }
+.shero.partner .shero-card .row2 .pill { flex: 1 1 auto; justify-content: center; padding: 12px 12px; font-size: 13.5px; white-space: nowrap; }
+
+/* logo + location side by side, top left of both homes */
+.shero-top .tleft { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; margin-right: 8px; }
+.shero-top .tleft .plogo { display: inline-flex; flex: none; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
+.shero-top .tleft .cwho { min-width: 0; max-width: 100%; padding: 8px 11px; font-size: 13px; }
+.shero-top .tleft .cwho svg { flex: none; }
+.shero-top .tleft .cwho span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.shero-top > .gap { flex: none; }

@@ -6,6 +6,7 @@ import { PLAN_NAMES, notify } from "../notify.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, rmany, rone } from "../db.js";
 import { freeMode, setFreeMode, subActive } from "../plans.js";
+import { maintenanceSetting, setMaintenance } from "../maintenance.js";
 import { audit } from "../shared.js";
 import { platformImpact } from "./insights.js";
 import { planPrice } from "./revenue.js";
@@ -230,12 +231,13 @@ export function adminRoutes(r) {
   });
 
   // Super admins: app switches (one device at a time for customers).
-  const settingsNow = async () => ({ singleDevice: await singleDeviceOn(), freeMode: await freeMode() });
+  const settingsNow = async () => ({ singleDevice: await singleDeviceOn(), freeMode: await freeMode(), maintenance: await maintenanceSetting() });
   r.get("/api/admin/settings", async (ctx) => { staff(ctx); return settingsNow(); });
   r.post("/api/admin/settings", async (ctx) => {
     const me = superAdmin(ctx);
-    const { singleDevice, freeMode: free } = ctx.body || {};
-    if (typeof singleDevice !== "boolean" && typeof free !== "boolean") throw bad("Say which switch to turn on or off");
+    const { singleDevice, freeMode: free, maintenance } = ctx.body || {};
+    if (typeof singleDevice !== "boolean" && typeof free !== "boolean" && !maintenance) throw bad("Say which switch to turn on or off");
+    if (maintenance && typeof maintenance === "object") { await setMaintenance(maintenance, me.id); audit("maintenance_changed", me.id, maintenance); }
     if (typeof singleDevice === "boolean") await setSetting("single_device", singleDevice, me.id);
     if (typeof free === "boolean") await setFreeMode(free, me.id);
     audit("setting_changed", me.id, { singleDevice, freeMode: free });

@@ -8,7 +8,7 @@ const VARIANT = IS_ADMIN_APP ? "admin" : IS_OWNER_APP ? "partner" : "customer";
 const MARKS = {
   customer: {
     bg: ["#13867F", "#06373A"], label: APP_NAME, sub: "Deals near you", theme: "#06373A",
-    art: `<path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#D9F99D"/>`,
+    art: `<g transform="translate(7.5 1) scale(.77)"><path d="M13 14h7.5v28.5H32V50H13z" fill="#fff"/><path d="M35 14h8.5a10.5 10.5 0 0 1 0 21H42.5V50H35z" fill="#fff"/><circle cx="43.5" cy="24.5" r="3.8" fill="#D9F99D"/></g><text x="32" y="55.5" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="7.6" font-weight="800" letter-spacing=".9" fill="#fff">CUSTOMER</text>`,
   },
   partner: {
     bg: ["#F2B654", "#8A3B0E"], label: `${APP_NAME} Partner`, sub: "For businesses", theme: "#3B1606",

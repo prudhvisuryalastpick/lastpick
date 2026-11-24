@@ -8,6 +8,7 @@ import { CompleteProfile, Welcome, welcomed } from "./pages/auth.jsx";
 import { About } from "./pages/about.jsx";
 import { Guide } from "./pages/guide.jsx";
 import { ContactUs } from "./pages/contactus.jsx";
+import { MaintenanceBanner, MaintenancePage } from "./pages/maintenance.jsx";
 import { PartnerLanding } from "./pages/partnerhome.jsx";
 import { HelpButton } from "./pages/help.jsx";
 import { ConsentGate, Contact, DeleteAccountInfo, Grievance, Privacy, PrivacyCenter, Terms } from "./pages/privacy.jsx";
@@ -98,11 +99,12 @@ function LoadError() {
 
 export default function App() {
   const { path, query, at } = useRoute();
-  const { loading, mode, setMode, session, profile } = useApp();
+  const { loading, mode, setMode, session, profile, config } = useApp();
   const needsProfile = !!session && !!profile?.needsProfile && !OPEN_PAGES.filter((p) => p !== "/login").includes(path);
   const needsConsent = !IS_ADMIN_APP && !!session && !!profile && !profile.needsProfile && !profile.loadError && profile.consentVersion !== CONSENT_VERSION && !OPEN_PAGES.includes(path);
   // first visit, not logged in: the opening animation (customer app on "/", partner app on its home)
-  const firstVisit = !loading && !session && !IS_ADMIN_APP && (IS_OWNER_APP ? ["/", "/owner"].includes(path) : path === "/") && !welcomed();
+  // (the partner app has no separate opening screen any more: its home page for visitors is the welcome)
+  const firstVisit = !loading && !session && !IS_ADMIN_APP && !IS_OWNER_APP && path === "/" && !welcomed();
   const ownerArea = path.startsWith("/owner");
 
   // the Business app always opens on the owner dashboard
@@ -125,11 +127,20 @@ export default function App() {
   const fullScreen = path === "/login" || path === "/welcome" || firstVisit || needsProfile;
   const showNav = !fullScreen && !IS_ADMIN_APP && !(IS_OWNER_APP && !session); // logged-out partners see the landing page without the bottom bar
 
+  // maintenance (set in Admin → Overview), or the server can't be reached (e.g. during a deploy): a friendly full page
+  const myApp = IS_OWNER_APP ? "partner" : "customer";
+  const maint = config?.maintenance;
+  const maintOn = !IS_ADMIN_APP && !!maint?.active && (maint.apps || []).includes(myApp);
+  const serverDown = !IS_ADMIN_APP && !!config?.unreachable && (typeof navigator === "undefined" || navigator.onLine !== false);
+  if (maintOn || serverDown) return <div className={"shell" + (IS_OWNER_APP ? " biz" : "")}><MaintenancePage m={maint} down={!maintOn} /></div>;
+  const maintSoon = !IS_ADMIN_APP && !!maint?.upcoming && (maint.apps || []).includes(myApp);
+
   return (
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>
+      {maintSoon && <MaintenanceBanner m={maint} />}
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
-      {!IS_ADMIN_APP && biz && !fullScreen && !loading && <QuoteStrip partner />}
-      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>
+      {!IS_ADMIN_APP && biz && !fullScreen && !loading && !(IS_OWNER_APP && !session) && <QuoteStrip partner />}
+      <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : IS_OWNER_APP && !session ? { paddingBottom: 8 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>
       {!IS_ADMIN_APP && !loading && !fullScreen && <LocationPrompt partner={biz} />}
       {showNav && !needsConsent && !loading && <HelpButton partner={biz} />}
       {showNav && !needsConsent && !biz && (
@@ -167,7 +178,6 @@ function LocationPrompt({ partner }) {
         <p>{APP_NAME} works based on your location. {partner
           ? "We use it to place your shop on the map and show your offers to customers within 30 km."
           : "We use it to show you offers from businesses within 30 km of where you are."} Without it, the app can't show {partner ? "your shop to customers" : "offers near you"}.</p>
-        {denied && <div className="locprompt-help">Location is blocked for {APP_NAME}.<br /><b>Phone app:</b> Settings → Apps → {APP_NAME} → Permissions → Location → Allow.<br /><b>Browser:</b> tap the lock icon next to the address → Location → Allow.</div>}
         {!denied && <div className="locprompt-help">Turn on Location (GPS) on your phone, then tap the button below.</div>}
         <button className="btn main" onClick={retryLocation}>Turn on location</button>
         <button className="link" style={{ marginTop: 10 }} onClick={later}>Not now</button>

@@ -27,6 +27,7 @@ export const LIFTED = [
   { people: [P("Sunil Kaladandi", "#FEF3C7", "#92400E")], line: "Advice that actually hits, every single time." },
   { people: [P("Abhishek", "#D6F5E9", "#085041")], line: "Made me stronger when it got tough. Built different." },
   { people: [P("Benny", "#E0F2FE", "#075985")], line: "My motivator. Said keep going, so I did." },
+  { people: [P("Prathyusha Chowdary", "#FDE7F3", "#A3245E")], line: "A true friend. Always in my corner, always real." },
 ];
 // "To my family, with love", in the founder's order
 export const FAMILY = [
@@ -87,19 +88,19 @@ function Thanks() {
   );
   return (
     <>
-      <section className="lifted" aria-label="People who lifted me up">
-        <div className="jkick">People who lifted me up</div>
-        <div className="marquee"><div className="mtrack" style={{ animationDuration: order.length * 4.5 + "s" }}>
-          {order.map((c, i) => card(c, "a" + i))}
-          {order.map((c, i) => card(c, "b" + i, true))}
-        </div></div>
-      </section>
       <section className="famcard" aria-label="To my family, with love">
         <div className="jkick fam">To my family, with love</div>
         <p className="fmsg">{FAMILY_NOTE}</p>
         <Faces list={FAMILY} className="faces" />
         <div className="jkick fam special">My special ones</div>
         <Faces list={SPECIAL} className="faces one" />
+      </section>
+      <section className="lifted" aria-label="People who lifted me up">
+        <div className="jkick">People who lifted me up</div>
+        <div className="marquee"><div className="mtrack" style={{ animationDuration: order.length * 4.5 + "s" }}>
+          {order.map((c, i) => card(c, "a" + i))}
+          {order.map((c, i) => card(c, "b" + i, true))}
+        </div></div>
       </section>
       <section className="everyone" aria-label="And to everyone else">
         <b>And to everyone else</b>
@@ -110,6 +111,7 @@ function Thanks() {
         <blockquote>{QUOTE[0]}<br />{QUOTE[1]}</blockquote>
         <figcaption>— {COMPANY.owner}</figcaption>
       </figure>
+      <p className="credit"><span>Directed by</span><b>God</b></p>
     </>
   );
 }

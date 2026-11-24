@@ -3,7 +3,8 @@ import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
 import { ContactCard } from "./contactus.jsx";
-import { useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { Logo } from "../lib/brand.jsx";
+import { InstallTopButton, useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -57,6 +58,22 @@ const hourText = (h) => (h === 0 || h === 24 ? "12 AM" : h === 12 ? "12 PM" : h 
 const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
+// "Nizampet · 500090" chip beside the logo, on both homes; tap to refresh the location
+export function useWhere() {
+  const { location, locationStatus, place } = useApp();
+  return location.exact
+    ? (place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : (nearestCity(location)?.name || "Your location"))
+    : locationStatus === "asking" ? "Finding you…" : "Location is off";
+}
+export function WhereChip({ where }) {
+  const { location, retryLocation, toast } = useApp();
+  return (
+    <button className="cwho glassy" onClick={() => { retryLocation(); if (location.exact) toast("Showing offers within 30 km of you"); }} aria-label="Your location (tap to refresh)">
+      <Icon d="place" size={16} stroke={2} /><span>{where}</span>
+    </button>
+  );
+}
+
 export function Home() {
   const { location, isCustomer, session, profile, config, place, retryLocation, toast } = useApp();
   const { offers, error, needGps, locationStatus } = useAreaOffers();
@@ -78,10 +95,9 @@ export function Home() {
     : locationStatus === "asking" ? "Finding you…" : "Location is off";
   const top = (
     <div className="shero-top">
-      <button className="cwho glassy" onClick={() => { retryLocation(); if (location.exact) toast("Showing offers within 30 km of you"); }} aria-label="Your location (tap to refresh)">
-        <Icon d="place" size={16} stroke={2} /><span>{where}</span>
-      </button>
+      <span className="tleft"><span className="plogo"><Logo size={38} /></span><WhereChip where={where} /></span>
       <span className="gap" style={{ gap: 8 }}>
+      <InstallTopButton />
       <SocialLinks className="glassy-icons" />
       {session
         ? <a className="cround glassy" href="#/account" aria-label="Your account">{initialsOf(profile?.name) || <Icon d="user" size={18} stroke={2} />}</a>
@@ -301,17 +317,12 @@ function AllCategories({ value, onPick, onClose }) {
 // Location is off or not allowed. LastPick needs the live location (offers within 30 km), so there is no
 // manual pincode: ask the user to turn location on.
 function LocationScreen({ status, onRetry }) {
-  const denied = status === "denied";
   return (
     <div className="pinscreen">
       <div className="pinradar" aria-hidden="true"><span className="c1" /><span className="c2" /><span className="sw2" /><span className="pin">📍</span></div>
       <h1 className="title" style={{ fontSize: 28, lineHeight: 1.08 }}>Turn on your location</h1>
       <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.5 }}>LastPick shows offers from businesses within 30 km of where you are right now, so it needs your location.</p>
-      {denied
-        ? <div className="box small" style={{ marginTop: 14, textAlign: "left", lineHeight: 1.55 }}>Location is blocked for LastPick.<br />
-            <b>Phone app:</b> Settings → Apps → LastPick → Permissions → Location → Allow.<br />
-            <b>Browser:</b> tap the lock icon next to the address → Location → Allow.<br />Then tap the button below.</div>
-        : <div className="box small" style={{ marginTop: 14 }}>Turn on Location (GPS) on your phone, then tap the button below.</div>}
+      <div className="box small" style={{ marginTop: 14 }}>Turn on Location (GPS) on your phone, then tap the button below.</div>
       <button className="btn main" style={{ marginTop: 20 }} onClick={onRetry}>📍 Use my location</button>
       <div className="note center">Your location stays on your phone. It's never saved.</div>
     </div>

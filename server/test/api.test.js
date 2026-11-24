@@ -432,6 +432,30 @@ test("request a call back: one open request per person, admin calls and marks it
   assert.ok((await a.get("/api/admin/callbacks?status=done")).data.some((x) => x.id === r.data.id));
 });
 
+test("maintenance: apps pause changes while it's on, admin keeps working, a schedule ends by itself", async () => {
+  const a = client("admin");
+  await a.login("admin@test.lastpick.in");
+  const c = client("customer");
+  await c.login("customer@test.lastpick.in");
+  assert.equal((await a.post("/api/admin/settings", { maintenance: { on: true, apps: ["customer"], message: "Back soon" } })).status, 200);
+  await new Promise((r) => setTimeout(r, 16000)); // the apps re-check every 15 s
+  const cfg = await c.get("/api/config");
+  assert.equal(cfg.data.maintenance.active, true);
+  assert.equal(cfg.data.maintenance.message, "Back soon");
+  assert.equal((await c.post("/api/support", { topic: "Using the app", message: "Is it working?" })).status, 503, "changes are paused");
+  const p = client("partner");
+  await p.login("owner@test.lastpick.in");
+  assert.notEqual((await p.post("/api/support", { topic: "Posting offers", message: "Still open for partners?" })).status, 503, "only the chosen app is paused");
+  assert.equal((await a.post("/api/admin/settings", { maintenance: { on: false, from: Date.now() + 3600000, until: Date.now() + 7200000, apps: ["customer", "partner"] } })).status, 200, "the admin app is never paused");
+  const bad = await a.post("/api/admin/settings", { maintenance: { from: Date.now() + 7200000, until: Date.now() + 3600000 } });
+  assert.equal(bad.status, 400, "until must be after from");
+  await new Promise((r) => setTimeout(r, 16000));
+  const soon = (await c.get("/api/config")).data.maintenance;
+  assert.equal(soon.active, false);
+  assert.equal(soon.upcoming, true, "a warning banner shows before a scheduled window");
+  await a.post("/api/admin/settings", { maintenance: { on: false, from: null, until: null } });
+});
+
 test("own category only, everything ends the same day, no job openings", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");
