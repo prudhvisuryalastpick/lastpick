@@ -408,6 +408,30 @@ test("support conversations", async () => {
   assert.equal((await c.get(`/api/support/${t.data.id}`)).data.status, "open");
 });
 
+test("request a call back: one open request per person, admin calls and marks it done", async () => {
+  const p = client("partner");
+  await p.login("owner@test.lastpick.in");
+  await p.patch("/api/me", { phone: "9876543210" });
+  const r = await p.post("/api/callbacks", { topic: "Posting offers", bestTime: "Evening", note: "Offer not showing" });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const again = await p.post("/api/callbacks", { topic: "Posting offers", bestTime: "Morning" });
+  assert.equal(again.data.id, r.data.id, "a second request while one is open returns the same one");
+  assert.equal(again.data.already, true);
+  const mine = await p.get("/api/callbacks/mine");
+  assert.equal(mine.data.bestTime, "Evening");
+  assert.equal(mine.data.role, "partner");
+  assert.notEqual((await p.get("/api/admin/callbacks")).status, 200, "partners can't see the call-back list");
+  const a = client("admin");
+  await a.login("admin@test.lastpick.in");
+  const list = await a.get("/api/admin/callbacks?status=new");
+  const row = list.data.find((x) => x.id === r.data.id);
+  assert.ok(row, "admin sees the request");
+  assert.ok(row.user.phone, "with the number to call");
+  assert.equal((await a.post(`/api/admin/callbacks/${r.data.id}/done`, {})).status, 200);
+  assert.equal((await p.get("/api/callbacks/mine")).data, null, "nothing waiting once it's done");
+  assert.ok((await a.get("/api/admin/callbacks?status=done")).data.some((x) => x.id === r.data.id));
+});
+
 test("own category only, everything ends the same day, no job openings", async () => {
   const p = client("partner");
   await p.login("owner@test.lastpick.in");

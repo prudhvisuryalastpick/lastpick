@@ -1,7 +1,9 @@
 // Customer and partner support: ask for help in the app, the LastPick team answers in the same conversation.
 // (Formal complaints with legal deadlines stay in /api/grievances.)
 import { needUser } from "../auth.js";
-import { SERVICE } from "../config.js";
+import { MAIL_REPLY_TO, SERVICE } from "../config.js";
+import { mailProvider, sendEmail } from "../mail.js";
+import { log } from "../log.js";
 import { many, one, q, tx } from "../db.js";
 import { limit } from "../ratelimit.js";
 import { audit } from "../shared.js";
@@ -11,6 +13,12 @@ export const SUPPORT_TOPICS = [
   "Using the app", "Login or account", "An offer or business", "A customer or lead", "Posting offers",
   "Business verification", "Plans and payments", "Safety concern", "Something else",
 ];
+export const CALLBACK_TOPICS = { customer: ["An offer or shop", "Plans and payments", "My account", "Something else"], partner: ["Plans and payments", "Business verification", "Posting offers", "Something else"] };
+export const CALLBACK_TIMES = ["Morning", "Afternoon", "Evening"];
+const mapCallback = (c) => ({
+  id: c.id, role: c.role, topic: c.topic, bestTime: c.best_time, note: c.note, status: c.status, createdAt: ms(c.created_at), doneAt: ms(c.done_at),
+  user: c.u_email !== undefined ? { name: c.u_name || "", email: c.u_email || "", phone: c.u_phone || "", business: c.b_name || "", area: c.b_area || "" } : undefined,
+});
 const mapTicket = (t) => ({
   id: t.id, topic: t.topic, status: t.status, role: t.role, createdAt: ms(t.created_at), updatedAt: ms(t.updated_at),
   lastMessage: t.last_body || "", lastFromStaff: !!t.last_staff,
@@ -42,6 +50,37 @@ export function supportRoutes(r, { admin }) {
     audit("support_ticket", u.id, { ticket: id, topic });
     return { id };
   }, { limit: "write" });
+
+  // Request a call back: the team calls the number saved on the account (support hours: see SUPPORT_HOURS in web/src/lib/config.js).
+  r.post("/api/callbacks", async (ctx) => {
+    const u = needUser(ctx);
+    const role = SERVICE === "partner" || ctx.body.role === "partner" ? "partner" : "customer";
+    const topic = CALLBACK_TOPICS[role].includes(ctx.body.topic) ? ctx.body.topic : "Something else";
+    const bestTime = CALLBACK_TIMES.includes(ctx.body.bestTime) ? ctx.body.bestTime : "Morning";
+    const note = str(ctx.body.note, 500);
+    const me = await one("SELECT u.name, u.email, u.phone, b.name AS b_name, b.area AS b_area, b.state FROM users u LEFT JOIN businesses b ON b.id = u.id WHERE u.id = $1", [u.id]);
+    if (!me?.phone) throw bad("Add your phone number in Account first, so we can call you");
+    const open = await one("SELECT id FROM callbacks WHERE user_id = $1 AND status = 'new'", [u.id]);
+    if (open) return { id: open.id, already: true };
+    await limit(u.id, "callback", 3, 86400, "You've asked for a call back a few times today. We'll call you soon.");
+    const row = await one("INSERT INTO callbacks (user_id, role, topic, best_time, note, state) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+      [u.id, role, topic, bestTime, note, me.state || ""]);
+    audit("callback_request", u.id, { id: row.id, topic });
+    if (mailProvider()) {
+      const who = role === "partner" ? `${me.b_name || me.name || "Partner"}${me.b_area ? ` (${me.b_area})` : ""}` : me.name || "Customer";
+      try {
+        await sendEmail(MAIL_REPLY_TO, `Call back: ${who} · ${topic}`,
+          `${who} asked for a call back.\n\nPhone: ${me.phone}\nE-mail: ${me.email}\nAbout: ${topic}\nBest time: ${bestTime}${note ? `\nNote: ${note}` : ""}\n\nMark it done in Admin → Support → Call backs.`);
+      } catch (e) { log.warn("callback e-mail failed", { error: e.message }); }
+    }
+    return { id: row.id };
+  }, { limit: "write" });
+
+  r.get("/api/callbacks/mine", async (ctx) => {
+    const u = needUser(ctx);
+    const c = await one("SELECT * FROM callbacks WHERE user_id = $1 AND status = 'new' ORDER BY created_at DESC LIMIT 1", [u.id]);
+    return c ? mapCallback(c) : null;
+  });
 
   r.get("/api/support", async (ctx) => {
     const u = needUser(ctx);
@@ -81,6 +120,22 @@ export function supportRoutes(r, { admin }) {
     const rows = await many(`SELECT t.*, ${LAST}, u.name AS u_name, u.email AS u_email, u.phone AS u_phone
       FROM support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE t.status = $1 ORDER BY t.updated_at DESC LIMIT 200`, [status]);
     return rows.filter((t) => me.canSee(t.state)).map(mapTicket);
+  });
+  r.get("/api/admin/callbacks", async (ctx) => {
+    const me = staff(ctx);
+    const status = ctx.query.status === "done" ? "done" : "new";
+    const rows = await many(`SELECT c.*, u.name AS u_name, u.email AS u_email, u.phone AS u_phone, b.name AS b_name, b.area AS b_area
+      FROM callbacks c LEFT JOIN users u ON u.id = c.user_id LEFT JOIN businesses b ON b.id = c.user_id
+      WHERE c.status = $1 ORDER BY c.created_at ${status === "new" ? "ASC" : "DESC"} LIMIT 200`, [status]);
+    return rows.filter((c) => me.canSee(c.state)).map(mapCallback);
+  });
+  r.post("/api/admin/callbacks/:id/done", async (ctx) => {
+    const me = staff(ctx);
+    const id = needUuid(ctx.params.id, "call back");
+    const c = await one("SELECT state FROM callbacks WHERE id = $1", [id]);
+    if (!c || !me.canSee(c.state)) throw notFound("Call back not found");
+    await q("UPDATE callbacks SET status = 'done', done_at = now(), done_by = $2 WHERE id = $1", [id, me.id]);
+    audit("admin_callback_done", me.id, { id });
   });
   r.get("/api/admin/support/:id", async (ctx) => {
     const me = staff(ctx);

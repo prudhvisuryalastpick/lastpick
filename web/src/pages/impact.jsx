@@ -7,7 +7,7 @@ import { Icon, catStyle } from "../lib/icons.jsx";
 import {
   APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf,
 } from "../lib/config.js";
-import { ago, errText, rupee, telLink, waLink } from "../lib/format.js";
+import { ago, errText, prettyPhone, rupee, telLink, waLink } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 
 const Back = () => <div style={{ position: "relative", height: 62 }}><BackButton /></div>;
@@ -234,10 +234,12 @@ function Thread({ id, load, reply, staff = false, onClose }) {
 
 // Admin panel tab: support inbox
 export function AdminSupport({ toast }) {
-  const [status, setStatus] = useState("open");
+  const [status, setStatus] = useState("callbacks");
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(null);
-  const load = (first = false) => { if (first) setList(null); return api.adminSupport(status).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  const cb = status === "callbacks" || status === "callbacks-done";
+  const load = (first = false) => { if (first) setList(null); return (cb ? api.adminCallbacks(status === "callbacks" ? "new" : "done") : api.adminSupport(status)).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
+  const done = async (id) => { try { await api.adminCallbackDone(id); toast("Marked as called"); load(); } catch (e) { toast(errText(e)); } };
   useLive(load, [status]);
   if (open) return <>
     <div className="pad" style={{ paddingBottom: 0 }}><button className="link" onClick={() => { setOpen(null); load(); }}>‹ All conversations</button></div>
@@ -246,12 +248,24 @@ export function AdminSupport({ toast }) {
   </>;
   return (
     <>
-      <div className="chips" style={{ paddingTop: 4 }}>{["open", "answered", "closed"].map((s) => <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>{s === "open" ? "Waiting for us" : s === "answered" ? "Replied" : "Closed"}</button>)}</div>
-      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here">No conversations.</Empty> : list.map((t) => (
+      <div className="chips" style={{ paddingTop: 4 }}>{[["callbacks", "Call backs"], ["callbacks-done", "Called"], ["open", "Waiting for us"], ["answered", "Answered"], ["closed", "Closed"]].map(([s, l]) => <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>{l}</button>)}</div>
+      {cb && (!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here">{status === "callbacks" ? "No one is waiting for a call." : "No calls yet."}</Empty> : list.map((c) => (
+        <div key={c.id} className="menu-item" style={{ alignItems: "flex-start" }}>
+          <span style={{ flex: 1, textAlign: "left" }}>
+            <b>{c.role === "partner" ? (c.user?.business || c.user?.name || "Partner") : (c.user?.name || "Customer")}</b> <span className="muted small">· {c.role}{c.user?.area ? ` · ${c.user.area}` : ""}</span>
+            <span className="small" style={{ display: "block" }}>{c.topic} · {c.bestTime}{c.note ? ` · "${c.note}"` : ""}</span>
+            <span className="muted small" style={{ display: "block" }}>{c.user?.phone ? prettyPhone(c.user.phone) : "no number"} · {c.user?.email} · asked {ago(c.createdAt)}</span>
+          </span>
+          {status === "callbacks" && <span className="gap" style={{ flexDirection: "column", gap: 6 }}>
+            {c.user?.phone && <a className="btn main" style={{ padding: "7px 12px", fontSize: 13 }} href={telLink(c.user.phone)}>Call</a>}
+            <button className="btn ghost" style={{ padding: "7px 12px", fontSize: 13 }} onClick={() => done(c.id)}>Mark done</button>
+          </span>}
+        </div>)))}
+      {!cb && (!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here">No conversations.</Empty> : list.map((t) => (
         <button key={t.id} className="menu-item" onClick={() => setOpen(t.id)}>
           <span style={{ flex: 1, textAlign: "left" }}><b>{t.topic}</b> <span className="muted small">· {t.role} · {t.user?.name || t.user?.email}</span>
             <span className="muted small" style={{ display: "block" }}>{t.lastMessage.slice(0, 90)}</span></span>
-          <span className="muted small">{ago(t.updatedAt)}</span><span className="chev">›</span></button>))}
+          <span className="muted small">{ago(t.updatedAt)}</span><span className="chev">›</span></button>)))}
     </>
   );
 }

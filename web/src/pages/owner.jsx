@@ -1,4 +1,5 @@
 import { BIZ_TYPE_KEY } from "./auth.jsx";
+import { ContactCard } from "./contactus.jsx";
 import { TermsBox } from "./privacy.jsx";
 import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
@@ -158,6 +159,7 @@ export function OwnerDashboard() {
       </>}
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
+      <ContactCard />
       <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{freeLaunch && business.status === "verified" ? `Free during launch: post up to 3 offers a day at no cost.` : paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`
         : left > 0 ? `Free days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then from ${rupee(cheapest.price)} for ${cheapest.days} days.`
           : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(cheapest.price)} for ${cheapest.days} days.`

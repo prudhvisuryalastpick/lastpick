@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
+import { ContactCard } from "./contactus.jsx";
 import { useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
@@ -96,6 +97,7 @@ export function Home() {
           { icon: "user", n: stats.customers.total, label: "customers" },
         ] : null} />
       <QuoteStrip variant="inline" />
+      <ContactCard style={{ margin: "10px 14px 0" }} />
       <label className="csearch glassbar">
         <Icon d="search" size={20} stroke={2} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cakes, rooms, salons, bus seats" aria-label="Search offers" />
@@ -671,7 +673,7 @@ function AccountInner() {
             : ["store", business ? "Switch to owner mode" : "Post offers as a business owner", () => { setMode("owner"); navigate("/owner"); }, "#FFF1E0", "#B35A00"],
       ]} />
       <MenuGroup title="Help" items={[
-        ["chat", "Help & support (chat with us)", "#/support", "#E4F5F2", "#0F6E5C"],
+        ["headset", `Contact ${APP_NAME}`, "#/get-help", "#E4F5F2", "#0F6E5C"],
         ["handshake", `How ${APP_NAME} works & rules`, "#/rules"],
         ["receipt", "Complaints", "#/grievance"],
         ["mail", "Contact us", "#/contact"],

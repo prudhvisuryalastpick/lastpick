@@ -157,8 +157,8 @@ function AdminInner() {
   const [tab, setTab] = useState("overview");
   if (!isStaff) return <Empty icon="⛔" title="Admins only">Your account doesn't have admin access.</Empty>;
   const tabs = isAdmin
-    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"]]
-    : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support chats"]];
+    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"]]
+    : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"]];
   return (
     <>
       <div className="page-h">

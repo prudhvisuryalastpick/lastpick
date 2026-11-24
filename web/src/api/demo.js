@@ -805,6 +805,14 @@ export const api = {
   },
   async supportThread(id) { const db = load(); const u = me(db); const t = (db.support || []).find((x) => x.id === id && x.userId === u.id); if (!t) throw new Error("Conversation not found"); return t; },
   async supportReply(id, message) { const db = load(); const u = me(db); const t = (db.support || []).find((x) => x.id === id && x.userId === u.id); if (!t) throw new Error("Conversation not found"); t.messages.push({ fromStaff: false, body: message, at: Date.now() }); t.status = "open"; t.updatedAt = Date.now(); save(db); },
+  async requestCallback({ topic, bestTime, note, role }) {
+    const db = load(); const u = me(db); if (!u.phone) throw new Error("Add your phone number in Account first, so we can call you");
+    db.callbacks = db.callbacks || []; const open = db.callbacks.find((c) => c.userId === u.id && c.status === "new"); if (open) return { id: open.id, already: true };
+    const c = { id: rid(), userId: u.id, role: role || "customer", topic, bestTime, note: note || "", status: "new", createdAt: Date.now() }; db.callbacks.push(c); save(db); return { id: c.id };
+  },
+  async myCallback() { const db = load(); const u = me(db); return (db.callbacks || []).find((c) => c.userId === u.id && c.status === "new") || null; },
+  async adminCallbacks(status = "new") { const db = load(); staff(db); return (db.callbacks || []).filter((c) => c.status === status).map((c) => { const u = db.users.find((x) => x.id === c.userId) || {}; return { ...c, user: { name: u.name, email: u.email, phone: u.phone } }; }); },
+  async adminCallbackDone(id) { const db = load(); staff(db); const c = (db.callbacks || []).find((x) => x.id === id); if (c) { c.status = "done"; c.doneAt = Date.now(); save(db); } },
   async adminSupport(status = "open") {
     const db = load(); staff(db);
     return (db.support || []).filter((t) => t.status === status).map((t) => { const u = db.users.find((x) => x.id === t.userId) || {}; return { ...t, user: { name: u.name, email: u.email, phone: u.phone }, lastMessage: t.messages.at(-1)?.body || "" }; });
