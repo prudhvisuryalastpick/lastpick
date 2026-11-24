@@ -91,7 +91,7 @@ export function OfferImage({ offer, className = "top", children, size }) {
 }
 
 export function OfferCard({ offer, preview = false }) {
-  const { location, isCustomer } = useApp();
+  const { location, isCustomer, customersFree } = useApp();
   const km = distanceKm(location, offer.business);
   const r = offer.business?.rating;
   const body = (
@@ -105,7 +105,7 @@ export function OfferCard({ offer, preview = false }) {
           <Countdown end={offer.endsAt} />
         </div>
         <OfferQuote offer={offer} />
-        {!(isCustomer || preview) && <div className="lock">Number locked · get the Customer Pass</div>}
+        {!(isCustomer || preview) && <div className="lock">{customersFree ? "Log in free to see the number" : "Number locked · get the Customer Pass"}</div>}
       </div>
     </>
   );

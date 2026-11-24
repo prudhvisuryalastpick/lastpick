@@ -4,6 +4,9 @@ const env = { ...process.env, ...(globalThis.__LP_ENV || {}) };
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 export const PRODUCTION = env.NODE_ENV === "production";
+// Customers use LastPick for free (launch decision). CUSTOMER_PASS=on brings the paid Customer Pass back
+// (the web apps read it from /api/config, so nothing else needs to change).
+export const CUSTOMER_PASS = env.CUSTOMER_PASS === "on";
 // Which server this is. "all" runs every route in one process (local development only).
 export const SERVICE = ["customer", "partner", "admin", "all"].includes(env.SERVICE) ? env.SERVICE : "all";
 export const PORT = Number(env.PORT || 8080);

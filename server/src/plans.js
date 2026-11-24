@@ -1,8 +1,13 @@
 // Plans: customers need a Customer Pass to see businesses' numbers, and businesses need Business Pro to post.
 // Free launch mode (admin switch, app_settings "free_mode"): while on, every customer can see numbers and every
 // VERIFIED business can post, with no payment. Off by default; switched off again when live payments start.
+import { CUSTOMER_PASS } from "./config.js";
 import { one } from "./db.js";
 import { getSetting, setSetting } from "./settings.js";
+
+// Customers use LastPick for free (launch decision: get known first). The Customer Pass code below is kept, switched
+// off; the CUSTOMER_PASS=on setting brings it back.
+export const CUSTOMERS_FREE = !CUSTOMER_PASS;
 
 export async function freeMode() { return (await getSetting("free_mode", false)) === true; }
 export async function setFreeMode(on, by) { await setSetting("free_mode", !!on, by); }
@@ -16,6 +21,7 @@ export const OWNER_ACTIVE_SQL = (b, free) => `(${free} OR ${b}.trial_ends_at > n
 
 // Is this user's plan active? (trial_ends_at is only set when an admin gives someone extra days by hand.)
 export async function planActive(uid, plan) {
+  if (plan === "customer" && CUSTOMERS_FREE) return true;
   if (await freeMode()) {
     if (plan === "customer") return true;
     const b = await one("SELECT status FROM businesses WHERE id = $1", [uid]);

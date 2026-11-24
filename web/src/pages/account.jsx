@@ -5,6 +5,7 @@ import { api, isLive } from "../api/index.js";
 import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay } from "../lib/config.js";
 import { isInstalled } from "../lib/install.js";
+import { Icon } from "../lib/icons.jsx";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { AdminSupport } from "./impact.jsx";
@@ -14,7 +15,7 @@ import { AdminSupport } from "./impact.jsx";
 // Admins can still turn plans on by hand in Admin → Plans (e.g. after a UPI transfer).
 export function Subscribe({ plan }) { return <Plans plan={plan} />; }
 export function Plans({ plan: initial }) {
-  const { session, subs, profile, business, trial, refresh, config, toast } = useApp();
+  const { session, subs, profile, business, trial, refresh, config, toast, customersFree } = useApp();
   const [plan, setPlan] = useState(PLANS[initial] ? initial : IS_OWNER_APP ? "owner" : "customer");
   const [days, setDays] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -45,6 +46,24 @@ export function Plans({ plan: initial }) {
     else if (config?.freeMode) status = null; // free launch: the green "Free during launch" note says it all
     else status = ["no", "⚠️", `${p.name} is not active`, `Pick a plan to ${plan === "owner" ? "post offers" : "see businesses' numbers"}.`];
   }
+  // customers are free: the customer app shows that instead of the (switched-off) Customer Pass
+  if (customersFree && plan === "customer") return (
+    <>
+      <div style={{ position: "relative", height: 62 }}><BackButton /></div>
+      <div className="freepanel">
+        <span className="fi" aria-hidden="true"><Icon d="gift" size={30} stroke={2} /></span>
+        <h1 className="title">{APP_NAME} is free for you</h1>
+        <p className="muted">No pass, no payment. Browse every deal near you, log in to see the owner's number, and call them directly.</p>
+        <ul className="freelist">
+          <li><Icon d="check" size={16} stroke={2.4} />See every offer near you</li>
+          <li><Icon d="check" size={16} stroke={2.4} />Call the owner directly</li>
+          <li><Icon d="check" size={16} stroke={2.4} />Keep a History of businesses you contacted</li>
+        </ul>
+        <a className="btn main" href="#/">Browse deals</a>
+        {!IS_CUSTOMER_APP && <button className="btn line" style={{ marginTop: 10 }} onClick={() => setPlan("owner")}>Plans for businesses</button>}
+      </div>
+    </>
+  );
   return (
     <>
       <div style={{ position: "relative", height: 62 }}><BackButton /></div>
@@ -109,7 +128,7 @@ export function Help() {
       <div className="legal">
         <h1 className="title">Help & support</h1>
         <h2>How does {APP_NAME} work?</h2>
-        <p>Owners post offers on things they need to move fast. Customers browse for free; with the Customer Pass they can see the owner's number, call or WhatsApp them, or share their own number so the owner calls back.</p>
+        <p>Owners post offers on things they need to move fast. Customers use LastPick for free: browse every offer, log in to see the owner's number and call them, or tap "I'm interested" so the owner knows.</p>
         <h2>The owner didn't honour the offer</h2>
         <p>Open the offer and tap "Report this offer". Our team reviews every report and can remove offers or suspend businesses.</p>
         <h2>Renewing or stopping a plan</h2>
@@ -134,7 +153,7 @@ export function Refund() {
         <h1 className="title">Refund & cancellation policy</h1>
         <p className="muted">Template text: have a lawyer review it before launch.</p>
         <h2>Subscriptions</h2>
-        <p>You pay once through Razorpay (UPI, card or netbanking): Customer Pass ₹29 for 5 days, ₹59 for 15 days or ₹99 for 30 days; Business Pro ₹119 for 5 days, ₹299 for 15 days or ₹499 for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
+        <p>You pay once through Razorpay (UPI, card or netbanking): Business Pro ₹119 for 5 days, ₹299 for 15 days or ₹499 for 30 days. You are never charged without choosing a plan and confirming the payment.</p>
         <h2>No auto-renewal</h2>
         <p>Plans do not renew automatically and no mandate is set up. When your days end, the plan stops unless you pay again. Paying again before the end adds the new days to your current end date.</p>
         <h2>Refunds</h2>

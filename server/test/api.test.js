@@ -43,7 +43,7 @@ async function startServer(service) {
   const target = process.env.LP_TEST_TARGET;
   const entry = target === "worker" ? "test/worker-bridge.js" : target === "edge" || target === "deno" ? "test/edge-bridge.js" : "src/index.js";
   const [cmd, args] = target === "deno" ? ["deno", ["run", "-A", "--config", "deno.json", entry]] : [process.execPath, [entry]];
-  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, ...WA_ENV, SERVICE: service === "night" ? "customer" : service, ...(service === "night" ? { WA_VERIFY: "on" } : {}), PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
+  const p = spawn(cmd, args, { cwd: root, env: { ...process.env, ...WA_ENV, SERVICE: service === "night" ? "customer" : service, ...(service === "night" ? { WA_VERIFY: "on" } : { CUSTOMER_PASS: "on" }), PORT: String(PORTS[service]), LOG_LEVEL: "error", SIGNUP: "open", IP_LIMIT_MULTIPLIER: "20", RUN_WORKER: service === "night" ? "0" : "1", ...hours }, stdio: ["ignore", "inherit", "inherit"] });
   procs.push(p);
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(`http://localhost:${PORTS[service]}/healthz`)).ok) return; } catch { /* starting */ }
@@ -517,6 +517,17 @@ test("working hours: after 11 PM only hotels, travel and logistics", async () =>
     const r = await n.post(`/api/offers/${day.id}/reveal`);
     assert.equal(r.data.code, "closed_for_night");
   }
+  // customers are free (the night server runs without CUSTOMER_PASS): a brand-new customer with no plan sees a
+  // 24-hour offer's number, call only (no WhatsApp), and can't buy a Customer Pass
+  const fresh = client("night");
+  fresh.token = (await fresh.post("/api/auth/signup", { email: "freecust@test.lastpick.in", password: "longpassword", name: "Free Cust", phone: "9811155599", consent: fullConsent() })).data.token;
+  assert.equal((await fresh.get("/api/config")).data.customersFree, true);
+  assert.equal((await client("customer").get("/api/config")).data.customersFree, false);
+  const stay = feed[0];
+  const rv = await fresh.post(`/api/offers/${stay.id}/reveal`);
+  assert.equal(rv.status, 200, JSON.stringify(rv.data));
+  assert.ok(rv.data.phone && rv.data.whatsapp === undefined, JSON.stringify(rv.data));
+  assert.notEqual((await fresh.post("/api/payments/order", { plan: "customer" })).status, 200, "no Customer Pass to buy");
 });
 
 test("no combos, automatic % in the title, 24-hour hotel offers", async () => {

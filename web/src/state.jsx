@@ -199,9 +199,11 @@ export function AppProvider({ children }) {
     ...state, refresh, mode, setMode, location, locationStatus, retryLocation, place, city, setCity, area, setArea, toast: setToastMsg,
     // There is no free version: access needs an active plan (an admin can still add extra days by hand via trialEndsAt).
     config, setConfig, freeMode: !!config?.freeMode,
+    // customers use LastPick free (the server's CUSTOMER_PASS setting brings the pass back; until the config loads, free)
+    customersFree: config?.customersFree !== false,
     trial: { customer: state.profile?.trialEndsAt || null, owner: state.business?.trialEndsAt || null },
     // free launch mode (admin switch): everyone has the Customer Pass, verified businesses have Business Pro
-    isCustomer: !!state.session && (!!config?.freeMode || !!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
+    isCustomer: !!state.session && (config?.customersFree !== false || !!config?.freeMode || !!state.subs.customer?.active || (state.profile?.trialEndsAt || 0) > Date.now()),
     isOwner: !!state.session && ((!!config?.freeMode && state.business?.status === "verified") || !!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
     isAdmin: state.profile?.role === "admin", // super admin: all of India
     isStaff: ["admin", "moderator"].includes(state.profile?.role), // admin or city/state moderator

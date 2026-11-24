@@ -908,3 +908,19 @@ button.maint-back { cursor: pointer; }
   .shero-card .row2 .pill { font-size: 12.5px; padding: 11px 9px; }
 }
 .shero-card .row2 .pill { min-width: 0; }
+/* History: live / ends soon / ended tag under each business, and a Call button */
+.item .htag { display: inline-block; margin-top: 5px; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+.htag.live { background: #EAF3DE; color: #27500A; }
+.htag.soon { background: #FAEEDA; color: #633806; }
+.htag.end { background: #EEECE6; color: #444441; }
+.item.gone > a:first-child, .item.gone .grow b, .item.gone .grow .muted { opacity: .6; }
+.hcall { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 8px 12px; border-radius: 99px; background: var(--brand); color: #fff; font-weight: 700; font-size: 13px; }
+/* Plans page in the customer app while customers are free */
+.freepanel { margin: 0 16px; padding: 22px 18px; border-radius: 22px; background: var(--brand-soft, #E4F5F2); text-align: center; display: flex; flex-direction: column; align-items: stretch; }
+.freepanel .fi { width: 64px; height: 64px; border-radius: 20px; background: #fff; color: var(--brand); display: grid; place-items: center; margin: 0 auto 10px; }
+.freepanel h1 { margin: 0 0 6px; }
+.freelist { list-style: none; padding: 0; margin: 14px 0 18px; text-align: left; display: grid; gap: 8px; }
+.freelist li { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.freelist li svg { color: var(--brand); flex: none; }
+.walkin { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: #FAEEDA; color: #633806; display: grid; gap: 3px; }
+.walkin span { font-size: 13px; line-height: 1.45; }

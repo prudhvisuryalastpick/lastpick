@@ -419,26 +419,29 @@ export function OfferPage({ id }) {
           </div>
 
           {own ? (
-            <div className="banner ok" style={{ margin: "12px 0 0" }}>This is your offer. Customers with the Customer Pass see your number here.</div>
+            <div className="banner ok" style={{ margin: "12px 0 0" }}>This is your offer. Customers who log in see your number here.</div>
           ) : !session || !isCustomer ? (
             <>
               <div className="num blur" style={{ marginTop: 12 }} aria-hidden="true">+91 98••• •••••</div>
               {IS_NATIVE ? <>
-                <div className="muted" style={{ marginTop: 6 }}>{session ? `Your account doesn't have an active ${PLANS.customer.name}.` : "Log in to see the owner's number."}</div>
+                <div className="muted" style={{ marginTop: 6 }}>{session ? `Your account doesn't have an active ${PLANS.customer.name}.` : "Log in to see the owner's number. It's free."}</div>
                 {!session && <a className="btn main" style={{ marginTop: 12 }} href={`#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>Log in</a>}
               </> : <>
-                <div className="muted" style={{ marginTop: 6 }}>Subscribe to see the owner's number and contact them, and share your number with them.</div>
+                <div className="muted" style={{ marginTop: 6 }}>{session ? "Subscribe to see the owner's number and contact them, and share your number with them." : "Log in to see the owner's number and call them. It's free."}</div>
                 <a className="btn main" style={{ marginTop: 12 }} href={session ? "#/plans" : `#/login?next=${encodeURIComponent("/offer/" + offer.id)}`}>
                   {session ? `🔓 ${PLANS.customer.tagline} · just ${PLANS.customer.perDay}` : "🔓 Log in to see the number"}
                 </a>
               </>}
             </>
           ) : contactErr ? (
-            <><div className="error" style={{ marginTop: 12 }}>{contactErr}</div><TicketHint /></>
+            /no(t added a)? contact number/i.test(contactErr)
+              ? <div className="walkin"><b>Walk in to get this deal</b><span>This business hasn't shared a phone number. Visit them at {[offer.business?.area, offer.business?.city].filter(Boolean).join(", ")}.</span></div>
+              : <><div className="error" style={{ marginTop: 12 }}>{contactErr}</div><TicketHint /></>
           ) : !contact ? <Spinner /> : (
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>
-              <div className="muted small" style={{ marginTop: 6 }}>Contact the business on this number. Businesses never see your number.</div>
+              {!ended && <a className="btn main" style={{ marginTop: 10 }} href={"tel:" + contact.phone} onClick={() => api.logContact?.(offer.id, "Called")}><Icon d="phone" size={18} stroke={2.2} />Call {offer.business?.name || "the business"}</a>}
+              <div className="muted small" style={{ marginTop: 6 }}>Businesses never see your number.</div>
               {!ended && (
                 <button className="btn ghost" style={{ marginTop: 10 }} disabled={shared || busy} onClick={askShare}>
                   <Icon d="check" size={18} stroke={2.2} />{shared ? "The business knows you're interested" : busy ? "Sending…" : "I'm interested (sends only your name)"}
@@ -488,11 +491,21 @@ function ReportSheet({ offerId, onClose }) {
 }
 
 // ------------------------------------------------------------------ Contacts
+const clockTime = (t) => new Date(t).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).toUpperCase();
+const istDay = (x) => new Date(x).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const sameDay = (a, b) => istDay(a) === istDay(b);
+function endedWhen(t, now) {
+  const d = istDay;
+  if (d(t) === d(now)) return clockTime(t);
+  if (d(t) === d(now - 86400000)) return "yesterday";
+  return new Date(t).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+}
 export function Contacts() {
   return <NeedLogin why="Log in to see your contacts"><ContactsInner /></NeedLogin>;
 }
 function ContactsInner() {
   const { isCustomer } = useApp();
+  const now = useNow(30000); // tags move from "Live" to "Ends soon" to "Offer ended" by themselves
   const [list, setList] = useState(null);
   const [phones, setPhones] = useState({});
   const [rating, setRating] = useState(null);
@@ -500,7 +513,7 @@ function ContactsInner() {
   const reveal = async (offerId) => {
     try { const c = await api.revealContact(offerId); setPhones((p) => ({ ...p, [offerId]: c })); } catch (e) { setPhones((p) => ({ ...p, [offerId]: { error: errText(e) } })); }
   };
-  useEffect(() => { (list || []).forEach((c) => !phones[c.offer.id] && reveal(c.offer.id)); }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { (list || []).forEach((c) => !phones[c.offer.id] && !(c.offer.endsAt && c.offer.endsAt <= Date.now()) && reveal(c.offer.id)); }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -511,16 +524,22 @@ function ContactsInner() {
       ) : !list ? <Spinner /> : list.length === 0 ? (
         <Empty icon={<span className="emptyic"><Icon d="phone" size={30} /></span>} title="No businesses contacted yet" action={<a className="btn ghost" href="#/">Browse deals</a>}>Open a deal to see the owner's number. Everyone you contact shows up here.</Empty>
       ) : list.map((c) => {
-        const p = phones[c.offer.id];
+        const ended = !!c.offer.endsAt && c.offer.endsAt <= now;
+        const p = ended ? null : phones[c.offer.id];
+        const left = c.offer.endsAt ? c.offer.endsAt - now : null;
+        const tag = left == null ? null : ended ? ["end", `Offer ended · ${endedWhen(c.offer.endsAt, now)}`]
+          : left <= 3600000 ? ["soon", `Ends in ${Math.max(1, Math.ceil(left / 60000))} min`] : ["live", `Live · ends ${sameDay(c.offer.endsAt, now) ? "" : "tomorrow "}${clockTime(c.offer.endsAt)}`];
+        const how = c.how === "Shared my number" ? "Sent my name" : c.how;
         return (
-          <div className="item" key={c.offer.id}>
+          <div className={"item" + (ended ? " gone" : "")} key={c.offer.id}>
             <a href={"#/offer/" + c.offer.id} style={{ flex: "none" }}><OfferImage offer={c.offer} className="ic" /></a>
             <a className="grow" href={"#/offer/" + c.offer.id}>
               <b className="ellipsis" style={{ display: "block", fontSize: 14 }}>{c.offer.business?.name}</b>
               <div className="muted small ellipsis">{c.offer.title}</div>
-              <div className="muted small">{c.how} · {ago(c.at)}{p?.error ? " · can't contact now" : ""}</div>
+              <div className="muted small">{how} · {ago(c.at)}{p?.error && !/contact number/i.test(p.error) ? " · can't contact now" : p?.error ? " · walk-in only" : ""}</div>
+              {tag && <span className={"htag " + tag[0]}>{tag[1]}</span>}
             </a>
-            {p?.phone && <span className="muted small" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{prettyPhone(p.phone)}</span>}
+            {p?.phone && <a className="hcall" href={"tel:" + p.phone} aria-label={`Call ${c.offer.business?.name}`}><Icon d="phone" size={16} stroke={2.2} />Call</a>}
             {c.offer.businessId && <button className="icon-btn soft" aria-label={`Rate ${c.offer.business?.name}`} onClick={() => setRating(c.offer)}><Icon d="star" size={18} stroke={2} /></button>}
           </div>
         );
@@ -620,7 +639,7 @@ export function Account() {
   return <NeedLogin why="Log in to your account"><AccountInner /></NeedLogin>;
 }
 function AccountInner() {
-  const { profile, subs, business, isStaff, refresh, toast, setMode, trial } = useApp();
+  const { profile, subs, business, isStaff, refresh, toast, setMode, trial, customersFree } = useApp();
   const canInstall = useCanInstall();
   const [runInstall, installUi] = useInstall();
   const [name, setName] = useState(profile?.name || "");
@@ -650,7 +669,7 @@ function AccountInner() {
       {["customer", "owner"].map((plan) => {
         const s = subs[plan];
         if (plan === "owner" && (IS_CUSTOMER_APP || !business)) return null;
-        if (plan === "customer" && IS_OWNER_APP) return null;
+        if (plan === "customer" && (IS_OWNER_APP || customersFree)) return null; // customers are free: no plan card
         const left = daysLeft(trial?.[plan]);
         const [cls, icon, title, sub] = s?.active
           ? ["ok", "✅", `${PLANS[plan].name} · active`, `Active till ${day(s.currentPeriodEnd)} · pay again any time to add more days`]
@@ -677,7 +696,7 @@ function AccountInner() {
 
       <MenuGroup title="Your LastPick" items={[
         canInstall && ["install", "Install app", runInstall, IS_OWNER_APP ? "#FFEAD5" : "#E4F5F2", IS_OWNER_APP ? "#3B1606" : "#0F6E5C"],
-        ["card", "Plans and pricing", "#/plans"],
+        !(IS_CUSTOMER_APP && customersFree) && ["card", "Plans and pricing", "#/plans"],
         isStaff && ["shield", profile?.role === "moderator" ? "Moderator panel" : "Admin panel", "#/admin"],
         IS_CUSTOMER_APP ? ["store", "Own a business? Get LastPick Business", PARTNER_URL, "#FFF1E0", "#B35A00", true]
           : IS_OWNER_APP ? ["store", "Business profile", "#/owner/business"]

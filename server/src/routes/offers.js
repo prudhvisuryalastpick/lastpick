@@ -101,7 +101,7 @@ export function offerRoutes(r) {
   });
 
   // ---------- number exchange ----------
-  // The owner's number is never in the offer. Customers get it here, only with the Customer Pass (or free month).
+  // The owner's number is never in the offer. Logged-in customers get it here (free; the Customer Pass is switched off).
   r.post("/api/offers/:id/reveal", async (ctx) => {
     const u = needUser(ctx);
     needConsent(u);
@@ -110,7 +110,7 @@ export function offerRoutes(r) {
     if (!own) needOpen(o);
     const customer = await planActive(u.id, "customer");
     if (!customer && !own && !isStaff(u)) throw denied("Subscribe to the Customer Pass to see this number");
-    const c = await one("SELECT phone, whatsapp FROM business_contacts WHERE business_id = $1", [o.ownerId]);
+    const c = await one("SELECT phone FROM business_contacts WHERE business_id = $1", [o.ownerId]);
     if (!c) throw notFound("The owner has not added a contact number");
     if (customer && !own) {
       const prev = await one("SELECT how FROM customer_contacts WHERE customer_id = $1 AND offer_id = $2", [u.id, o.id]);
@@ -121,7 +121,7 @@ export function offerRoutes(r) {
       await q(`INSERT INTO customer_contacts (customer_id, offer_id, business_id, how, offer) VALUES ($1, $2, $3, 'Viewed number', $4)
                ON CONFLICT (customer_id, offer_id) DO UPDATE SET at = now(), offer = $4`, [u.id, o.id, o.ownerId, offerSummary(o)]);
     }
-    return { phone: c.phone, whatsapp: c.whatsapp };
+    return { phone: c.phone }; // call only: customers get no WhatsApp link
   });
 
   r.post("/api/offers/:id/log", async (ctx) => {

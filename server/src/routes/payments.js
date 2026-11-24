@@ -5,6 +5,7 @@
 // Flow: the app asks for an order (POST /api/payments/order) → opens Razorpay Checkout → sends Razorpay's reply to
 // POST /api/payments/verify, which checks the signature and extends the plan. If the app never gets that reply (closed
 // tab, lost network), POST /api/payments/check asks Razorpay whether the order was paid. Each order counts only once.
+import { CUSTOMERS_FREE } from "../plans.js";
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import { needUser } from "../auth.js";
@@ -38,6 +39,7 @@ async function razorpay(method, path, body) {
 function planFor(ctx) {
   const plan = ctx.body.plan;
   if (plan !== "customer" && plan !== "owner") throw bad("Unknown plan");
+  if (plan === "customer" && CUSTOMERS_FREE) throw bad("LastPick is free for customers. There's nothing to pay.");
   if (SERVICE !== "all" && plan !== (SERVICE === "partner" ? "owner" : "customer")) throw denied("This plan can't be bought in this app");
   return plan;
 }

@@ -14,16 +14,12 @@ export const CUSTOMER_FAQ = [
     ["Why does LastPick need my location?", "To show offers near you. If location is off, the app asks you to turn it on. Your location isn't shared with businesses."],
     ["Does LastPick sell the products?", "No. LastPick only connects you with the business. The offer, payment and service are between you and the business."],
   ]],
-  ["Plans & payments", [
-    ["Do I need to pay to see offers?", "You can browse offers for free. To see a business's phone number and contact them, you need the Customer Pass."],
-    ["How much is the Customer Pass?", `${packs("customer")}. The 30-day pack works out to just ${perDayBest("customer")} a day.`],
-    ["Does it renew automatically?", "No. You pay once for the days you choose. Nothing is charged again unless you pay again."],
-    ["Can I add more days?", "Yes, any time. Paying again adds the new days to your current end date."],
-    ["How do I pay?", "Through Razorpay with UPI, card or netbanking. A receipt is e-mailed to you."],
-    ["Money was taken but my pass isn't active?", "Wait a minute and reopen Plans; it usually updates. If not, raise a ticket or e-mail a clear screenshot of the payment to support@lastpick.in."],
+  ["Is it free?", [
+    ["Do I need to pay to use LastPick?", "No. LastPick is free for customers: browse every offer and see the owner's number after you log in. There's no pass and nothing to pay."],
+    ["Will it always be free?", "It's free now. If that ever changes, we'll tell you in the app first, and nothing is ever charged without you choosing to pay."],
   ]],
   ["Contacting a business", [
-    ["How do I contact a business?", "Open the offer. With an active Customer Pass you'll see the business's phone number to call."],
+    ["How do I contact a business?", "Open the offer and log in. You'll see the business's phone number and a Call button. Some businesses don't share a number; for those, just walk in."],
     ["How do I tell a shop I'm interested?", "Tap I'm interested on the offer. The shop sees only your name, never your number."],
     ["Do I pay LastPick for the deal?", "No. You pay the business directly. Never pay an advance to someone you haven't verified."],
     ["Where do I see shops I contacted?", "In History, at the bottom of the app."],
