@@ -1,12 +1,12 @@
 // About LastPick (bottom-bar tab in the customer and partner apps): the Udyam (MSME) registration details,
-// the registered address and the support e-mail, then "People who lifted me up" (scrolling), the family note and the founder's quote.
+// the registered address and the support e-mail, then "Thank you, always" (scrolling), the family note and the founder's quote.
 import { APP_NAME, COMPANY, SUPPORT_EMAIL } from "../lib/config.js";
 import { Icon } from "../lib/icons.jsx";
 import { useState } from "react";
 
 // Wording chosen by the founder (Prudhvi Surya). No photos: everyone shows coloured initials ([background, text]).
 const P = (name, bg, fg) => ({ name, bg, fg });
-// "People who lifted me up": one card each, scrolling right to left, in a new random order on every visit
+// "Thank you, always": one card each, scrolling right to left, in a new random order on every visit
 export const LIFTED = [
   { people: [P("Harsha Gogineni", "#E6F1FB", "#0C447C")], line: "My first manager. Gave me my first real shot." },
   { people: [P("Maulik Patel", "#EEEDFE", "#3C3489")], line: "The team lead who levelled me up. Respect." },
@@ -95,8 +95,8 @@ function Thanks() {
         <div className="jkick fam special">My special ones</div>
         <Faces list={SPECIAL} className="faces one" />
       </section>
-      <section className="lifted" aria-label="People who lifted me up">
-        <div className="jkick">People who lifted me up</div>
+      <section className="lifted" aria-label="Thank you, always">
+        <div className="jkick">Thank you, always</div>
         <div className="marquee"><div className="mtrack" style={{ animationDuration: order.length * 4.5 + "s" }}>
           {order.map((c, i) => card(c, "a" + i))}
           {order.map((c, i) => card(c, "b" + i, true))}
