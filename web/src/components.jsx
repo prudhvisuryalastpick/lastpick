@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME, IS_ADMIN_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
+import { APP_NAME, IS_ADMIN_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SOCIAL, SUPPORT_EMAIL, categoryOf } from "./lib/config.js";
+import { install, isInstalled, onInstallChange } from "./lib/install.js";
 import { api } from "./api/index.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
 import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
@@ -293,3 +294,48 @@ export function SocialLinks({ style, className = "" }) {
   );
 }
 
+
+// ------------------------------------------------------------------ Install app (add to home screen)
+// Shown only to subscribed users (during free launch: logged-in customers and verified partners), and never once installed.
+export function useCanInstall() {
+  const { session, subs, business, config } = useApp();
+  const [, bump] = useState(0);
+  useEffect(() => onInstallChange(() => bump((n) => n + 1)), []);
+  if (!session || IS_NATIVE || isInstalled()) return false;
+  const free = !!config?.freeMode;
+  return IS_OWNER_APP ? (!!subs?.owner?.active || (free && business?.status === "verified")) : (!!subs?.customer?.active || free);
+}
+
+export function InstallSheet({ mode, onClose }) {
+  return (
+    <Sheet onClose={onClose}>
+      {mode === "ios" ? <>
+        <h2 className="title" style={{ fontSize: 19 }}>Install on iPhone</h2>
+        <p className="muted" style={{ margin: "2px 0 10px" }}>Open this page in Safari, then:</p>
+        <ol className="isteps">
+          <li><b>Tap Share</b> <span className="ikey" aria-hidden="true">⬆</span> at the bottom of Safari</li>
+          <li>Scroll and tap <b>Add to Home Screen</b></li>
+          <li>Tap <b>Add</b>. The {APP_NAME} icon appears on your phone.</li>
+        </ol>
+      </> : mode === "inapp" ? <>
+        <h2 className="title" style={{ fontSize: 19 }}>Open in your browser first</h2>
+        <p className="muted">Apps like Instagram and WhatsApp can't install other apps. Tap <b>⋮</b> or <b>…</b> at the top and choose <b>Open in browser</b> (Chrome or Safari), then tap Install app again.</p>
+      </> : <>
+        <h2 className="title" style={{ fontSize: 19 }}>Install {APP_NAME}</h2>
+        <ol className="isteps">
+          <li>Open the browser menu <b>⋮</b> (top right in Chrome)</li>
+          <li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>
+          <li>Tap <b>Install</b>. The {APP_NAME} icon appears on your phone.</li>
+        </ol>
+      </>}
+      <button className="btn dark" style={{ width: "100%", marginTop: 12 }} onClick={onClose}>Got it</button>
+    </Sheet>
+  );
+}
+
+export function useInstall() {
+  const [sheet, setSheet] = useState(null);
+  const run = async () => { const r = await install(); if (r === "ios" || r === "inapp" || r === "manual") setSheet(r); };
+  const ui = sheet ? <InstallSheet mode={sheet} onClose={() => setSheet(null)} /> : null;
+  return [run, ui];
+}

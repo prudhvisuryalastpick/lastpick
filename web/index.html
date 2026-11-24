@@ -6,7 +6,19 @@
     <meta name="theme-color" content="#06373A" />
     <meta name="description" content="LastPick: grab last-minute deals from businesses near you." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link id="lp-manifest" rel="manifest" href="/manifest.webmanifest" />
+    <link id="lp-apple" rel="apple-touch-icon" href="/apple-touch-customer.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta id="lp-apple-title" name="apple-mobile-web-app-title" content="LastPick" />
+    <script>
+      // partner.lastpick.in installs as "LastPick Partner" with the gold icon; the customer site keeps the teal one
+      if (location.hostname.indexOf("partner.") === 0) {
+        document.getElementById("lp-manifest").href = "/manifest-partner.webmanifest";
+        document.getElementById("lp-apple").href = "/apple-touch-partner.png";
+        document.getElementById("lp-apple-title").content = "LP Partner";
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>LastPick</title>

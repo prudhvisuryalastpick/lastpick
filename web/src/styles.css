@@ -717,3 +717,10 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .pfx > span::after { content: ""; display: inline-block; width: 1px; height: 18px; background: var(--line); margin-left: 10px; vertical-align: middle; }
 .fld .pfx input { padding-left: 62px; }
 .fld input.otp { font-size: 24px; font-weight: 800; letter-spacing: 10px; text-align: center; height: 58px; }
+
+/* Install app: steps sheet (iPhone / browser menu) and the card on the "plan is active" sheet */
+.isteps { margin: 6px 0 0; padding-left: 22px; line-height: 1.55; font-size: 14.5px; }
+.isteps li { padding: 6px 0; border-top: 1px solid var(--line); }
+.isteps li:first-child { border-top: 0; }
+.ikey { display: inline-flex; width: 22px; height: 22px; border: 1.5px solid #185FA5; color: #185FA5; border-radius: 5px; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; vertical-align: -4px; }
+.installcard { display: flex; gap: 12px; align-items: center; background: var(--brand-soft); border-radius: 14px; padding: 12px; margin: 12px 0; }

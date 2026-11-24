@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
-import { JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -608,6 +608,8 @@ export function Account() {
 }
 function AccountInner() {
   const { profile, subs, business, isStaff, refresh, toast, setMode, trial } = useApp();
+  const canInstall = useCanInstall();
+  const [runInstall, installUi] = useInstall();
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [saving, setSaving] = useState(false);
@@ -661,6 +663,7 @@ function AccountInner() {
       </div>
 
       <MenuGroup title="Your LastPick" items={[
+        canInstall && ["install", "Install app", runInstall, IS_OWNER_APP ? "#FFEAD5" : "#E4F5F2", IS_OWNER_APP ? "#3B1606" : "#0F6E5C"],
         ["card", "Plans and pricing", "#/plans"],
         isStaff && ["shield", profile?.role === "moderator" ? "Moderator panel" : "Admin panel", "#/admin"],
         IS_CUSTOMER_APP ? ["store", "Own a business? Get LastPick Business", PARTNER_URL, "#FFF1E0", "#B35A00", true]
@@ -682,6 +685,7 @@ function AccountInner() {
       <div className="menubox"><button className="mi bad" onClick={async () => { await api.signOut(); navigate("/"); }}><span className="mic"><Icon d="logout" size={18} stroke={2.1} /></span>Log out</button></div>
       <div className="center muted small" style={{ padding: "8px 0 4px" }}>Follow {APP_NAME}</div>
       <SocialLinks style={{ justifyContent: "center", paddingBottom: 16 }} />
+      {installUi}
       {cancelling && (
         <Sheet onClose={() => setCancelling(null)}>
           <h2 className="title" style={{ fontSize: 19 }}>Cancel {PLANS[cancelling].name}?</h2>

@@ -2,8 +2,9 @@ import { Logo } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
-import { TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
+import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay } from "../lib/config.js";
+import { isInstalled } from "../lib/install.js";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { AdminSupport } from "./impact.jsx";
@@ -18,6 +19,8 @@ export function Plans({ plan: initial }) {
   const [days, setDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [paidSheet, setPaidSheet] = useState(null);
+  const [runInstall, installUi] = useInstall();
   const p = PLANS[plan], s = subs?.[plan], opt = p.packs.find((o) => o.days === days) || p.packs[p.packs.length - 1];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
@@ -27,7 +30,10 @@ export function Plans({ plan: initial }) {
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
-    try { await api.subscribe(plan, profile, opt.days); await refresh(); toast?.(`Payment received. ${p.name} is active for ${opt.days} more days.`); } catch (e) { setErr(errText(e)); }
+    try {
+      await api.subscribe(plan, profile, opt.days); await refresh(); toast?.(`Payment received. ${p.name} is active for ${opt.days} more days.`);
+      if (!IS_NATIVE && !isInstalled()) setPaidSheet(p.name);
+    } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
   let status = null;
@@ -79,6 +85,16 @@ export function Plans({ plan: initial }) {
           ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category."
           : "Customer Pass: see businesses' numbers and contact them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>
       </div>
+      {paidSheet && (
+        <Sheet onClose={() => setPaidSheet(null)}>
+          <div className="center" style={{ fontSize: 34 }}>🎉</div>
+          <h2 className="title center" style={{ fontSize: 19, margin: "4px 0 2px" }}>{paidSheet} is active!</h2>
+          <div className="installcard"><Logo size={40} /><div><b>Get {IS_OWNER_APP ? `${APP_NAME} Partner` : APP_NAME} on your phone</b><div className="muted small">{IS_OWNER_APP ? "Post offers and see leads in one tap" : "Open deals in one tap, like an app"}</div></div></div>
+          <button className="btn dark" style={{ width: "100%" }} onClick={() => { setPaidSheet(null); runInstall(); }}>Install app</button>
+          <button className="btn ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setPaidSheet(null)}>Not now</button>
+        </Sheet>
+      )}
+      {installUi}
     </>
   );
 }
