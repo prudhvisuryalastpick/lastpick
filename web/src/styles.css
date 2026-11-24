@@ -779,8 +779,8 @@ h1, h2, .title, .shead h2, .sect h3, .phead h1 { font-family: var(--font-h); let
 .tav { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 15.5px; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,.12); }
 .tp.wide { width: auto; flex-direction: row; gap: 10px; background: #fff; border: 1px solid #F1E2C4; border-radius: 16px; padding: 8px 16px 8px 8px; text-align: left; }
 .tp.wide b { margin: 0; display: block; font-size: 14px; }
-.tquote { position: relative; margin: 20px 0 0; background: var(--brand); color: #fff; border-radius: 18px; padding: 20px 18px 16px; overflow: hidden; text-align: left; }
-.tquote .qm { position: absolute; left: 10px; top: -16px; font: 90px/1 Georgia, serif; color: rgba(255,255,255,.18); }
+.tquote { position: relative; margin: 20px 0 0; background: var(--brand); color: #fff; border-radius: 18px; padding: 20px 18px 16px; overflow: hidden; text-align: center; }
+.tquote .qm { position: absolute; left: 50%; transform: translateX(-50%); top: -16px; font: 90px/1 Georgia, serif; color: rgba(255,255,255,.18); }
 .tquote blockquote { position: relative; margin: 0; font: italic 20px/1.35 Georgia, serif; }
 .tquote figcaption { margin-top: 10px; font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; opacity: .85; }
 .tav { overflow: hidden; }
