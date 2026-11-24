@@ -1,6 +1,6 @@
 // Sticker-style hero for the customer home (approved design): teal glow, light rays, floating bubbles,
 // a frosted card, white-outlined stickers, a rotating badge and a category switcher.
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { CountUp } from "../components.jsx";
 
@@ -35,24 +35,46 @@ export const IconSticker = ({ icon, bg, fg, size = 64, rot = -6 }) => (
   <span className="istk" style={{ width: size, height: size, background: bg, color: fg, transform: `rotate(${rot}deg)` }}><Icon d={icon} size={Math.round(size * 0.48)} stroke={2} /></span>
 );
 
-const SLIDES = {
-  food: { tag: "Fresh today, half price", title: <>Sweet deals,<br />before closing</>, sub: "Cakes, pastries and meals from shops near you, at closing-time prices.", cta: "See food deals",
-    art: [[<Cupcake key="a" />, "s1"], [<Cupcake key="b" top="#BFDBFE" swirl="#3B82F6" wrap="#F472B6" />, "s2"], [<Donut key="c" />, "s3"], [<CakeSlice key="d" />, "s4"]] },
-  stay: { tag: "Open 24×7", title: <>Rooms for<br />tonight</>, sub: "Hotels near you drop prices on rooms still empty tonight.", cta: "See tonight's rooms",
+// Customer home: one line per kind of deal. The banner moves to the next every few seconds, in a new random
+// order for each visitor; the button opens that category.
+export const CUSTOMER_SLIDES = [
+  { cat: "food", tag: "Fresh today, half price", title: "Sweet deals,\nbefore closing", sub: "Cakes, pastries and meals from shops near you, at closing-time prices.", cta: "See food deals",
+    art: [[<Cupcake key="a" />, "s1"], [<Cupcake key="b" top="#BFDBFE" swirl="#3B82F6" wrap="#F472B6" />, "s2"], [<Donut key="c" />, "s3"], [<CakeSlice key="d" />, "s4"]], drawn: true },
+  { cat: "stay", tag: "Open 24×7", title: "Rooms for\ntonight", sub: "Hotels near you drop prices on rooms still empty tonight.", cta: "See rooms",
     art: [["bed", "#DBEAFE", "#1D4ED8"], ["stay", "#E0E7FF", "#4338CA"], ["clock", "#FEF3C7", "#92400E"]] },
-  beauty: { tag: "Free slots this evening", title: <>Look good,<br />pay less</>, sub: "Salons and spas fill their empty slots with today-only prices.", cta: "See salon deals",
+  { cat: "beauty", tag: "Free slots this evening", title: "Look good,\npay less", sub: "Salons and spas fill their empty slots with today-only prices.", cta: "See salon deals",
     art: [["scissors", "#FCE7F3", "#BE185D"], ["brush", "#FDE7F3", "#A3245E"], ["spark", "#FFE4E6", "#BE123C"]] },
-  travel: { tag: "Leaving today", title: <>Last-minute<br />bus seats</>, sub: "Operators fill their final seats for less. Open 24×7.", cta: "See bus seats",
-    art: [["bus", "#DCFCE7", "#15803D"], ["pin", "#CCFBF1", "#0F766E"], ["clock", "#FEF9C3", "#A16207"]] },
-};
+  { cat: "travel", tag: "Leaving today", title: "Last-minute\nbus seats", sub: "Operators fill their final seats for less. Open 24×7.", cta: "See bus seats",
+    art: [["bus", "#DCFCE7", "#15803D"], ["place", "#CCFBF1", "#0F766E"], ["clock", "#FEF9C3", "#A16207"]] },
+  { cat: "makeup", tag: "Book for today", title: "Party ready,\nfor less", sub: "Makeup artists near you with free hours today, at lower prices.", cta: "See makeup",
+    art: [["brush", "#FDE7F3", "#A3245E"], ["spark", "#FFE4E6", "#BE123C"], ["heart", "#FCE7F3", "#BE185D"]] },
+  { cat: "fashion", tag: "Last pieces", title: "Last sizes,\nlowest prices", sub: "Clothes and shoe shops clearing today's stock near you.", cta: "See fashion",
+    art: [["tag", "#EDE9FE", "#6D28D9"], ["bag", "#FCE7F3", "#BE185D"], ["star", "#FEF3C7", "#92400E"]] },
+  { cat: "appliances", tag: "Today only", title: "Gadgets at\ntoday's price", sub: "Phones, TVs and appliances from stores near you, for today only.", cta: "See gadgets",
+    art: [["tv", "#E0F2FE", "#0369A1"], ["phoneDevice", "#DBEAFE", "#1D4ED8"], ["rupeeSave", "#DCFCE7", "#15803D"]] },
+  { cat: "shops", tag: "From your street", title: "Your local shop\nhas a deal", sub: "Every rupee stays local. Call the owner directly.", cta: "See shop deals",
+    art: [["store", "#FFEDD5", "#9A3412"], ["bag", "#FEF3C7", "#92400E"], ["heart", "#FCE7F3", "#BE185D"]] },
+  { cat: "logistics", tag: "Space on today's trips", title: "Send it today,\nfor less", sub: "Trucks and tempos with free space on today's trips near you.", cta: "See transport",
+    art: [["truck", "#E0F2FE", "#0369A1"], ["box", "#FEF3C7", "#92400E"], ["place", "#CCFBF1", "#0F766E"]] },
+];
 
-// counts: [{ icon, n, label }] shown in the bar at the bottom of the banner (live numbers, counted up with "+")
-// slide/badge/variant let the partner app reuse the same hero with its own words, stickers and colours
-export function StickerHero({ top, liveCount, onOpen, counts, slide, badge = "DEALS · BEFORE · MIDNIGHT · ", badgeIcon = "clock", variant = "", pill }) {
-  const [cat] = useState("food");
-  const s = slide || SLIDES[cat];
+const shuffle = (n) => { const a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const EVERY = 3500;
+
+// counts: [{ icon, n, label }] shown in the bar at the bottom of the banner (exact numbers, counted up from 1)
+// slides: the lines the banner moves through (customer lines by default; the partner app passes its own)
+export function StickerHero({ top, liveCount, onOpen, counts, slides = CUSTOMER_SLIDES, badge = "DEALS · BEFORE · MIDNIGHT · ", badgeIcon = "clock", variant = "", pill }) {
+  const order = useMemo(() => shuffle(slides.length), [slides]);
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    if (slides.length < 2 || matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => { if (!document.hidden) setK((x) => (x + 1) % slides.length); }, EVERY);
+    return () => clearInterval(t);
+  }, [slides]);
+  const s = slides[order[k]];
+  const partner = variant === "partner";
   return (
-    <section className={"shero" + (variant ? " " + variant : "")} aria-label={slide ? "LastPick Partner" : "Today's deals"}>
+    <section className={"shero" + (variant ? " " + variant : "")} aria-label={partner ? "LastPick Partner" : "Today's deals"}>
       <div className="rays" aria-hidden="true">{[18, 28, 40, 55, 66].map((x, i) => <span key={i} style={{ left: x + "%", width: [60, 26, 90, 30, 70][i] }} />)}</div>
       <div className="bubbles" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <span key={i} style={{ left: (i * 37) % 100 + "%", top: 40 + ((i * 53) % 60) + "%", width: [8, 12, 18, 10, 24, 14][i % 6], height: [8, 12, 18, 10, 24, 14][i % 6], animationDelay: (i * 0.8) % 9 + "s" }} />)}</div>
       {top}
@@ -60,19 +82,21 @@ export function StickerHero({ top, liveCount, onOpen, counts, slide, badge = "DE
         <svg viewBox="0 0 100 100"><defs><path id="hb" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0" /></defs><text><textPath href="#hb">{badge}</textPath></text></svg>
         <Icon d={badgeIcon} size={26} stroke={2.4} />
       </div>
-      <div className="shero-art" key={cat}>
-        {slide
+      <div className="shero-art" key={"a" + k}>
+        {partner
           ? s.art.map(([i, bg, fg], k) => <span key={k} className={"stk p" + (k + 1)}><IconSticker icon={i} bg={bg} fg={fg} size={[86, 70, 64, 60][k]} rot={[-8, 10, -5, 8][k]} /></span>)
-          : cat === "food"
+          : s.drawn
           ? s.art.map(([el, cls]) => <span key={cls} className={"stk " + cls}>{el}</span>)
           : s.art.map(([i, bg, fg], k) => <span key={k} className={"stk s" + (k + 1)}><IconSticker icon={i} bg={bg} fg={fg} size={[110, 84, 70][k]} rot={[-8, 10, -4][k]} /></span>)}
       </div>
-      <div className="shero-card" key={"c" + cat}>
-        <span className="tag"><Icon d="spark" size={13} stroke={2.2} />{s.tag}</span>
-        <h1>{s.title}</h1>
-        <p>{s.sub}</p>
+      <div className="shero-card">
+        <div className="slide" key={"c" + k}>
+          <span className="tag"><Icon d="spark" size={13} stroke={2.2} />{s.tag}</span>
+          <h1>{s.title}</h1>
+          <p>{s.sub}</p>
+        </div>
         <div className="row2">
-          <button className="pill dark" onClick={() => onOpen(cat)}>{s.cta}</button>
+          <button className="pill dark" onClick={() => onOpen(s.cat)}>{s.cta}</button>
           {pill || <span className="pill light">{liveCount != null ? `${liveCount} live near you` : "Live near you"}</span>}
         </div>
       </div>

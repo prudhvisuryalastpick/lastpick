@@ -16,13 +16,31 @@ const signup = (type) => {
   navigate("/login?start=signup");
 };
 
-const SLIDE = {
-  tag: "No commission · verified shops only",
-  title: <>Fill today's<br />empty slots</>,
-  sub: "Post leftover stock, empty rooms and free chairs. Customers within 30 km call you directly.",
-  cta: "Create free account",
-  art: [["store", "#FFEDD5", "#9A3412"], ["bed", "#DBEAFE", "#1D4ED8"], ["scissors", "#FCE7F3", "#BE185D"], ["rupeeSave", "#DCFCE7", "#15803D"]],
-};
+// Banner lines: one per kind of business plus a few for everyone. The banner moves to the next every few
+// seconds, in a new random order for each visitor; "Create free account" starts sign-up for that business type.
+const SLIDES = [
+  { tag: "No commission · verified shops only", title: "Fill today's\nempty slots", sub: "Post leftover stock, empty rooms and free chairs. Customers within 30 km call you directly.",
+    art: [["store", "#FFEDD5", "#9A3412"], ["bed", "#DBEAFE", "#1D4ED8"], ["scissors", "#FCE7F3", "#BE185D"], ["rupeeSave", "#DCFCE7", "#15803D"]] },
+  { cat: "food", tag: "For food shops", title: "Sell out before\nyou close", sub: "Cakes and meals left at 8 PM? Post them at half price.",
+    art: [["food", "#FFEDD5", "#9A3412"], ["pot", "#FEF3C7", "#92400E"], ["clock", "#FFE4E6", "#BE123C"], ["rupeeSave", "#DCFCE7", "#15803D"]] },
+  { cat: "stay", tag: "For hotels", title: "No empty room\ntonight", sub: "Post tonight's free rooms and let nearby guests call you.",
+    art: [["bed", "#DBEAFE", "#1D4ED8"], ["stay", "#E0E7FF", "#4338CA"], ["moon", "#FEF3C7", "#92400E"], ["phone", "#DCFCE7", "#15803D"]] },
+  { cat: "beauty", tag: "For salons", title: "Fill every free\nchair today", sub: "Quiet afternoon? Post a slot deal in one minute.",
+    art: [["scissors", "#FCE7F3", "#BE185D"], ["brush", "#FDE7F3", "#A3245E"], ["clock", "#FEF3C7", "#92400E"], ["star", "#DCFCE7", "#15803D"]] },
+  { cat: "travel", tag: "For bus operators", title: "Every seat sold\nbefore departure", sub: "Post tonight's empty seats to people within 30 km.",
+    art: [["bus", "#DCFCE7", "#15803D"], ["ticket", "#FEF3C7", "#92400E"], ["place", "#CCFBF1", "#0F766E"], ["clock", "#DBEAFE", "#1D4ED8"]] },
+  { cat: "makeup", tag: "For makeup artists", title: "Turn free hours\ninto bookings", sub: "Post a same-day offer. Customers call you directly.",
+    art: [["brush", "#FDE7F3", "#A3245E"], ["star", "#FCE7F3", "#BE185D"], ["spark", "#FFE4E6", "#BE123C"], ["phone", "#DCFCE7", "#15803D"]] },
+  { cat: "shops", tag: "For shops", title: "Clear today's\nstock, today", sub: "Last pieces, old sizes, extra stock: post it today.",
+    art: [["store", "#FFEDD5", "#9A3412"], ["bag", "#FEF3C7", "#92400E"], ["tag", "#FCE7F3", "#BE185D"], ["rupeeSave", "#DCFCE7", "#15803D"]] },
+  { cat: "logistics", tag: "For transport", title: "Empty truck?\nFind a load today", sub: "Post free space on today's trips to nearby customers.",
+    art: [["truck", "#E0F2FE", "#0369A1"], ["box", "#FEF3C7", "#92400E"], ["place", "#CCFBF1", "#0F766E"], ["phone", "#DCFCE7", "#15803D"]] },
+  { tag: "Customers nearby", title: "Your customers\nare 2 km away", sub: "They're looking for today's deals. Show them yours.",
+    art: [["near", "#CCFBF1", "#0F766E"], ["user", "#DBEAFE", "#1D4ED8"], ["map", "#FEF3C7", "#92400E"], ["heart", "#FCE7F3", "#BE185D"]] },
+  { tag: "Zero commission", title: "Every rupee\nis yours", sub: "Customers call you directly. We never take a cut.",
+    art: [["handshake", "#FFEDD5", "#9A3412"], ["rupeeSave", "#DCFCE7", "#15803D"], ["shield", "#DBEAFE", "#1D4ED8"], ["check", "#FEF3C7", "#92400E"]] },
+].map((x) => ({ ...x, cta: "Create free account" }));
+
 
 export function PartnerLanding() {
   const { place } = useApp();
@@ -41,7 +59,7 @@ export function PartnerLanding() {
   const packs = PLANS.owner.packs;
   return (
     <>
-      <StickerHero top={top} variant="partner" slide={SLIDE} badge="NO · COMMISSION · VERIFIED · " badgeIcon="check" onOpen={() => signup()}
+      <StickerHero top={top} variant="partner" slides={SLIDES} badge="NO · COMMISSION · VERIFIED · " badgeIcon="check" onOpen={(type) => signup(type)}
         pill={<a className="pill light" href="#/guide">Watch 1-min guide</a>}
         counts={stats ? [
           stats.partners.area != null ? { icon: "store", n: stats.partners.area, label: `partners in ${place?.pincode}` } : { icon: "store", n: stats.partners.total, label: "partners" },

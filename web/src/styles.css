@@ -887,8 +887,8 @@ button.maint-back { cursor: pointer; }
 .shero-top .installtop { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer; }
 
 /* partner hero: the two buttons stay on one line */
-.shero.partner .shero-card .row2 { flex-wrap: nowrap; }
-.shero.partner .shero-card .row2 .pill { flex: 1 1 auto; justify-content: center; padding: 12px 12px; font-size: 13.5px; white-space: nowrap; }
+.shero-card .row2 { flex-wrap: nowrap; }
+.shero-card .row2 .pill { flex: 1 1 auto; justify-content: center; padding: 12px 12px; font-size: 13.5px; white-space: nowrap; }
 
 /* logo + location side by side, top left of both homes */
 .shero-top .tleft { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; margin-right: 8px; }
@@ -897,3 +897,14 @@ button.maint-back { cursor: pointer; }
 .shero-top .tleft .cwho svg { flex: none; }
 .shero-top .tleft .cwho span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .shero-top > .gap { flex: none; }
+
+/* banner lines change every few seconds: keep the card the same height and fade each new line in */
+.shero-card .slide { animation: fadeUp .45s ease both; }
+.shero-card h1 { white-space: pre-line; min-height: 2em; }
+.shero-card p { min-height: 3em; }
+@media (prefers-reduced-motion: reduce) { .shero-card .slide { animation: none; } }
+@media (max-width: 380px) {
+  .shero-card .row2 { gap: 6px; }
+  .shero-card .row2 .pill { font-size: 12.5px; padding: 11px 9px; }
+}
+.shero-card .row2 .pill { min-width: 0; }
