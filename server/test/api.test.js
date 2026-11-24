@@ -519,8 +519,10 @@ test("working hours: after 11 PM only hotels, travel and logistics", async () =>
   }
   // customers are free (the night server runs without CUSTOMER_PASS): a brand-new customer with no plan sees a
   // 24-hour offer's number, call only (no WhatsApp), and can't buy a Customer Pass
+  const su = await client("customer").post("/api/auth/signup", { email: "freecust@test.lastpick.in", password: "longpassword", name: "Free Cust", phone: "9811155599", consent: fullConsent() });
+  assert.equal(su.status, 200, JSON.stringify(su.data));
   const fresh = client("night");
-  fresh.token = (await fresh.post("/api/auth/signup", { email: "freecust@test.lastpick.in", password: "longpassword", name: "Free Cust", phone: "9811155599", consent: fullConsent() })).data.token;
+  fresh.token = su.data.token; // same database and sign-in secret, so the night server accepts it
   assert.equal((await fresh.get("/api/config")).data.customersFree, true);
   assert.equal((await client("customer").get("/api/config")).data.customersFree, false);
   const stay = feed[0];
