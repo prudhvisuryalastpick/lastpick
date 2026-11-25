@@ -180,6 +180,7 @@ export const api = {
 
   // ---------- admin & moderators (admin server) ----------
   async adminStats() { return get("/api/admin/stats"); },
+  async adminPincodes(category) { return get(`/api/admin/pincodes${category ? `?category=${enc(category)}` : ""}`); },
   async adminFindUsers(q) { return get(`/api/admin/users?q=${enc(q || "")}`); },
   async adminUsers(kind, q) { return get(`/api/admin/users?kind=${enc(kind)}&q=${enc(q || "")}`); },
   async adminUserPhoto(id) { return (await get(`/api/admin/users/${enc(id)}/photo`)).photo; },

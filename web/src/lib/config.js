@@ -103,13 +103,13 @@ export const DEFAULT_LOCATION = { lat: 12.9716, lng: 77.5946, label: "Bengaluru"
 export const CATEGORIES = [
   { id: "food", label: "Food", icon: "🍰" },
   { id: "stay", label: "Hotels", icon: "🛏️" },
-  { id: "travel", label: "Travel", icon: "🚌" },
-  { id: "logistics", label: "Logistics", icon: "🚚" },
   { id: "beauty", label: "Salon", icon: "💇" },
   { id: "makeup", label: "Makeup", icon: "💄" },
+  { id: "gym", label: "Gym", icon: "🏋️" },
+  { id: "farm", label: "Farm fresh", icon: "🥬" },
   { id: "fashion", label: "Fashion", icon: "👗" },
   { id: "appliances", label: "Home appliances", icon: "📺" },
-  { id: "shops", label: "Shops", icon: "🏪" },
+  { id: "ads", label: "Local ads", icon: "📣" },
   { id: "other", label: "Other", icon: "📦" },
 ];
 // Not a business category: any shop can post a job opening for workers at its own shop. Shown only to
@@ -128,12 +128,12 @@ export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌"
 
 // Everything posted is for the same day (India time). Keep in sync with server/src/util.js.
 export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing runs past today
-// Hotels, travel and logistics stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
+// Hotels stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
 // and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
 // Everything is removed at 12 midnight.
-export const ALWAYS_OPEN = ["stay", "travel", "logistics"]; // 24x7: hotels, travel, logistics (spare truck/van space)
+export const ALWAYS_OPEN = ["stay"]; // 24x7: hotels only
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
-// Hotels, travel and logistics run 24×7: post any time, up to 24 hours.
+// Hotels run 24×7: post any time, up to 24 hours.
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // The % in a title always matches the prices: "40% off" with 400 -> 80 becomes "80% off". Same rule as the server.
 export function fixTitlePercent(title, pct) {
@@ -155,6 +155,8 @@ export const TEMPLATES = [
   { label: "Closing-time food", category: "food", emoji: "🍰", title: "Fresh stock before closing, half price", origPrice: 500, price: 250, quantity: "Limited stock", hours: 3 },
   { label: "Meals offer", category: "food", emoji: "🍱", title: "Today's meals at 30% off", origPrice: 200, price: 140, quantity: "40 plates", hours: 4 },
   { label: "Tonight's rooms", category: "stay", emoji: "🛏️", title: "Rooms available for tonight", origPrice: 3000, price: 1799, quantity: "3 rooms", hours: 8 },
+  { label: "Gym day pass", category: "gym", emoji: "🏋️", title: "Gym day pass at half price today", origPrice: 200, price: 99, quantity: "10 passes", hours: 6 },
+  { label: "Farm vegetables", category: "farm", emoji: "🥬", title: "Fresh vegetables from the farm, 30% off", origPrice: 60, price: 40, quantity: "per kg", hours: 6 },
   { label: "Empty bus seats", category: "travel", emoji: "🚌", title: "Seats left on tonight's bus", origPrice: 1200, price: 700, quantity: "5 seats", hours: 6 },
   { label: "Salon slots today", category: "beauty", emoji: "💇", title: "Haircut slots free this evening, 40% off", origPrice: 400, price: 240, quantity: "5 slots", hours: 6 },
   { label: "Grocery clearance", category: "grocery", emoji: "🥬", title: "Fresh vegetables and fruits, 30% off till closing", origPrice: 300, price: 210, quantity: "Today's stock", hours: 5 },
@@ -216,4 +218,4 @@ export const cityKey = (name) => String(name || "").trim().toLowerCase().replace
 
 // Data retention (days). The nightly cleanup job in functions/index.js uses the same numbers.
 // Logs of number exchanges are kept 1 year (DPDP Rules 2025, rule 8(3)). Keep in sync with functions/index.js.
-export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays: 365, contactsDays: 365, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };
+export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays: 365, contactsDays: 30, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };

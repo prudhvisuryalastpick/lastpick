@@ -56,7 +56,7 @@ export const TERMS_SECTIONS = [
     [
       `Only businesses verified by ${APP_NAME} with an active Business Pro plan can post. Verification is a basic check, not a guarantee of your business.`,
       `You may post only in the one category you registered (for example, a bakery posts only food offers), up to 3 posts a day.`,
-      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels, travel and logistics run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
+      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
       `Post only genuine offers you can honour. The "normal price" must be the price you really charge; the offer price is the final price with no hidden charges. The discount shown is worked out from these two prices.`,
       `Hold every licence and registration your business needs (for example FSSAI for food, permits for travel operators, GST where it applies) and follow all laws, including consumer protection, weights and measures, and labour laws.`,
       `Use a customer's details only to reply about the offer they showed interest in. No marketing lists, spam, resale or sharing with anyone else.`,
@@ -137,7 +137,7 @@ export async function sha256Hex(text) {
 const COMMON_PARTNER = [
   `I am the owner of this business, or authorised by the owner, and the details I give (name, address, shop location, contact number) are true. ${APP_NAME} may verify them and may refuse or remove my business.`,
   `I will post only genuine same-day offers in my registered category, at real prices, with no hidden charges, and I will honour every offer I post.`,
-  `I can post between 4 AM and 10:30 PM (India time), up to 3 posts a day; every offer ends by 11 PM and is closed automatically. Only hotels, travel and logistics may post at any time, for up to 24 hours.`,
+  `I can post between 4 AM and 10:30 PM (India time), up to 3 posts a day; every offer ends by 11 PM and is closed automatically. Only hotels may post at any time, for up to 24 hours.`,
   `Customers' names and details shared with me are only for replying about my offer. I will not misuse, sell or share them.`,
   `I am solely responsible for my goods, services, staff, premises, licences, taxes and my dealings with customers. ${APP_NAME} is only a platform and is not liable for them.`,
   `Business Pro costs ${rupee(PLANS.owner.price)} a month and is needed to post. ${APP_NAME} may pause or remove my business for breaking these rules, without refund for the period lost.`,
@@ -156,18 +156,6 @@ export const PARTNER_RULES = {
     `I will check every guest's government ID and keep guest records as the law requires, and I will not allow anything illegal on my premises.`,
     `The offer price is the full price for what is described (room type, number of guests, check-in / check-out time), with any taxes stated.`,
     `I will give guests the room as described, or a better one, and handle cancellations and refunds fairly and directly with them.`,
-  ]],
-  travel: ["Travel (buses, cabs, tours, tickets)", [
-    `Every vehicle I use has valid registration, fitness certificate, permit for the route, insurance and pollution certificate, and every driver has a valid licence.`,
-    `I will not overload vehicles and will follow road-safety and passenger-safety rules.`,
-    `The offer clearly states route, date, departure time, seat type and the final fare; seats I offer really exist.`,
-    `Refunds for cancelled trips are handled by me directly with the customer.`,
-  ]],
-  logistics: ["Logistics (spare space in trucks, vans and tempos)", [
-    `I offer only space that is really available on a trip I am already making, at a fair low price, with the route, date, vehicle type and space or weight clearly stated.`,
-    `My vehicles have valid registration, goods-carriage permit, fitness certificate and insurance; drivers hold valid licences. I will not overload vehicles.`,
-    `I will not carry prohibited, dangerous or illegal goods (explosives, flammables, drugs, wildlife, stolen goods, unaccounted cash) and may inspect goods before loading.`,
-    `I will issue a proper receipt / consignment note (with e-way bill where required by GST rules) and agree in advance with the customer on loading, delivery time and responsibility for loss or damage.`,
   ]],
   beauty: ["Salons and spas", [
     `My salon has the licences required locally, and staff are trained for the services offered.`,
@@ -188,10 +176,17 @@ export const PARTNER_RULES = {
     `I will not sell above MRP, and I follow the Legal Metrology rules for packaged goods.`,
     `Refurbished or open-box items are clearly labelled as such.`,
   ]],
-  shops: ["Shops and stores", [
-    `I sell only legal goods, never above MRP, and follow the Legal Metrology rules for packaged goods.`,
-    `Food and grocery items are within their expiry date; I hold FSSAI registration if I sell food.`,
-    `I will give a bill for every sale when asked.`,
+  gym: ["Gyms and fitness centres", [
+    `My gym has the licences required locally, safe and maintained equipment, and trainers qualified for what they teach.`,
+    `The offer states exactly what is included (day pass, session, duration, trainer or not) and the final price.`,
+  ]],
+  farm: ["Farm fresh (farmers and growers)", [
+    `I sell my own fresh produce (vegetables, fruit, milk, eggs, flowers), weighed honestly and priced per kg, litre or piece as stated.`,
+    `Produce is fresh and safe to eat; I hold FSSAI registration where the law needs it for what I sell.`,
+  ]],
+  ads: ["Local ads", [
+    `My ad is for my own legal business, product or service, with the real price and conditions stated.`,
+    `No misleading claims, no political, adult or illegal content, and no ads for other people's businesses.`,
   ]],
   other: ["Other businesses", [
     `I hold every licence and registration my type of business needs, and my service or product is legal and safe.`,

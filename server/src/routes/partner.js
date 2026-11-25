@@ -13,7 +13,7 @@ import {
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
 // registered (a bakery posts only bakery offers). Job openings ("jobs") are no longer allowed.
 // Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
-const CATEGORY_IDS = ["food", "stay", "travel", "logistics", "beauty", "makeup", "fashion", "appliances", "shops", "other"];
+const CATEGORY_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "ads", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
@@ -88,7 +88,15 @@ export function partnerRoutes(r) {
     if (!b.city || !b.state || !b.pincode) throw precondition("Add your city, state and pincode in Business profile first");
 
     let title = str(d.title, 120);
-    const origPrice = Number(d.origPrice), price = Number(d.price), endsAt = Number(d.endsAt);
+    // An offer is a list of items: name, actual price, offer price (up to 10). The offer's own price is its best deal.
+    const items = Array.isArray(d.items) ? d.items.map((x) => ({ n: str(x?.n ?? x?.name, 60), a: Number(x?.a ?? x?.actual), p: Number(x?.p ?? x?.price) })) : [];
+    if (items.length > 10) throw bad("Add up to 10 items");
+    for (const it of items) {
+      if (it.n.length < 2) throw bad("Give every item a name");
+      if (!(it.a > 0) || !(it.p >= 0) || !(it.p < it.a) || it.a > 1e9) throw bad(`${it.n}: the offer price must be lower than the actual price`);
+    }
+    const best = items.reduce((m, it) => (!m || 1 - it.p / it.a > 1 - m.p / m.a ? it : m), null);
+    const origPrice = best ? best.a : Number(d.origPrice), price = best ? best.p : Number(d.price), endsAt = Number(d.endsAt);
     if (title.length < 3) throw bad("Title is too short");
     const allowed = b.categories?.length ? b.categories : [b.category || "other"];
     // job openings (hiring) are not offered any more
@@ -97,10 +105,10 @@ export function partnerRoutes(r) {
     const hiring = false;
     // a business posts only in its registered category
     if (!allowed.includes(category)) throw denied("Your business can post only in its registered category.");
-    // Hotels, travel and logistics run 24×7: post any time, offer runs up to 24 hours.
+    // Hotels run 24×7: post any time, offer runs up to 24 hours.
     // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
     const allDay = runs24x7(category);
-    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels, travel and logistics can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
+    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
     } else {
@@ -110,7 +118,7 @@ export function partnerRoutes(r) {
       title = fixTitlePercent(title, Math.round((1 - price / origPrice) * 100));
     }
     if (allDay) {
-      if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Hotel and travel offers can run for up to 24 hours");
+      if (!(endsAt > Date.now()) || endsAt > Date.now() + MAX_OFFER_MS + 60000) throw bad("Hotel offers can run for up to 24 hours");
     } else if (!(endsAt > Date.now()) || endsAt > closingTimeIST(category)) throw bad("Offers are for the same day only: they must end by 11 PM (India time)");
     // No photo uploads: offers show their category icon. Keeps every reply small and the bill low.
     const photoThumb = null, photo = null;
@@ -122,10 +130,10 @@ export function partnerRoutes(r) {
       const today = (await c.query("SELECT count(*)::int AS n FROM offers WHERE owner_id = $1 AND created_at >= $2", [u.id, new Date(startOfDayIST())])).rows[0].n;
       if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again tomorrow from 4 AM.`);
       const { rows } = await c.query(
-        `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags, items)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [u.id, title, str(d.description, 1000), category, str(d.emoji, 8) || "📦", photoThumb, !!photo, hiring ? price : origPrice, price, str(d.quantity, 60),
-          new Date(endsAt), !hiring && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : []]);
+          new Date(endsAt), !hiring && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : [], JSON.stringify(items)]);
       if (photo) await c.query("INSERT INTO offer_photos (offer_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
       return { id: rows[0].id, postsLeftToday: POSTS_PER_DAY - today - 1 };
     });
@@ -149,7 +157,7 @@ export function partnerRoutes(r) {
     const rows = await many("SELECT * FROM offer_archive WHERE owner_id = $1 ORDER BY ends_at DESC LIMIT 100", [u.id]);
     return rows.map((a) => ({
       id: a.id, title: a.title, category: a.category, emoji: a.emoji, origPrice: Number(a.orig_price), price: Number(a.price),
-      views: a.views, leads: a.leads, status: a.status, createdAt: ms(a.created_at), endsAt: ms(a.ends_at),
+      views: a.views, leads: a.leads, items: a.items || "", status: a.status, createdAt: ms(a.created_at), endsAt: ms(a.ends_at),
     }));
   });
 

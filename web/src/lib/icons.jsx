@@ -59,6 +59,7 @@ export const P = {
   moon: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z",
   gift: "M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-2-3-6-3-6 0M12 7c2-3 6-3 6 0",
   plus: "M12 5v14M5 12h14",
+  x: "M6 6l12 12M18 6L6 18",
   camera: "M3 8h4l2-3h6l2 3h4v12H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   balloon: "M12 3a6 6 0 0 0-6 6c0 3.5 3 6.5 6 7 3-.5 6-3.5 6-7a6 6 0 0 0-6-6zM12 16l-1 2h2zM12 18c0 2-2 2-2 3",
   brush: "M18 3l3 3-9 9-3-3zM9 12l-4 4a2 2 0 0 0 0 3 2 2 0 0 0 3 0l4-4",
@@ -75,6 +76,8 @@ export const P = {
   bed: "M3 18V7M3 13h18v5M21 18v-3a3 3 0 0 0-3-3h-7v1M7 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3",
   scissors: "M8.5 8.5L20 18M8.5 15.5L20 6M6 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5M6 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5",
   megaphone: "M3 10v4h3l7 4V6L6 10zM16 9a3 3 0 0 1 0 6M19 7a6 6 0 0 1 0 10",
+  dumbbell: "M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12",
+  leaf: "M5 19c0-8 6-14 15-14 0 9-6 15-14 15M5 19l7-7",
 };
 
 export function Icon({ d, size = 22, stroke = 1.9, className, style }) {
@@ -88,23 +91,23 @@ export function Icon({ d, size = 22, stroke = 1.9, className, style }) {
 export const CAT_STYLE = {
   food: { icon: "food", tint: "#FFF1E0", ink: "#B35A00", short: "Food" },
   stay: { icon: "stay", tint: "#E9EEFF", ink: "#1E4BB8", short: "Hotels" },
-  travel: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Travel" },
-  logistics: { icon: "truck", tint: "#EAF2FF", ink: "#1C4F9C", short: "Logistics" },
   beauty: { icon: "salon", tint: "#EEF1F5", ink: "#6B2FB3", short: "Salon" },
   makeup: { icon: "brush", tint: "#FDEAF3", ink: "#A3245E", short: "Makeup" },
   fashion: { icon: "bag", tint: "#FFF6D6", ink: "#8A6100", short: "Fashion" },
+  gym: { icon: "dumbbell", tint: "#E6F1FB", ink: "#0C447C", short: "Gym" },
+  farm: { icon: "leaf", tint: "#EAF3DE", ink: "#3B6D11", short: "Farm fresh" },
   appliances: { icon: "tv", tint: "#EEF0F6", ink: "#3B4654", short: "Appliances" },
-  shops: { icon: "store", tint: "#E8F6EC", ink: "#0F7A43", short: "Shops" },
+  ads: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Local ads" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
   other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Other" },
 };
 // any unknown category shows as Others
 export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 
-// Category tiles on the customer home (Food, Hotels, Travel first), with small tags.
+// Category tiles on the customer home (Food, Hotels first), with small tags.
 export const HOME_TILES = [
-  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "travel", tag: "24×7", tagBg: "#0F6E5C" }, { id: "logistics", tag: "24×7", tagBg: "#1C4F9C" },
-  { id: "beauty" }, { id: "makeup" }, { id: "fashion" }, { id: "appliances" }, { id: "shops" },
+  { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "beauty" }, { id: "makeup" },
+  { id: "gym" }, { id: "farm" }, { id: "fashion" }, { id: "appliances" }, { id: "ads" },
   { id: "other" },
 ];
 

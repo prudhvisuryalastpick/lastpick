@@ -10,9 +10,10 @@ export async function archiveEnded() {
   return tx(async (c) => {
     const r = await c.query(
       `WITH old AS (DELETE FROM offers o WHERE o.ends_at <= now() OR o.status <> 'live' RETURNING o.*)
-       INSERT INTO offer_archive (id, owner_id, business_name, city, state, city_key, title, category, emoji, orig_price, price, views, leads, status, created_at, ends_at)
+       INSERT INTO offer_archive (id, owner_id, business_name, city, state, city_key, title, category, emoji, orig_price, price, views, leads, status, created_at, ends_at, items)
        SELECT old.id, old.owner_id, b.name, b.city, b.state, b.city_key, old.title, old.category, old.emoji, old.orig_price, old.price, old.views,
-              (SELECT count(*) FROM leads l WHERE l.offer_id = old.id), old.status, old.created_at, least(old.ends_at, now())
+              (SELECT count(*) FROM leads l WHERE l.offer_id = old.id), old.status, old.created_at, least(old.ends_at, now()),
+              coalesce((SELECT string_agg((i->>'n') || ' ' || (i->>'a') || '>' || (i->>'p'), '; ') FROM jsonb_array_elements(old.items) i), '')
        FROM old JOIN businesses b ON b.id = old.owner_id
        ON CONFLICT (id) DO NOTHING`);
     return r.rowCount;
@@ -35,12 +36,12 @@ export function registerJobs() {
   });
 
   // Every 5 minutes: close offers whose time is up, even if the partner forgets, and wipe them from the live list.
-  // After 11 PM (India time) every offer except hotels, travel and logistics (24x7) is closed, whatever end time it had.
+  // After 11 PM (India time) every offer except hotels (24x7) is closed, whatever end time it had.
   schedule("close-offers", { every: 300000 }, async () => {
     const timeUp = await q("UPDATE offers SET status = 'ended' WHERE status = 'live' AND ends_at <= now()");
     // the closing hour comes from BUSINESS_HOURS (11 PM to 4 AM by default), same rule as the rest of the app
     const night = isNight() ? await q(`UPDATE offers SET status = 'ended', ends_at = least(ends_at, now())
-                           WHERE status = 'live' AND category NOT IN ('stay', 'travel', 'logistics')`) : { rowCount: 0 };
+                           WHERE status = 'live' AND category NOT IN ('stay')`) : { rowCount: 0 };
     return { timeUp: timeUp.rowCount, closedAt11pm: night.rowCount, archived: await archiveEnded() };
   });
 

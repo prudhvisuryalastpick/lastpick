@@ -480,7 +480,7 @@ test("own category only, everything ends the same day, no job openings", async (
   assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 
-test("working hours: after 11 PM only hotels, travel and logistics", async () => {
+test("working hours: after 11 PM only hotels", async () => {
   const { isNight, istHour, postingOpen } = await import("../src/util.js");
   const at = (h) => Date.UTC(2026, 10, 20, h, 0) - 5.5 * 3600000; // h o'clock India time
   assert.equal(istHour(at(23)), 23);
@@ -500,15 +500,15 @@ test("working hours: after 11 PM only hotels, travel and logistics", async () =>
     const { fixTitlePercent, runs24x7 } = await import("../src/util.js");
     assert.equal(fixTitlePercent("Haircut slots free this evening, 40% off", 80), "Haircut slots free this evening, 80% off");
     assert.equal(fixTitlePercent("Fresh cakes", 50), "Fresh cakes");
-    assert.ok(runs24x7("stay") && runs24x7("travel") && runs24x7("logistics") && !runs24x7("combo") && !runs24x7("food"));
+    assert.ok(runs24x7("stay") && !runs24x7("travel") && !runs24x7("gym") && !runs24x7("combo") && !runs24x7("food"));
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "travel", "logistics"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
   // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "travel", "logistics"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
   // radius 6: a fresh (uncached) list, so no offer removed by an earlier test is picked
@@ -882,4 +882,18 @@ test("free launch mode: customers see numbers without a pass while it's on; off 
   assert.equal((await a.post("/api/admin/settings", { freeMode: false })).data.freeMode, false);
   assert.equal((await c.get("/api/config")).data.freeMode, false);
   assert.equal((await c.post(`/api/offers/${offer.id}/reveal`)).status, 403);
+});
+
+test("offers are a list of items: the best deal sets the price, bad items are refused", async () => {
+  const p = client("partner"); await p.login("owner@test.lastpick.in");
+  const bad = await p.post("/api/owner/offers", { title: "Sweets sale", category: "food", items: [{ n: "Kaju", a: 100, p: 120 }], endsAt: Date.now() + 20 * 60000 });
+  assert.equal(bad.status, 400, JSON.stringify(bad.data));
+  const r = await p.post("/api/owner/offers", { title: "Evening sweets", category: "food", endsAt: Date.now() + 20 * 60000,
+    items: [{ n: "Kaju katli", a: 400, p: 200 }, { n: "Samosa (4)", a: 60, p: 40 }] });
+  if (r.status === 412) return; // posting hours or today's 3 posts already used by earlier tests
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const mine = (await p.get("/api/owner/offers")).data.find((o) => o.id === r.data.id);
+  assert.equal(mine.price, 200); assert.equal(mine.origPrice, 400);
+  assert.deepEqual(mine.items.map((i) => i.n), ["Kaju katli", "Samosa (4)"]);
+  await p.post(`/api/owner/offers/${r.data.id}/end`);
 });

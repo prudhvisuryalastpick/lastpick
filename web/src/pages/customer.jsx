@@ -126,8 +126,8 @@ export function Home() {
         </>
       ) : <>
         {config?.night
-          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels, travel and logistics are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
-          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels, travel and logistics are available 24×7.</span></div>}
+          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
+          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>{PLANS.customer.tagline} · just {PLANS.customer.perDay} ({rupee(PLANS.customer.price)} for {PLANS.customer.period}). See shops' numbers and contact them.</span></a>}
         {error && <div className="pad"><div className="error">{error}</div><TicketHint /></div>}
         {stats?.joined?.length > 0 && <JoinedTicker joined={stats.joined} />}
@@ -145,7 +145,7 @@ export function Home() {
         <MiniRail title="Ending in the next hour" icon="clock" color="#B35A00" items={ending} />
         <div className="bigbanners">
           <button className="bigban dark" onClick={() => open("stay")}><span><small>OPEN 24×7</small><b>Rooms for tonight</b><em>Hotels drop prices for empty rooms</em></span><IconSticker icon="bed" bg="#DBEAFE" fg="#1D4ED8" size={70} rot={8} /></button>
-          <button className="bigban light" onClick={() => open("travel")}><span><small>LEAVING TODAY</small><b>Last-minute bus seats</b><em>Operators fill their final seats</em></span><IconSticker icon="bus" bg="#DCFCE7" fg="#15803D" size={70} rot={-6} /></button>
+          <button className="bigban light" onClick={() => open("farm")}><span><small>PICKED TODAY</small><b>Fresh from the farm</b><em>Farmers near you, today's prices</em></span><IconSticker icon="leaf" bg="#DCFCE7" fg="#15803D" size={70} rot={-6} /></button>
         </div>
         <SectionHead title="How LastPick works" />
         <div className="howgrid">
@@ -184,7 +184,7 @@ export function CategoryPage({ id }) {
 }
 
 // Big rotating banner: boosted (paid) offers first, then the biggest discounts.
-const FEATURE_BG = { food: "#7A3410", stay: "#06373A", travel: "#0B4F4A", beauty: "#6B2350" };
+const FEATURE_BG = { food: "#7A3410", stay: "#06373A", gym: "#0C447C", beauty: "#6B2350" };
 function Featured({ offers }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -404,6 +404,9 @@ export function OfferPage({ id }) {
         <div className="catline"><span className="catpill" style={{ background: catStyle(offer.category).tint, color: catStyle(offer.category).ink }}><Icon d={catStyle(offer.category).icon} size={14} stroke={2.2} />{categoryOf(offer.category).label}</span><span className="muted small">{offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</span></div>
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
+        {offer.items?.length > 0 && <div className="olist" aria-label="Items in this offer">{offer.items.map((it, i) => (
+          <div className="oi" key={i}><span>{it.n}</span><span><s>{rupee(it.a)}</s><b>{rupee(it.p)}</b><small>{Math.round((1 - it.p / it.a) * 100)}% off</small></span></div>
+        ))}</div>}
         <OfferQuote offer={offer} big />
 
         <div className="box row" style={{ marginTop: 14 }}>
@@ -517,7 +520,7 @@ function ContactsInner() {
 
   return (
     <>
-      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted, with their numbers.</div></div></div>
+      <div className="phead"><span className="cround"><Icon d="phone" size={20} stroke={2} /></span><div><h1>History</h1><div className="sub">Businesses you contacted in the last 30 days. Older entries are deleted automatically.</div></div></div>
       <div style={{ height: 12 }} />
       {!isCustomer ? (
         <Empty icon={<span className="emptyic"><Icon d="lock" size={30} /></span>} title={`Needs the ${PLANS.customer.name}`} action={<a className="btn main" href="#/plans">See plans · from {rupee(PLANS.customer.price)} for 30 days</a>}>Businesses you contact will appear here.</Empty>

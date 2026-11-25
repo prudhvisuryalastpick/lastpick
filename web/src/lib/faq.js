@@ -7,9 +7,9 @@ const perDayBest = (p) => { const b = PLANS[p].packs[PLANS[p].packs.length - 1];
 
 export const CUSTOMER_FAQ = [
   ["How LastPick works", [
-    ["What is LastPick?", "LastPick shows same-day deals from verified local businesses near you: food, hotels, travel, salons, makeup, fashion, home appliances, shops, logistics and more."],
-    ["Are deals really for today only?", "Yes. Every offer is valid for today only and is removed at 12 midnight. Hotels, travel and logistics can run up to 24 hours."],
-    ["What time are offers shown?", "From 4 AM to 11 PM (India time). Hotels, travel and logistics are available 24×7."],
+    ["What is LastPick?", "LastPick shows same-day deals from verified local businesses near you: food, hotels, salons, makeup, gyms, farm-fresh produce, fashion, home appliances, local ads and more."],
+    ["Are deals really for today only?", "Yes. Every offer is valid for today only and is removed at 12 midnight. Hotels can run up to 24 hours."],
+    ["What time are offers shown?", "From 4 AM to 11 PM (India time). Hotels are available 24×7."],
     ["How far away are the deals?", "Within 30 km of your live location. The top of the home screen shows your area and pincode."],
     ["Why does LastPick need my location?", "To show offers near you. If location is off, the app asks you to turn it on. Your location isn't shared with businesses."],
     ["Does LastPick sell the products?", "No. LastPick only connects you with the business. The offer, payment and service are between you and the business."],
@@ -50,8 +50,8 @@ export const PARTNER_FAQ = [
   ]],
   ["Posting offers", [
     ["How many offers can I post?", "Up to 3 offers a day, in your own business category."],
-    ["When can I post?", "From 4 AM to 10:30 PM. Hotels, travel and logistics can post any time (24×7)."],
-    ["How long does an offer stay live?", "Offers end by 11 PM the same day and are removed at midnight. Hotels, travel and logistics run up to 24 hours."],
+    ["When can I post?", "From 4 AM to 10:30 PM. Hotels can post any time (24×7)."],
+    ["How long does an offer stay live?", "Offers end by 11 PM the same day and are removed at midnight. Hotels run up to 24 hours."],
     ["Can I post in another category?", "No, you post only in your registered category. You can change it in your business details."],
     ["Do I add photos?", "No. Each offer shows its category icon, which keeps the app fast."],
     ["How is the discount worked out?", "Enter the normal price and the offer price; the % off is calculated for you."],

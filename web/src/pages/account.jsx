@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
 import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
-import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay } from "../lib/config.js";
+import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay, CATEGORIES } from "../lib/config.js";
 import { isInstalled } from "../lib/install.js";
 import { Icon } from "../lib/icons.jsx";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
@@ -176,8 +176,8 @@ function AdminInner() {
   const [tab, setTab] = useState("overview");
   if (!isStaff) return <Empty icon="⛔" title="Admins only">Your account doesn't have admin access.</Empty>;
   const tabs = isAdmin
-    ? [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"]]
-    : [["overview", "Overview"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"]];
+    ? [["overview", "Overview"], ["pincodes", "Pincodes"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"], ["complaints", "Complaints"], ["users", "Users"], ["revenue", "Revenue"]]
+    : [["overview", "Overview"], ["pincodes", "Pincodes"], ["businesses", "Businesses"], ["reports", "Reports"], ["support", "Support"]];
   return (
     <>
       <div className="page-h">
@@ -187,6 +187,7 @@ function AdminInner() {
       </div>
       <div className="chips" style={{ paddingTop: 4 }}>{tabs.map(([id, l]) => <button key={id} className={"chip " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{l}</button>)}</div>
       {tab === "overview" && <AdminOverview toast={toast} go={setTab} />}
+      {tab === "pincodes" && <AdminPincodes toast={toast} />}
       {tab === "businesses" && <AdminBusinesses toast={toast} />}
       {tab === "reports" && <AdminReports toast={toast} />}
       {tab === "support" && <AdminSupport toast={toast} />}
@@ -194,6 +195,37 @@ function AdminInner() {
       {tab === "users" && isAdmin && <AdminUsers toast={toast} />}
       {tab === "revenue" && isAdmin && <AdminRevenue toast={toast} />}
     </>
+  );
+}
+
+// Partner registrations per pincode, filtered by category (moderators see only their own areas)
+function AdminPincodes({ toast }) {
+  const [cat, setCat] = useState("");
+  const [data, setData] = useState(null);
+  useEffect(() => { setData(null); api.adminPincodes(cat).then(setData).catch((e) => { toast(errText(e)); setData({ pincodes: [] }); }); }, [cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = data?.pincodes || [];
+  const max = Math.max(1, ...rows.map((x) => x.partners));
+  return (
+    <div className="pad">
+      <div className="chips" style={{ padding: "0 0 10px" }}>
+        <button className={"chip " + (cat === "" ? "on" : "")} onClick={() => setCat("")}>All</button>
+        {CATEGORIES.map((c) => <button key={c.id} className={"chip " + (cat === c.id ? "on" : "")} onClick={() => setCat(c.id)}>{c.label}</button>)}
+      </div>
+      {data?.customers && <div className="muted small" style={{ marginBottom: 8 }}>Customers (all areas; they don't give a pincode): <b>{data.customers.n}</b> · +{data.customers.today} today</div>}
+      {!data ? <Spinner /> : rows.length === 0 ? <Empty icon="📍" title="No partners yet">{cat ? "No partners in this category yet." : "No partner has registered yet."}</Empty> : (
+        <table className="admin small" style={{ width: "100%" }}>
+          <thead><tr><th style={{ textAlign: "left" }}>Pincode</th><th style={{ textAlign: "left" }}>Partners</th><th>Verified</th><th>Today</th></tr></thead>
+          <tbody>{rows.map((x) => (
+            <tr key={x.pincode} style={{ borderTop: "1px solid var(--line)" }}>
+              <td style={{ padding: "7px 6px 7px 0" }}><b>{x.pincode}</b><div className="muted small">{[x.area, x.city].filter(Boolean).join(", ")}</div></td>
+              <td><span style={{ display: "inline-block", height: 6, borderRadius: 3, background: "#F2B654", width: Math.round((x.partners / max) * 48), marginRight: 6, verticalAlign: "middle" }} />{x.partners}</td>
+              <td style={{ textAlign: "center" }}>{x.verified}</td>
+              <td style={{ textAlign: "center", color: x.today ? "#3B6D11" : undefined }}>{x.today ? "+" + x.today : "0"}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

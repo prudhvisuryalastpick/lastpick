@@ -28,7 +28,7 @@ export const visibleSql = (free) => `(o.status = 'live' AND o.ends_at > now() AN
 
 export const offerSelect = (free) => `
   o.id, o.owner_id, o.title, o.description, o.category, o.emoji, NULL::text AS photo_thumb, false AS has_photo,
-  o.orig_price::float8 AS orig_price, o.price::float8 AS price, o.quantity, o.ends_at, o.status, o.views, o.created_at,
+  o.orig_price::float8 AS orig_price, o.price::float8 AS price, o.quantity, o.items, o.ends_at, o.status, o.views, o.created_at,
   b.name AS b_name, b.area AS b_area, b.city AS b_city, b.state AS b_state, b.city_key AS b_city_key, b.pincode AS b_pincode,
   b.lat AS b_lat, b.lng AS b_lng, b.rating_avg::float8 AS b_rating_avg, b.rating_count AS b_rating_count,
   ${visibleSql(free)} AS visible,
@@ -41,7 +41,7 @@ export const mapOffer = (r) => ({
     lat: r.b_lat, lng: r.b_lng, rating: r.b_rating_count ? { avg: num(r.b_rating_avg), count: r.b_rating_count } : null,
   },
   title: r.title, description: r.description, category: r.category, emoji: r.emoji, photoUrl: r.photo_thumb || null, hasPhoto: r.has_photo,
-  origPrice: num(r.orig_price), price: num(r.price), quantity: r.quantity, endsAt: ms(r.ends_at), status: r.status,
+  origPrice: num(r.orig_price), price: num(r.price), quantity: r.quantity, endsAt: ms(r.ends_at), status: r.status, items: r.items || [],
   visible: !!r.visible, views: r.views, createdAt: ms(r.created_at), featured: !!r.featured,
 });
 

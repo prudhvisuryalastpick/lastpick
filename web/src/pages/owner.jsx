@@ -7,6 +7,7 @@ import { api } from "../api/index.js";
 import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
+import { Icon } from "../lib/icons.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
 import { validPincode } from "../lib/geo.js";
@@ -223,6 +224,14 @@ export function OwnerOffers() {
   const [offers, setOffers] = useState(null);
   const [history, setHistory] = useState(null);
   const [tab, setTab] = useState("current");
+  // "Post again": copy a past offer (from its one-line record) into today's post form
+  const postAgain = (h) => {
+    const items = h.items && typeof h.items === "string"
+      ? h.items.split("; ").map((t) => { const m = t.match(/^(.*) (\d+(?:\.\d+)?)>(\d+(?:\.\d+)?)$/); return m ? { n: m[1], a: m[2], p: m[3] } : null; }).filter(Boolean)
+      : (h.items || []).map((it) => ({ n: it.n, a: String(it.a), p: String(it.p) }));
+    try { sessionStorage.setItem("lp-post-again", JSON.stringify({ category: h.category, title: h.title, items: items.length ? items : [{ n: h.title, a: String(h.origPrice), p: String(h.price) }] })); } catch { /* ignore */ }
+    navigate("/owner/post");
+  };
   const [ending, setEnding] = useState(null);
   const now = useNow(30000);
   const load = () => api.myOffers().then(setOffers).catch(() => setOffers([]));
@@ -241,12 +250,12 @@ export function OwnerOffers() {
       <div className="tabs"><button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>Current</button><button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button></div>
       {tab === "history" ? (
         <>
-          <div className="muted small pad" style={{ paddingTop: 0 }}>Offers move here as soon as they end (every offer closes by 11 PM, except hotels, travel and logistics). Kept for {Math.round(RETENTION.archiveDays / 30)} months.</div>
+          <div className="banner ok" style={{ margin: "0 16px 10px" }}>Offers end the same day. Past offers stay here for 1 year as a short one-line record, then they're deleted. "Post again" copies one into today's form (it counts as one of your 3 posts today).</div>
           {(offers || []).filter((o) => !(o.status === "live" && o.endsAt > now)).map((o) => (
             <div className="item" key={o.id}>
               <OfferImage offer={o} className="ic" />
               <div className="grow"><b style={{ fontSize: 14 }}>{o.title}</b>
-                <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s> · seen by {o.views || 0}</div>
+                <div className="muted small oneline">{o.items?.length ? o.items.map((it) => `${it.n} ${it.a}>${it.p}`).join("; ") : `${rupee(o.price)} (was ${rupee(o.origPrice)})`} · seen by {o.views || 0}</div>
                 <div className="muted small">{o.status === "removed" ? "Removed by LastPick for breaking the rules" : `Ended ${day(Math.min(o.endsAt, now))}`}</div></div>
               <span className="pill p-mute">{o.status === "removed" ? "Removed" : "Ended"}</span>
             </div>
@@ -255,8 +264,9 @@ export function OwnerOffers() {
             <div className="item" key={h.id}>
               <OfferImage offer={{ ...h, photoUrl: null }} className="ic" />
               <div className="grow"><b style={{ fontSize: 14 }}>{h.title}</b>
-                <div className="muted small">{rupee(h.price)} <s>{rupee(h.origPrice)}</s> · {h.views} views · {h.leads} leads</div>
-                <div className="muted small">Ended {day(h.endsAt)}</div></div>
+                <div className="muted small oneline">{h.items || `${rupee(h.price)} (was ${rupee(h.origPrice)})`}</div>
+                <div className="muted small">Ended {day(h.endsAt)} · {h.views} views · {h.leads} leads</div></div>
+              <button className="btn sm line" onClick={() => postAgain(h)}>Post again</button>
             </div>
           ))}
         </>
@@ -304,15 +314,23 @@ export function PostOffer() {
     api.myOffers().then((l) => setPostedToday(l.filter((o) => o.createdAt >= dayStart).length)).catch(() => setPostedToday(0));
   }, []);
   const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
-  const [f, setF] = useState({ category: allowed[0], emoji: "📦", title: "", description: "", origPrice: "", price: "", quantity: "", hours: 6 });
+  // An offer is a list of items: name, actual price, offer price (add or remove rows, up to 10). No description or photo.
+  const blank = () => ({ n: "", a: "", p: "" });
+  const [f, setF] = useState(() => {
+    let again = null; try { again = JSON.parse(sessionStorage.getItem("lp-post-again") || "null"); sessionStorage.removeItem("lp-post-again"); } catch { /* ignore */ }
+    return { category: again?.category && allowed.includes(again.category) ? again.category : allowed[0], emoji: "📦", title: again?.title || "", items: again?.items?.length ? again.items : [blank()], hours: 6 };
+  });
+  const setItem = (i, k, v) => setF((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
+  const addItem = () => setF((p) => (p.items.length >= 10 ? p : { ...p, items: [...p.items, blank()] }));
+  const removeItem = (i) => setF((p) => ({ ...p, items: p.items.length > 1 ? p.items.filter((_, j) => j !== i) : [blank()] }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const now = useNow(60000);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const job = f.category === "jobs";
-  // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels, travel and logistics.
+  // Everything ends the same day (India time): by 11 PM, or by 12 midnight for hotels.
   // Posting is open only from 4 AM to 11 PM.
-  // Hotels, travel and logistics: post any time, run up to 24 hours.
+  // Hotels: post any time, run up to 24 hours.
   const allDay = runs24x7(f.category);
   const dayStart = istDayStart(now);
   const closing = allDay ? now + 24 * 3600000 : dayStart + HOURS.close * 3600000;
@@ -324,32 +342,27 @@ export function PostOffer() {
   const closeLabel = allDay ? "24 hours" : "11 PM";
   const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
   const templates = TEMPLATES.filter((t) => own.includes(t.category));
-  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, origPrice: t.origPrice, price: t.price, quantity: t.quantity, hours: t.hours }));
+  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, items: [{ n: t.label, a: String(t.origPrice), p: String(t.price) }], hours: t.hours }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
-  // the % off is worked out from the prices, and any "40% off" in the title is kept in step automatically
-  const setPrice = (k, v) => setF((p) => {
-    const n = { ...p, [k]: v };
-    const o = Number(n.origPrice), pr = Number(n.price);
-    if (n.category !== "jobs" && o > 0 && n.price !== "" && pr >= 0 && pr < o) n.title = fixTitlePercent(n.title, Math.round((1 - pr / o) * 100));
-    return n;
-  });
-
-  const price = Number(f.price);
-  const orig = job ? price : Number(f.origPrice);
+  const items = f.items.map((x) => ({ n: x.n.trim(), a: Number(x.a), p: Number(x.p), raw: x }));
+  const filled = items.filter((x) => x.n || x.raw.a !== "" || x.raw.p !== "");
   const problems = [];
-  if (f.title.trim().length < 3) problems.push("a title");
-  if (job) { if (!(price > 0)) problems.push("the pay"); }
-  else {
-    if (!(orig > 0)) problems.push("the normal price");
-    if (!(price >= 0) || f.price === "") problems.push("the offer price");
-    else if (orig > 0 && price >= orig) problems.push("an offer price lower than the normal price");
-  }
-  const realPct = !job && orig > 0 && f.price !== "" && price >= 0 && price < orig ? Math.round((1 - price / orig) * 100) : null;
+  if (f.title.trim().length < 3) problems.push("an offer name");
+  if (!filled.length) problems.push("at least one item");
+  filled.forEach((x, i) => {
+    if (x.n.length < 2) problems.push(`a name for item ${i + 1}`);
+    else if (!(x.a > 0) || x.raw.p === "" || !(x.p >= 0)) problems.push(`both prices for ${x.n}`);
+    else if (x.p >= x.a) problems.push(`an offer price for ${x.n} lower than its actual price`);
+  });
+  const good = filled.filter((x) => x.n.length >= 2 && x.a > 0 && x.p >= 0 && x.p < x.a);
+  const best = good.reduce((m, x) => (!m || 1 - x.p / x.a > 1 - m.p / m.a ? x : m), null);
+  const orig = best ? best.a : 0, price = best ? best.p : null;
+  const realPct = best ? Math.round((1 - best.p / best.a) * 100) : null;
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
-    title: f.title || "Your offer title", description: f.description, category: f.category, emoji: f.emoji, photoUrl: null,
-    origPrice: orig || 0, price: f.price === "" ? null : price, quantity: f.quantity, endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
+    title: f.title || "Your offer name", description: "", category: f.category, emoji: f.emoji, photoUrl: null, items: good.map(({ n, a, p }) => ({ n, a, p })),
+    origPrice: orig || 0, price, quantity: "", endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   const submit = async () => {
@@ -357,8 +370,8 @@ export function PostOffer() {
     setBusy(true); setErr("");
     try {
       await api.createOffer({
-        title: f.title.trim(), description: f.description.trim(), category: f.category, emoji: f.emoji,
-        origPrice: orig, price, quantity: f.quantity.trim(), endsAt: endsAtOf(f.hours),
+        title: f.title.trim(), category: f.category, emoji: f.emoji,
+        items: good.map(({ n, a, p }) => ({ n, a, p })), endsAt: endsAtOf(f.hours),
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
       navigate("/owner/offers");
@@ -373,7 +386,7 @@ export function PostOffer() {
       <div className="card" style={{ textAlign: "center", padding: 24, marginTop: 16 }}>
         <div style={{ fontSize: 40 }}>🌙</div>
         <h2>Posting opens at 4 AM</h2>
-        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels, travel and logistics can post at night.</p>
+        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels can post at night.</p>
         <a className="btn ghost" href="#/owner/offers">See my offers</a>
       </div>
     </div>
@@ -400,24 +413,30 @@ export function PostOffer() {
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
             : allDay
-              ? "Hotels, travel and logistics run 24×7: post any time, and your offer can run for up to 24 hours."
+              ? "Hotels run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
-        <div className="fld"><label>{job ? "Which job?" : "What are you offering?"}</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={job ? "e.g. Shop helper needed, 9 AM – 6 PM" : "e.g. Fresh cakes half price after 8 PM"} /></div>
-        <div className="fld"><label>Details</label><textarea rows="3" maxLength={1000} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="What's included, timings, conditions…" /></div>
-        <div className="two">
-          {job
-            ? <div className="fld"><label>Pay ₹</label><input type="number" min="1" inputMode="numeric" value={f.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 12000" /></div>
-            : <><div className="fld"><label>Normal price ₹</label><input type="number" min="1" inputMode="numeric" value={f.origPrice} onChange={(e) => setPrice("origPrice", e.target.value)} /></div>
-              <div className="fld"><label>Offer price ₹</label><input type="number" min="0" inputMode="numeric" value={f.price} onChange={(e) => setPrice("price", e.target.value)} /></div></>}
+        <div className="fld"><label>Offer name</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Evening sweets sale" /></div>
+        <div className="fld"><label>Items</label>
+          <div className="itemsed">
+            <div className="ih"><span>Item</span><span>Actual ₹</span><span>Offer ₹</span><span /></div>
+            {f.items.map((x, i) => (
+              <div className="ir" key={i}>
+                <input maxLength={60} value={x.n} onChange={(e) => setItem(i, "n", e.target.value)} placeholder={i === 0 ? "e.g. Kaju katli 500 g" : "Item name"} aria-label={`Item ${i + 1} name`} />
+                <input type="number" min="1" inputMode="numeric" value={x.a} onChange={(e) => setItem(i, "a", e.target.value)} placeholder="400" aria-label={`Item ${i + 1} actual price`} />
+                <input className="op" type="number" min="0" inputMode="numeric" value={x.p} onChange={(e) => setItem(i, "p", e.target.value)} placeholder="200" aria-label={`Item ${i + 1} offer price`} />
+                <button type="button" className="ix" onClick={() => removeItem(i)} aria-label={`Remove item ${i + 1}`}><Icon d="x" size={16} stroke={2.4} /></button>
+              </div>
+            ))}
+            {f.items.length < 10 && <button type="button" className="iadd" onClick={addItem}><Icon d="plus" size={16} stroke={2.4} />Add item</button>}
+          </div>
         </div>
-        {!job && realPct != null && <div className="pctline">Discount: <b>{realPct}% off</b> <span className="muted small">· worked out from your prices{/\d\s*%/.test(f.title) ? ", and updated in your title" : ""}</span></div>}
+        {realPct != null && <div className="pctline">Best deal: <b>{realPct}% off</b> <span className="muted small">· customers see "Up to {realPct}% off"</span></div>}
         <div className="two">
-          <div className="fld"><label>{job ? "Pay per" : "How many"}</label><input maxLength={60} value={f.quantity} onChange={(e) => set("quantity", e.target.value)} placeholder={job ? "e.g. Pay per month" : "e.g. 3 rooms"} /></div>
           <div className="fld"><label>{job ? "Show for" : "Offer ends in"}</label>
             <select value={choices.includes(f.hours) ? f.hours : "close"} onChange={(e) => set("hours", e.target.value === "close" ? "close" : Number(e.target.value))}>
               {choices.map((h) => <option key={h} value={h}>{h === "close" ? "Till 11 PM (today)" : `${h} hour${h > 1 ? "s" : ""} · till ${whenText(Math.min(now + h * 3600000, closing))}`}</option>)}
             </select>
-            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels, travel and logistics: any time, up to 24 hours.)"}</span></div>
+            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels: any time, up to 24 hours.)"}</span></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
@@ -428,7 +447,7 @@ export function PostOffer() {
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
-        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels, travel and logistics can post any time. Post again at 4 AM.</span></div>}
+        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels can post any time. Post again at 4 AM.</span></div>}
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>

@@ -11,7 +11,7 @@ import { audit } from "../shared.js";
 import { platformImpact } from "./insights.js";
 import { planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
-import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, str } from "../util.js";
+import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str } from "../util.js";
 
 function staff(ctx, { superOnly = false } = {}) {
   const u = needUser(ctx);
@@ -169,6 +169,21 @@ export function adminRoutes(r) {
     await q("UPDATE users SET role = $2, regions = $3, area_cities = $4, area_pincodes = $5, token_version = token_version + 1 WHERE id = $1",
       [target.id, role, regions, cities, pincodes]);
     audit("admin_role", me.id, { target: target.id, role, regions, cities, pincodes });
+  });
+
+  // Registrations by pincode (partners), optionally for one category. Customers don't give a pincode, so only totals.
+  r.get("/api/admin/pincodes", async (ctx) => {
+    const me = staff(ctx);
+    const cat = str(ctx.query.category, 30) || null;
+    const rows = await many(
+      `SELECT b.pincode, max(b.area) AS area, max(b.city) AS city, max(b.state) AS state, count(*)::int AS partners,
+              count(*) FILTER (WHERE b.status = 'verified')::int AS verified,
+              count(*) FILTER (WHERE b.created_at >= $2)::int AS today
+       FROM businesses b
+       WHERE b.pincode <> '' AND ($1::text IS NULL OR b.category = $1 OR $1 = ANY(b.categories))
+       GROUP BY b.pincode ORDER BY partners DESC, b.pincode LIMIT 500`, [cat, new Date(startOfDayIST())]);
+    const customers = await one(`SELECT count(*)::int AS n, count(*) FILTER (WHERE created_at >= $1)::int AS today FROM users u WHERE role = 'user' AND NOT EXISTS (SELECT 1 FROM businesses b WHERE b.id = u.id)`, [new Date(startOfDayIST())]);
+    return { pincodes: rows.filter((x) => me.canSee({ state: x.state, city: x.city, pincode: x.pincode })), customers: me.role === "admin" ? customers : null };
   });
 
   r.get("/api/admin/businesses", async (ctx) => {

@@ -21,9 +21,9 @@ const CFLOAT = [
   { cat: "stay", t: "Room for tonight", s: "Ends in 5 h · 3.4 km", o: "-47%", style: { left: 0, top: 10 } },
   { cat: "food", t: "Cakes at closing", s: "1.2 km · 7 left", o: "-50%", style: { right: 0, top: 36, animationDelay: ".8s" } },
   { cat: "beauty", t: "Salon slots today", s: "4 – 8 PM · 0.8 km", o: "-50%", style: { left: 0, bottom: 0, animationDelay: "1.6s" } },
-  { cat: "travel", t: "Bus seats tonight", s: "Leaves 10:45 PM", o: "-43%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
+  { cat: "farm", t: "Farm tomatoes", s: "Picked today · 2 km", o: "-40%", style: { right: 0, bottom: -14, animationDelay: ".4s" } },
 ];
-const TRAIL = ["food", "stay", "travel", "beauty", "makeup", "fashion", "appliances", "shops"];
+const TRAIL = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "ads"];
 
 export function Welcome() {
   const { customersFree } = useApp();
@@ -42,7 +42,7 @@ export function Welcome() {
       <div style={{ marginTop: "auto", animation: "fadeUp .6s ease .2s both" }}>
         <span className="giftpill"><Icon d="clock" size={14} stroke={2.2} />Every deal is for today only</span>
         <h1>Deals from local businesses, near you.</h1>
-        <p className="lead2">Same-day discounts from local food places, hotels, travel, salons, laundries, shops and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
+        <p className="lead2">Same-day discounts from local food places, hotels, salons, gyms, farmers and more. Every offer ends within 24 hours. Call the owner directly; every rupee stays local.</p>
         <div className="cattrail">{TRAIL.map((c, i) => <span key={c} style={{ animationDelay: `${0.5 + i * 0.08}s` }}><Icon d={catStyle(c).icon} size={14} stroke={2.2} />{catStyle(c).short}</span>)}</div>
         <p className="fine">{customersFree ? "Free for customers. No pass, nothing to pay." : `${PLANS.customer.name}: ${rupee(PLANS.customer.price)} for 30 days, or less on longer plans.`}</p>
       </div>

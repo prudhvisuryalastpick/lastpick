@@ -143,8 +143,9 @@ export function Privacy() {
           <tbody>
             {[
               ["Your account and profile", "Until you delete your account"],
-              ["Live offers and their photos", "Removed from the app as soon as the offer ends (by 11 PM); a short summary stays in the partner's history"],
-              ["Offer history (for businesses)", months(R.archiveDays)],
+              ["Live offers", "Removed from the app as soon as the offer ends (by 11 PM); a short summary stays in the partner's history"],
+              ["Offer history (for businesses)", months(R.archiveDays) + ", as a short one-line record (offer name, items and prices, views, calls)"],
+              ["Your History (businesses you contacted)", `${R.contactsDays} days, then deleted automatically`],
               ["Number-exchange records (contacts, leads)", months(R.leadsDays) + " (the law asks us to keep these logs for 1 year)"],
               ["Reviews", "Until you or the business deletes the account, or we remove the review"],
               ["Audit and security logs", months(R.auditDays)],

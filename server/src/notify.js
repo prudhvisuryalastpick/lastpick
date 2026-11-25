@@ -16,7 +16,7 @@ const sign = `\n\nQuestions? Just reply to this e-mail or write to ${SUPPORT}.\n
 const TEMPLATES = {
   welcome: (n) => ({
     subject: "Welcome to LastPick",
-    text: `Hi ${n},\n\nYour LastPick account is ready. Every day you'll see fresh offers from verified shops, salons, hotels, travel and logistics near you. Tap "I'm interested" and the business gets only your name, never your number.\n\nStart here: ${CUSTOMER_URL}${sign}`,
+    text: `Hi ${n},\n\nYour LastPick account is ready. Every day you'll see fresh offers from verified shops, salons, hotels, gyms and farmers near you. Tap "I'm interested" and the business gets only your name, never your number.\n\nStart here: ${CUSTOMER_URL}${sign}`,
   }),
   business_received: (n, d) => ({
     subject: "We received your business registration",
@@ -24,7 +24,7 @@ const TEMPLATES = {
   }),
   business_verified: (n, d) => ({
     subject: `${d.business} is approved on LastPick`,
-    text: `Hi ${n},\n\nGood news: ${d.business} is now verified on LastPick.${d.trialEnds ? ` Your free period runs until ${day(d.trialEnds)}.` : ""}\n\nYou can post up to 3 offers a day between 4 AM and 10:30 PM (hotels, travel and logistics any time). Post your first offer: ${PARTNER_URL}${sign}`,
+    text: `Hi ${n},\n\nGood news: ${d.business} is now verified on LastPick.${d.trialEnds ? ` Your free period runs until ${day(d.trialEnds)}.` : ""}\n\nYou can post up to 3 offers a day between 4 AM and 10:30 PM (hotels any time). Post your first offer: ${PARTNER_URL}${sign}`,
   }),
   business_rejected: (n, d) => ({
     subject: `Update on your LastPick registration`,
