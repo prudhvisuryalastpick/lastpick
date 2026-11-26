@@ -235,6 +235,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!location.exact) return;
     let alive = true;
+    const key = `${location.lat},${location.lng}`;
     // quick first answer (the big area), then the exact colony when the slower lookup comes back
     addressFromLocation(location.lat, location.lng).then((a) => { if (alive && a && !a.outsideIndia) setPlace((p) => ({ area: p?.colonyFor === key ? p.area : a.area, city: a.city, pincode: a.pincode, colonyFor: p?.colonyFor === key ? key : null })); }).catch(() => {});
     colonyNear(location.lat, location.lng).then((c) => { if (alive && c) setPlace((p) => ({ ...(p || {}), area: c, colonyFor: key })); }).catch(() => {});
