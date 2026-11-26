@@ -143,7 +143,7 @@ export const api = {
     return live(await cached(key, 60000, () => publicGet(`/api/offers?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}&radius=${radiusKm}`)));
   },
   async listByPincode(pincode) { return live(await cached("pin:" + pincode, 60000, () => publicGet(`/api/offers?pincode=${enc(pincode)}`))); },
-  // fresh: skip the 60-second memo (used by the 1-minute refresh). If the server can't be reached the result says so,
+  // fresh: skip the 60-second memo (used by the 3-minute refresh). If the server can't be reached the result says so,
   // and the apps show the "We'll be right back" page.
   async getConfig(fresh = false) {
     // A phone's connection often drops for a second (switching apps, 4G to Wi-Fi). Try 3 times before saying

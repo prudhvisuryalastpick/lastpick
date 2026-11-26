@@ -80,26 +80,36 @@ export function AppProvider({ children }) {
   const [place, setPlace] = useState(null); // { area, city, pincode } for the live location, shown on Home
   const [locationStatus, setLocationStatus] = useState("asking"); // asking | granted | denied | unavailable
   const [config, setConfig] = useState({ freeMode: false });
-  // app settings (free launch mode, maintenance…), refreshed every minute so a maintenance window starts and ends on time
+  // app settings (free launch mode, maintenance…)
   useEffect(() => {
-    let stop = false, down = false, busy = false, retry = null;
+    // Settings are checked when the app opens, every 3 minutes while it is on screen, and whenever it comes back
+    // on screen. Nothing runs in the background. If the connection is lost it checks again after 8, 15, 30, then
+    // every 60 seconds, and stops as soon as it is back.
+    const EVERY = 180000, BACKOFF = [8000, 15000, 30000, 60000];
+    let stop = false, down = false, busy = false, retry = null, fails = 0, last = 0;
+    const visible = () => typeof document === "undefined" || document.visibilityState === "visible";
     const load = (fresh) => {
-      if (busy) return; busy = true;
+      if (busy || stop) return; busy = true;
       api.getConfig(fresh).then((c) => {
         if (stop) return;
+        last = Date.now();
         down = !!c?.unreachable;
-        // keep the last good settings while the connection is down; note when it was first lost
+        // keep the last good settings while the connection is down
         setConfig((prev) => (c?.unreachable ? { ...prev, unreachable: true, ok: !!prev.ok } : { ...c, ok: true }));
         clearTimeout(retry);
-        if (down) retry = setTimeout(() => load(true), 8000); // check again soon instead of waiting a minute
+        if (down) { retry = setTimeout(() => { if (visible()) load(true); }, BACKOFF[Math.min(fails, BACKOFF.length - 1)]); fails += 1; }
+        else fails = 0;
       }).catch(() => {}).finally(() => { busy = false; });
     };
     load(false);
-    const t = setInterval(() => load(true), 60000);
-    const again = () => { if (down || document.visibilityState === "visible") load(true); };
+    // a cheap 20-second tick (no network) that loads only once 3 minutes have passed since the last check
+    const t = setInterval(() => { if (visible() && !down && last && Date.now() - last >= EVERY) load(true); }, 20000);
+    const onShow = () => { if (visible() && (down || Date.now() - last > 30000)) load(true); };
+    const again = () => { fails = 0; load(true); };
+    document.addEventListener("visibilitychange", onShow);
     window.addEventListener("online", again);
     window.addEventListener("lastpick-recheck", again);
-    return () => { stop = true; clearInterval(t); clearTimeout(retry); window.removeEventListener("online", again); window.removeEventListener("lastpick-recheck", again); };
+    return () => { stop = true; clearInterval(t); clearTimeout(retry); document.removeEventListener("visibilitychange", onShow); window.removeEventListener("online", again); window.removeEventListener("lastpick-recheck", again); };
   }, []);
 
   const refresh = useCallback(async () => {
