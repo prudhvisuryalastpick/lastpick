@@ -345,11 +345,13 @@ export function useInstall() {
 }
 
 // Round "Install app" button for the top bar of the home pages (before Instagram). Hidden once installed.
+// Switched off for now (owner's choice, Play Store apps first); set SHOW_INSTALL_TOP = true to bring it back.
+const SHOW_INSTALL_TOP = false;
 export function InstallTopButton() {
   const [, bump] = useState(0);
   useEffect(() => onInstallChange(() => bump((n) => n + 1)), []);
   const [run, ui] = useInstall();
-  if (IS_NATIVE || isInstalled()) return null;
+  if (!SHOW_INSTALL_TOP || IS_NATIVE || isInstalled()) return null;
   return (
     <>
       <button type="button" className="cround glassy installtop" onClick={run} aria-label="Install app" title="Install app">

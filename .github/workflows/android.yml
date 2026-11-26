@@ -43,7 +43,8 @@ jobs:
       - name: Install
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/geolocation@7 @capacitor/splash-screen@7
+          # Capacitor 8 targets Android 16 (API 36), which Google Play needs for new apps and updates
+          npm install --no-audit --no-fund @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8 @capacitor/geolocation@8 @capacitor/splash-screen@8
 
       - name: Build web app (${{ matrix.variant }})
         env:
@@ -70,7 +71,7 @@ jobs:
           sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />#' android/app/src/main/AndroidManifest.xml
           npx cap sync android
           # every build gets a higher version number (Play Store requires it): 1.0.<build number>
-          sed -i -E "s/versionCode [0-9]+/versionCode $((100 + ${{ github.run_number }}))/; s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i -E "s/versionCode( =)? [0-9]+/versionCode\1 $((100 + ${{ github.run_number }}))/; s/versionName( =)? \"[^\"]*\"/versionName\1 \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
       - name: Signing key

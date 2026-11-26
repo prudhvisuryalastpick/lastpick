@@ -161,7 +161,10 @@ export function AppProvider({ children }) {
   const [locTry, setLocTry] = useState(0);
   const retryLocation = useCallback(() => { setLocationStatus((s) => (s === "granted" ? s : "asking")); setLocTry((n) => n + 1); }, []);
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) { setLocationStatus("unavailable"); return undefined; }
+    // In the Play Store apps use the phone's own GPS (Capacitor Geolocation plugin): the web view's location can keep
+    // handing back one old stored position. In a browser use navigator.geolocation. Always ask for a fresh fix.
+    const nativeGeo = typeof window !== "undefined" && window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.Geolocation : null;
+    if (!nativeGeo && (typeof navigator === "undefined" || !navigator.geolocation)) { setLocationStatus("unavailable"); return undefined; }
     let got = false;
     const ok = (p) => {
       got = true;
@@ -171,8 +174,30 @@ export function AppProvider({ children }) {
       setLocationStatus("granted");
       setCityState((c) => (c?.auto ? { ...(nearestCity(pos) || c), auto: true } : c));
     };
-    const fail = (e) => { if (!got) setLocationStatus(e?.code === 1 ? "denied" : "unavailable"); };
-    const opts = { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 };
+    const fail = (e) => {
+      if (got) return;
+      const denied = e?.code === 1 || /denied|permission/i.test(String(e?.message || ""));
+      setLocationStatus(denied ? "denied" : "unavailable");
+    };
+    const opts = { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 };
+    if (nativeGeo) {
+      let id = null, alive = true;
+      (async () => {
+        try {
+          const perm = await nativeGeo.checkPermissions().catch(() => null);
+          if (perm && perm.location !== "granted" && perm.coarseLocation !== "granted") {
+            const asked = await nativeGeo.requestPermissions().catch(() => null);
+            if (asked && asked.location !== "granted" && asked.coarseLocation !== "granted") { fail({ code: 1 }); return; }
+          }
+          if (!alive) return;
+          ok(await nativeGeo.getCurrentPosition(opts));
+        } catch (e) { fail(e); }
+        if (!alive) return;
+        try { id = await nativeGeo.watchPosition(opts, (p, err) => (p ? ok(p) : fail(err))); } catch { /* the first fix is enough */ }
+        if (!alive && id) nativeGeo.clearWatch({ id });
+      })();
+      return () => { alive = false; if (id) nativeGeo.clearWatch({ id }); };
+    }
     navigator.geolocation.getCurrentPosition(ok, fail, opts);
     const watch = navigator.geolocation.watchPosition(ok, fail, opts);
     return () => navigator.geolocation.clearWatch(watch);
