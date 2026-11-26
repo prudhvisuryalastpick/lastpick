@@ -3,7 +3,7 @@ import { api } from "./api/index.js";
 import { DEFAULT_LOCATION, MAJOR_CITIES, cityKey } from "./lib/config.js";
 import { distanceKm } from "./lib/format.js";
 import { DEFAULT_RADIUS_KM } from "./lib/geo.js";
-import { addressFromLocation, colonyNear } from "./lib/address.js";
+import { addressFromLocation } from "./lib/address.js";
 
 // ---------------- tiny hash router ----------------
 const readHash = () => {
@@ -231,15 +231,16 @@ export function AppProvider({ children }) {
     document.addEventListener("visibilitychange", onShow);
     return () => document.removeEventListener("visibilitychange", onShow);
   }, [retryLocation]);
-  // the area name and pincode of the live location (OpenStreetMap), for the Home header
+  // pincode and town of the live location (OpenStreetMap), for the chip on Home: "Nandyal - 518501".
+  // Tries again after 5 s if the lookup fails; keeps the last answer meanwhile.
   useEffect(() => {
-    if (!location.exact) return;
-    let alive = true;
-    const key = `${location.lat},${location.lng}`;
-    // quick first answer (the big area), then the exact colony when the slower lookup comes back
-    addressFromLocation(location.lat, location.lng).then((a) => { if (alive && a && !a.outsideIndia) setPlace((p) => ({ area: p?.colonyFor === key ? p.area : a.area, city: a.city, pincode: a.pincode, colonyFor: p?.colonyFor === key ? key : null })); }).catch(() => {});
-    colonyNear(location.lat, location.lng).then((c) => { if (alive && c) setPlace((p) => ({ ...(p || {}), area: c, colonyFor: key })); }).catch(() => {});
-    return () => { alive = false; };
+    if (!location.exact) return undefined;
+    let alive = true, t = null;
+    const look = (left) => addressFromLocation(location.lat, location.lng)
+      .then((a) => { if (alive && a && !a.outsideIndia) setPlace({ area: a.area, city: a.city, region: a.region, pincode: a.pincode }); })
+      .catch(() => { if (alive && left > 0) t = setTimeout(() => look(left - 1), 5000); });
+    look(2);
+    return () => { alive = false; clearTimeout(t); };
   }, [location.exact, location.lat, location.lng]);
 
   useEffect(() => { if (!toastMsg) return; const t = setTimeout(() => setToastMsg(""), 2600); return () => clearTimeout(t); }, [toastMsg]);

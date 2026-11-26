@@ -2,7 +2,7 @@
 //   lookupPincode("500090") -> { state, city, areas: ["Nizampet", "Bachupally", ...] }   (India Post data)
 //   addressFromLocation(lat, lng) -> { address, area, city, state, pincode }               (OpenStreetMap)
 // Both are free public services called from the browser. If one is down, the partner types the fields.
-import { INDIAN_STATES } from "./config.js";
+import { INDIAN_STATES, MAJOR_CITIES } from "./config.js";
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
 const ALIASES = { orissa: "Odisha", pondicherry: "Puducherry", nctofdelhi: "Delhi", jammukashmir: "Jammu and Kashmir", andamannicobar: "Andaman and Nicobar Islands" };
@@ -84,17 +84,46 @@ export async function colonyNear(lat, lng) {
   return near.find((x) => FINE.includes(x.place) && x.km <= 1.2)?.name || "";
 }
 
-// Quick reverse lookup (OpenStreetMap / Nominatim). The area may be a big suburb; colonyNear() refines it.
+// The town/region for a point, anywhere in India: the city or town name; else, near a big city (within 40 km),
+// that city (Nizampet -> "Hyderabad"); else the district ("Nandyal District" -> "Nandyal", "Vaishali").
+const cleanDistrict = (s) => String(s || "").replace(/\s+district$/i, "").replace(/^YSR\s+/i, "").trim();
+function regionOf(a, lat, lng) {
+  let metro = null, best = 40;
+  MAJOR_CITIES.forEach((c) => { const km = kmBetween({ lat, lng }, c); if (km < best) { best = km; metro = c.name; } });
+  return a.city || a.town || metro || cleanDistrict(a.state_district) || cleanDistrict(a.county) || a.village || "";
+}
+
+// Some villages have no pincode on the map: find it in India Post's list by the village (or tehsil) name,
+// in the same district.
+async function pincodeByName(names, district) {
+  const d = norm(cleanDistrict(district));
+  for (const n of names.filter(Boolean)) {
+    try {
+      const j = await getJson(`https://api.postalpincode.in/postoffice/${encodeURIComponent(n.replace(/\s+(tehsil|tahsil|mandal|taluk|taluka|block)$/i, ""))}`, 6000);
+      const offices = j?.[0]?.Status === "Success" ? j[0].PostOffice || [] : [];
+      const hit = offices.find((o) => d && norm(o.District) === d) || (offices.length === 1 ? offices[0] : null);
+      if (hit?.Pincode) return hit.Pincode;
+    } catch { /* try the next name */ }
+  }
+  return "";
+}
+
+// Reverse lookup (OpenStreetMap / Nominatim): pincode, region and address parts for a point.
 export async function addressFromLocation(lat, lng) {
   const j = await getJson(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=en&lat=${lat}&lon=${lng}`);
   const a = j?.address || {};
   if (a.country_code && a.country_code !== "in") return { outsideIndia: true };
-  const pincode = String(a.postcode || "").replace(/\D/g, "").slice(0, 6);
+  let pincode = String(a.postcode || "").replace(/\D/g, "").slice(0, 6);
+  if (!/^[1-9]\d{5}$/.test(pincode)) pincode = await pincodeByName([a.village, a.hamlet, a.suburb, a.town, a.county], a.state_district || a.county);
   return {
     address: [a.house_number, a.building, a.road].filter(Boolean).join(", "),
     area: a.neighbourhood || a.quarter || a.suburb || a.village || a.hamlet || "",
     city: a.city || a.town || a.city_district || a.state_district || a.county || "",
+    region: regionOf(a, lat, lng),
     state: matchState(a.state) || a.state || "",
     pincode: /^[1-9]\d{5}$/.test(pincode) ? pincode : "",
   };
 }
+
+// "Nandyal - 518501": what the location chip shows
+export const placeLabel = (p) => [p?.region || p?.city, p?.pincode].filter(Boolean).join(" - ");

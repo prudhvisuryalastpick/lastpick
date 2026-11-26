@@ -9,7 +9,8 @@ import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_C
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
 import { ago, clockIST, day, daysLeft, discount, hoursText, distanceKm, errText, isJob, kmText, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
-import { navigate, nearestCity, useApp, useNow } from "../state.jsx";
+import { navigate, useApp, useNow } from "../state.jsx";
+import { placeLabel } from "../lib/address.js";
 
 function useLiveOffers(city) {
   const [offers, setOffers] = useState(null);
@@ -58,11 +59,11 @@ const hourText = (h) => (h === 0 || h === 24 ? "12 AM" : h === 12 ? "12 PM" : h 
 const initialsOf = (name) => String(name || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 const offLabel = (o) => (o.price === 0 ? "FREE" : discount(o) > 0 ? `-${discount(o)}%` : "");
 
-// "Nizampet · 500090" chip beside the logo, on both homes; tap to refresh the location
+// "Nandyal - 518501" chip beside the logo, on both homes; tap to refresh the location
 export function useWhere() {
   const { location, locationStatus, place } = useApp();
   return location.exact
-    ? (place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : (nearestCity(location)?.name || "Your location"))
+    ? (placeLabel(place) || "Finding your area…")
     : locationStatus === "asking" ? "Finding you…" : "Location is off";
 }
 export function WhereChip({ where }) {
@@ -89,9 +90,9 @@ export function Home() {
   const open = (id) => navigate("/c/" + id);
   const noLocation = needGps && locationStatus !== "asking";
   const hours = config?.hours || { open: 4, close: 23 };
-  // always the live location (GPS): area name + pincode, e.g. "Nizampet · 500090"
+  // always the live location (GPS): pincode + town, e.g. "Nandyal - 518501"
   const where = location.exact
-    ? (place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : (nearestCity(location)?.name || "Your location"))
+    ? (placeLabel(place) || "Finding your area…")
     : locationStatus === "asking" ? "Finding you…" : "Location is off";
   const top = (
     <div className="shero-top">
@@ -333,7 +334,7 @@ function LocationScreen({ status, onRetry }) {
 export function MapPage() {
   const { location, place, locationStatus, retryLocation } = useApp();
   const { offers, needGps } = useAreaOffers();
-  const here = place?.area || place?.city ? [place.area || place.city, place.pincode].filter(Boolean).join(" · ") : "your location";
+  const here = placeLabel(place) || "your location";
   return (
     <>
       <div className="phead"><span className="cround"><Icon d="map" size={20} stroke={2} /></span><div><h1>Deals near you</h1>
