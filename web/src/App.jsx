@@ -133,13 +133,17 @@ export default function App() {
   const myApp = IS_OWNER_APP ? "partner" : "customer";
   const maint = config?.maintenance;
   const maintOn = !IS_ADMIN_APP && !!maint?.active && (maint.apps || []).includes(myApp);
-  const serverDown = !IS_ADMIN_APP && !!config?.unreachable && (typeof navigator === "undefined" || navigator.onLine !== false);
+  // Lost connection: if the app was already working, keep the screen and show a small "Reconnecting…" strip
+  // (it checks again every few seconds). Only when it could never connect, show the full page.
+  const lostConn = !IS_ADMIN_APP && !!config?.unreachable;
+  const serverDown = lostConn && !config?.ok && (typeof navigator === "undefined" || navigator.onLine !== false);
   if (maintOn || serverDown) return <div className={"shell" + (IS_OWNER_APP ? " biz" : "")}><MaintenancePage m={maint} down={!maintOn} /></div>;
   const maintSoon = !IS_ADMIN_APP && !!maint?.upcoming && (maint.apps || []).includes(myApp);
 
   return (
     <div className={"shell" + (biz ? " biz" : "") + (IS_ADMIN_APP ? " admin" : "")}>
       {maintSoon && <MaintenanceBanner m={maint} />}
+      {lostConn && !serverDown && <div className="conn-strip" role="status"><span className="spin" aria-hidden="true" />{typeof navigator !== "undefined" && navigator.onLine === false ? "You're offline. Waiting for internet…" : "Reconnecting…"}</div>}
       {!isLive && <div className="demo-bar">Demo mode · data stays in this browser · no real payments</div>}
       {!IS_ADMIN_APP && biz && !fullScreen && !loading && !(IS_OWNER_APP && !session) && <QuoteStrip partner />}
       <main className={"main" + (!biz && !IS_ADMIN_APP ? " custmain" : "")} style={fullScreen ? { paddingBottom: 0 } : IS_OWNER_APP && !session ? { paddingBottom: 8 } : null}>{loading ? <Spinner /> : profile?.loadError && !OPEN_PAGES.includes(path) ? <LoadError /> : firstVisit ? <Welcome /> : needsProfile ? <CompleteProfile /> : needsConsent ? <ConsentGate /> : <Page key={path + (at || "") + ":" + (session?.user?.id || "guest")} path={path} query={query} />}</main>

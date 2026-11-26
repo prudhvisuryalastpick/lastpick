@@ -1019,3 +1019,10 @@ button.maint-back { cursor: pointer; }
 .adm-table td:first-child { min-width: 160px; }
 .adm-box .pill { white-space: normal; line-height: 1.3; padding-top: 5px; padding-bottom: 5px; }
 .adm-table td .muted.small { white-space: nowrap; }
+
+/* connection lost: a small strip at the top while the app reconnects (it keeps the current screen) */
+@keyframes lpspin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: lpspin .8s linear infinite; vertical-align: -2px; }
+.conn-strip { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 12px; font-size: 13px; font-weight: 700; background: #FFF4D6; color: #6B4E00; border-bottom: 1px solid rgba(107,78,0,.15); }
+button.maint-back { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+button.maint-back:disabled { opacity: .85; }

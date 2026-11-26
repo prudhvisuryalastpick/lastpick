@@ -11,7 +11,7 @@ import { Icon } from "../lib/icons.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
 import { navigate, useApp, useNow } from "../state.jsx";
 import { validPincode } from "../lib/geo.js";
-import { addressFromLocation, lookupPincode } from "../lib/address.js";
+import { addressFromLocation, lookupPincode, nearbyLocalities } from "../lib/address.js";
 
 // Every owner page goes through this gate: login -> business profile -> Owner Pro -> page.
 export function OwnerGate({ children, allowWithoutPlan = false }) {
@@ -585,6 +585,7 @@ function BusinessForm({ first = false }) {
 
   // Pincode first: a valid pincode fills state, city and the list of areas (post offices) for that pincode.
   const [areas, setAreas] = useState([]);
+  const [nearAreas, setNearAreas] = useState([]); // named colonies near the shop (OpenStreetMap), nearest first
   const [pinState, setPinState] = useState(""); // "", "looking", "found", "unknown", "offline"
   const fillFromPincode = async (pin, keep = {}) => {
     if (!validPincode(pin)) { setAreas([]); setPinState(""); return; }
@@ -594,7 +595,7 @@ function BusinessForm({ first = false }) {
       if (!r) { setAreas([]); setPinState("unknown"); return; }
       setAreas(r.areas);
       setF((p) => ({ ...p, state: r.state || p.state, city: keep.city || r.city || p.city,
-        area: keep.area || (r.areas.includes(p.area) ? p.area : r.areas.length === 1 ? r.areas[0] : p.area) }));
+        area: keep.area || p.area || (r.areas.length === 1 ? r.areas[0] : "") }));
       setPinState("found");
     } catch { setPinState("offline"); }
   };
@@ -603,10 +604,11 @@ function BusinessForm({ first = false }) {
   // The shop's location ALWAYS comes from the phone's GPS (no typed pincode, which can be wrong):
   // it saves the map point AND fills address, area, city, state and pincode. Done automatically for a new business.
   const locate = () => {
-    if (!navigator.geolocation) return toast("Location isn't available on this device");
+    // In the Play Store app use the phone's own GPS (Capacitor plugin); the web view's location can be an old stored one.
+    const nativeGeo = window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.Geolocation : null;
+    if (!nativeGeo && !navigator.geolocation) return toast("Location isn't available on this device");
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (p) => {
+    const onFix = async (p) => {
         const lat = p.coords.latitude, lng = p.coords.longitude;
         setF((x) => ({ ...x, lat, lng }));
         try {
@@ -614,15 +616,34 @@ function BusinessForm({ first = false }) {
           if (a.outsideIndia) { toast("This location is outside India. LastPick is for businesses in India."); }
           else {
             setF((x) => ({ ...x, address: x.address || a.address, area: a.area || x.area, city: a.city || x.city, state: a.state || x.state, pincode: a.pincode || "" }));
+            // then the exact colony (slower lookup): fill it in and offer the nearby ones as suggestions
+            nearbyLocalities(lat, lng).then((near) => {
+              setNearAreas(near.filter((x) => x.km <= 3).map((x) => x.name));
+              const colony = near.find((x) => x.place !== "suburb" && x.place !== "village" && x.km <= 1.2);
+              if (colony) setF((x) => ({ ...x, area: colony.name }));
+            }).catch(() => {});
             if (a.pincode) await fillFromPincode(a.pincode, { city: a.city, area: a.area });
             toast(a.pincode ? "Shop location and pincode found. Please check the address." : "We couldn't find the pincode for this spot. Step outside or move a little, then tap Detect again.");
           }
         } catch { toast("Location saved. We couldn't fetch the address, please type it."); }
         setLocating(false);
-      },
-      () => { setLocating(false); toast("Couldn't get your location. Turn on location (GPS), allow it for LastPick, and tap Detect again."); },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-    );
+    };
+    const onFail = () => { setLocating(false); toast("Couldn't get your location. Turn on location (GPS), allow it for LastPick, and tap Detect again."); };
+    const opts = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+    if (nativeGeo) {
+      (async () => {
+        try {
+          const perm = await nativeGeo.checkPermissions().catch(() => null);
+          if (perm && perm.location !== "granted" && perm.coarseLocation !== "granted") {
+            const asked = await nativeGeo.requestPermissions().catch(() => null);
+            if (asked && asked.location !== "granted" && asked.coarseLocation !== "granted") return onFail();
+          }
+          await onFix(await nativeGeo.getCurrentPosition(opts));
+        } catch { onFail(); }
+      })();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(onFix, onFail, opts);
   };
   useEffect(() => { if (f.lat == null) locate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -676,9 +697,9 @@ function BusinessForm({ first = false }) {
           <div className="fld"><label>City / district</label><input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Filled from pincode" /></div>
         </div>
         <div className="fld"><label>Area</label>
-          {areas.length > 0
-            ? <select value={areas.includes(f.area) ? f.area : ""} onChange={(e) => set("area", e.target.value)}><option value="">Select your area</option>{areas.map((a) => <option key={a}>{a}</option>)}</select>
-            : <input value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Your locality, e.g. Nizampet" />}</div>
+          <input list="lp-area-list" value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Your colony or locality, e.g. Srinivasa Nagar" />
+          <datalist id="lp-area-list">{[...new Set([...nearAreas, ...areas])].map((a) => <option key={a} value={a} />)}</datalist>
+          {(nearAreas.length > 0 || areas.length > 0) && <span className="hint">Type your colony or pick one nearby.</span>}</div>
         <div className="fld"><label>Address</label><input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Shop number, building, street" /></div>
         <div className="fld"><label>About (optional)</label><textarea rows="2" maxLength={500} value={f.about} onChange={(e) => set("about", e.target.value)} placeholder="What you do, opening hours…" /></div>
         {needsConsent && <div className="muted small" style={{ marginTop: 4 }}>Please read your Partner Agreement for <b>{categoryOf(f.category)?.label}</b> businesses to the end. It changes with the category you pick.</div>}

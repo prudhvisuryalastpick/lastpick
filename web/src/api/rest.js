@@ -146,9 +146,20 @@ export const api = {
   // fresh: skip the 60-second memo (used by the 1-minute refresh). If the server can't be reached the result says so,
   // and the apps show the "We'll be right back" page.
   async getConfig(fresh = false) {
-    const load = () => get("/api/config").catch(() => ({ freeMode: false, unreachable: true }));
-    if (fresh) { const r = await load(); memo.delete?.("config"); return r; }
-    return cached("config", 60000, load);
+    // A phone's connection often drops for a second (switching apps, 4G to Wi-Fi). Try 3 times before saying
+    // the server can't be reached, and never remember a failure: the next check tries again.
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const load = async () => {
+      for (const pause of [0, 1500, 4000]) {
+        if (pause) await wait(pause);
+        try { return await get("/api/config"); } catch (e) { if (e.status && e.status < 500) return { freeMode: false }; }
+      }
+      return { freeMode: false, unreachable: true };
+    };
+    if (!fresh) { const hit = memo.get("config"); if (hit && Date.now() - hit.at < 60000) return hit.v; }
+    const r = await load();
+    if (r.unreachable) memo.delete("config"); else memo.set("config", { at: Date.now(), v: r });
+    return r;
   },
   async listCities() { return cached("cities", 300000, () => get("/api/cities")); },
   async getOfferPhoto(id) { try { return (await get(`/api/offers/${enc(id)}/photo`)).photo; } catch { return null; } },

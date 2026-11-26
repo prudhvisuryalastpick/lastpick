@@ -3,7 +3,7 @@ import { api } from "./api/index.js";
 import { DEFAULT_LOCATION, MAJOR_CITIES, cityKey } from "./lib/config.js";
 import { distanceKm } from "./lib/format.js";
 import { DEFAULT_RADIUS_KM } from "./lib/geo.js";
-import { addressFromLocation } from "./lib/address.js";
+import { addressFromLocation, colonyNear } from "./lib/address.js";
 
 // ---------------- tiny hash router ----------------
 const readHash = () => {
@@ -82,11 +82,24 @@ export function AppProvider({ children }) {
   const [config, setConfig] = useState({ freeMode: false });
   // app settings (free launch mode, maintenance…), refreshed every minute so a maintenance window starts and ends on time
   useEffect(() => {
-    let stop = false;
-    const load = (fresh) => api.getConfig(fresh).then((c) => { if (!stop) setConfig((prev) => (c?.unreachable ? { ...prev, unreachable: true } : c)); }).catch(() => {});
+    let stop = false, down = false, busy = false, retry = null;
+    const load = (fresh) => {
+      if (busy) return; busy = true;
+      api.getConfig(fresh).then((c) => {
+        if (stop) return;
+        down = !!c?.unreachable;
+        // keep the last good settings while the connection is down; note when it was first lost
+        setConfig((prev) => (c?.unreachable ? { ...prev, unreachable: true, ok: !!prev.ok } : { ...c, ok: true }));
+        clearTimeout(retry);
+        if (down) retry = setTimeout(() => load(true), 8000); // check again soon instead of waiting a minute
+      }).catch(() => {}).finally(() => { busy = false; });
+    };
     load(false);
     const t = setInterval(() => load(true), 60000);
-    return () => { stop = true; clearInterval(t); };
+    const again = () => { if (down || document.visibilityState === "visible") load(true); };
+    window.addEventListener("online", again);
+    window.addEventListener("lastpick-recheck", again);
+    return () => { stop = true; clearInterval(t); clearTimeout(retry); window.removeEventListener("online", again); window.removeEventListener("lastpick-recheck", again); };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -212,7 +225,9 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!location.exact) return;
     let alive = true;
-    addressFromLocation(location.lat, location.lng).then((a) => { if (alive && a && !a.outsideIndia) setPlace({ area: a.area, city: a.city, pincode: a.pincode }); }).catch(() => {});
+    // quick first answer (the big area), then the exact colony when the slower lookup comes back
+    addressFromLocation(location.lat, location.lng).then((a) => { if (alive && a && !a.outsideIndia) setPlace((p) => ({ area: p?.colonyFor === key ? p.area : a.area, city: a.city, pincode: a.pincode, colonyFor: p?.colonyFor === key ? key : null })); }).catch(() => {});
+    colonyNear(location.lat, location.lng).then((c) => { if (alive && c) setPlace((p) => ({ ...(p || {}), area: c, colonyFor: key })); }).catch(() => {});
     return () => { alive = false; };
   }, [location.exact, location.lat, location.lng]);
 

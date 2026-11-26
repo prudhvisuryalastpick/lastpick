@@ -1,6 +1,6 @@
 // Maintenance: the full-screen page while LastPick is paused (set by an admin), the same page when the server
 // can't be reached (during a deploy), and the warning banner shown up to 24 hours before a scheduled window.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL } from "../lib/config.js";
 import { Icon } from "../lib/icons.jsx";
 
@@ -14,9 +14,9 @@ const dayText = (ms) => {
 };
 
 export function MaintenancePage({ m, down = false }) {
-  const title = down ? "We'll be right back" : IS_OWNER_APP ? `We're upgrading ${APP_NAME} Partner` : `We're making ${APP_NAME} even better`;
+  const title = down ? "Connecting…" : IS_OWNER_APP ? `We're upgrading ${APP_NAME} Partner` : `We're making ${APP_NAME} even better`;
   const text = down
-    ? `${APP_NAME} is updating for a moment. Please try again in a minute.`
+    ? `We can't reach ${APP_NAME} right now. Check your internet; we'll keep trying.`
     : m?.message || (IS_OWNER_APP ? "Posting and leads are paused for a short time. Your offers, leads and plan days are safe." : "Quick maintenance in progress. Deals will be back soon. Thank you for your patience.");
   return (
     <div className={"maint" + (IS_OWNER_APP ? " partner" : "")} role="status">
@@ -24,9 +24,20 @@ export function MaintenancePage({ m, down = false }) {
       <h1>{title}</h1>
       <p>{text}</p>
       {!down && m?.until && <span className="maint-back">Back by {timeText(m.until)}{dayText(m.until) !== "today" ? `, ${dayText(m.until)}` : ""}</span>}
-      {down && <button type="button" className="maint-back" onClick={() => window.location.reload()}>Try again</button>}
+      {down && <TryAgain />}
       <small>Questions? {SUPPORT_EMAIL}</small>
     </div>
+  );
+}
+
+// Checks again in the background (no full reload); shows a spinner while it tries.
+function TryAgain() {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (!busy) return undefined; const t = setTimeout(() => setBusy(false), 6000); return () => clearTimeout(t); }, [busy]);
+  return (
+    <button type="button" className="maint-back" disabled={busy} onClick={() => { setBusy(true); window.dispatchEvent(new Event("lastpick-recheck")); }}>
+      {busy ? <><span className="spin" aria-hidden="true" /> Connecting…</> : "Try again"}
+    </button>
   );
 }
 
