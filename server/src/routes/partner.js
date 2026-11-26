@@ -23,6 +23,17 @@ async function myBusiness(uid) {
   return mapBusiness(b);
 }
 
+const MY_ITEMS_MAX = 50;
+// item names and quantities: one line, no ";" or ">" (the one-line History record is "Kaju katli 400>200; Samosa 60>40")
+const cleanItemName = (v, max = 60) => str(v ?? "", max).replace(/[;>]+/g, " ").replace(/\s+/g, " ").trim();
+async function saveMyItems(ownerId, names) {
+  const n = (await one("SELECT count(*)::int AS n FROM partner_items WHERE owner_id = $1", [ownerId])).n;
+  const room = Math.max(0, MY_ITEMS_MAX - n);
+  for (const name of [...new Set(names.filter((x) => x.length >= 2))].slice(0, room)) {
+    await q("INSERT INTO partner_items (owner_id, name) VALUES ($1, $2) ON CONFLICT (owner_id, lower(name)) DO NOTHING", [ownerId, name]);
+  }
+}
+
 export function partnerRoutes(r) {
   // ---------- business profile ----------
   r.get("/api/business", async (ctx) => myBusiness(needUser(ctx).id));
@@ -89,7 +100,15 @@ export function partnerRoutes(r) {
 
     let title = str(d.title, 120);
     // An offer is a list of items: name, actual price, offer price (up to 10). The offer's own price is its best deal.
-    const items = Array.isArray(d.items) ? d.items.map((x) => ({ n: str(x?.n ?? x?.name, 60), a: Number(x?.a ?? x?.actual), p: Number(x?.p ?? x?.price) })) : [];
+    // ";" and ">" are taken out of item names: the one-line History record is "Kaju katli 400>200; Samosa 60>40"
+    const items = Array.isArray(d.items) ? d.items.map((x) => {
+      const it = { n: cleanItemName(x?.n ?? x?.name), a: Number(x?.a ?? x?.actual), p: Number(x?.p ?? x?.price) };
+      const qty = cleanItemName(x?.q ?? x?.qty ?? "", 30); // optional: "10 plates", "3 rooms", "100 bags"
+      if (qty) it.q = qty;
+      return it;
+    }) : [];
+    // an older app may still send one price pair without items: it becomes a single item named after the offer
+    if (!items.length && Number(d.origPrice) > 0) items.push({ n: title.replace(/[;>]+/g, " ").slice(0, 60), a: Number(d.origPrice), p: Number(d.price) });
     if (items.length > 10) throw bad("Add up to 10 items");
     for (const it of items) {
       if (it.n.length < 2) throw bad("Give every item a name");
@@ -105,10 +124,10 @@ export function partnerRoutes(r) {
     const hiring = false;
     // a business posts only in its registered category
     if (!allowed.includes(category)) throw denied("Your business can post only in its registered category.");
-    // Hotels run 24×7: post any time, offer runs up to 24 hours.
+    // Hotels and local ads run 24×7: post any time, offer runs up to 24 hours.
     // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
     const allDay = runs24x7(category);
-    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
+    if (!allDay && !postingOpen()) throw precondition(`Posting is open from ${POSTING_HOURS.from} AM to 10:30 PM (India time). Hotels and local ads can post any time. Please post again at ${POSTING_HOURS.from} AM.`);
     if (hiring) {
       if (!(price > 0) || price > 1e7) throw bad("Enter the pay for this job");
     } else {
@@ -127,7 +146,10 @@ export function partnerRoutes(r) {
     const result = await tx(async (c) => {
       // lock the business row so two posts at the same moment can't both slip under the daily limit
       await c.query("SELECT 1 FROM businesses WHERE id = $1 FOR UPDATE", [u.id]);
-      const today = (await c.query("SELECT count(*)::int AS n FROM offers WHERE owner_id = $1 AND created_at >= $2", [u.id, new Date(startOfDayIST())])).rows[0].n;
+      // count today's ended offers too: they leave the live table within 5 minutes, and must still use up a post
+      const today = (await c.query(
+        `SELECT (SELECT count(*) FROM offers WHERE owner_id = $1 AND created_at >= $2)
+              + (SELECT count(*) FROM offer_archive WHERE owner_id = $1 AND created_at >= $2) AS n`, [u.id, new Date(startOfDayIST())])).rows[0].n;
       if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again tomorrow from 4 AM.`);
       const { rows } = await c.query(
         `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags, items)
@@ -138,7 +160,10 @@ export function partnerRoutes(r) {
       return { id: rows[0].id, postsLeftToday: POSTS_PER_DAY - today - 1 };
     });
     clearCache("feed:"); clearCache("cities:");
-    audit("offer_created", u.id, { offerId: result.id, category });
+    // every item name posted goes into My items (names only), up to MY_ITEMS_MAX
+    await saveMyItems(u.id, items.map((x) => x.n)).catch(() => {});
+    // the posting rules pop-up (unlawful posts: partnership cancelled, legal action) was shown and accepted
+    audit("offer_created", u.id, { offerId: result.id, category, rulesAccepted: d.rulesAccepted === true, rulesVersion: str(d.rulesVersion, 20) || null });
     return { ...result, visible: b.status === "verified" };
   });
 
@@ -150,6 +175,29 @@ export function partnerRoutes(r) {
     await q("DELETE FROM offer_photos WHERE offer_id = $1", [ctx.params.id]); // full photo goes as soon as the offer ends
     await q("UPDATE offers SET has_photo = false WHERE id = $1", [ctx.params.id]);
     clearCache("feed:"); clearCache("cities:");
+  });
+
+  // ---------- My items: the partner's own list of item names (no prices), picked from when posting ----------
+  r.get("/api/owner/items", async (ctx) => {
+    const u = needUser(ctx);
+    return (await many("SELECT id, name FROM partner_items WHERE owner_id = $1 ORDER BY created_at DESC LIMIT $2", [u.id, MY_ITEMS_MAX]));
+  });
+  r.post("/api/owner/items", async (ctx) => {
+    const u = needUser(ctx);
+    const name = cleanItemName(ctx.body?.name);
+    if (name.length < 2) throw bad("Give the item a name");
+    await limit(u.id, "myItems", 200, 86400);
+    const n = (await one("SELECT count(*)::int AS n FROM partner_items WHERE owner_id = $1", [u.id])).n;
+    const have = await one("SELECT id, name FROM partner_items WHERE owner_id = $1 AND lower(name) = lower($2)", [u.id, name]);
+    if (have) return have;
+    if (n >= MY_ITEMS_MAX) throw bad(`You can keep up to ${MY_ITEMS_MAX} items. Remove one first.`);
+    return await one("INSERT INTO partner_items (owner_id, name) VALUES ($1, $2) RETURNING id, name", [u.id, name]);
+  });
+  r.post("/api/owner/items/:id/remove", async (ctx) => {
+    const u = needUser(ctx);
+    const r2 = await q("DELETE FROM partner_items WHERE id = $1 AND owner_id = $2", [needUuid(ctx.params.id, "item"), u.id]);
+    if (!r2.rowCount) throw notFound("Item not found");
+    return { removed: true };
   });
 
   r.get("/api/owner/archive", async (ctx) => {

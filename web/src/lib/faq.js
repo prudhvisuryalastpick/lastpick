@@ -50,7 +50,7 @@ export const PARTNER_FAQ = [
   ]],
   ["Posting offers", [
     ["How many offers can I post?", "Up to 3 offers a day, in your own business category."],
-    ["When can I post?", "From 4 AM to 10:30 PM. Hotels can post any time (24×7)."],
+    ["When can I post?", "From 4 AM to 10:30 PM. Hotels and local ads can post any time (24×7)."],
     ["How long does an offer stay live?", "Offers end by 11 PM the same day and are removed at midnight. Hotels run up to 24 hours."],
     ["Can I post in another category?", "No, you post only in your registered category. You can change it in your business details."],
     ["Do I add photos?", "No. Each offer shows its category icon, which keeps the app fast."],

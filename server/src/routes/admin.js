@@ -5,11 +5,11 @@ import { needUser } from "../auth.js";
 import { PLAN_NAMES, notify } from "../notify.js";
 import { clearCache } from "../cache.js";
 import { many, one, q, rmany, rone } from "../db.js";
-import { freeMode, setFreeMode, subActive } from "../plans.js";
+import { customerPassOn, freeMode, setFreeMode, subActive } from "../plans.js";
 import { maintenanceSetting, setMaintenance } from "../maintenance.js";
-import { audit } from "../shared.js";
+import { addPlanDays, audit } from "../shared.js";
 import { platformImpact } from "./insights.js";
-import { planPrice } from "./revenue.js";
+import { PAY_PACKS, planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
 import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str } from "../util.js";
 
@@ -33,37 +33,62 @@ function staff(ctx, { superOnly = false } = {}) {
 const superAdmin = (ctx) => staff(ctx, { superOnly: true });
 const ACTIVE_SUB = "s.status IN ('active', 'cancelled') AND s.current_period_end > now()";
 
+// Area and category filter shared by the admin lists: ?state=&city=&pincode=&category=
+// Returns a SQL condition on the businesses table (alias b) plus its parameters, numbered from `start`.
+function bizFilter(query, start = 1) {
+  const f = { state: str(query.state, 60) || null, city: str(query.city, 80) || null, pincode: (String(query.pincode || "").replace(/\D/g, "").slice(0, 6)) || null, category: str(query.category, 30) || null };
+  const where = [], params = [];
+  // each "?" in a condition is the same parameter
+  const add = (sql, v) => { params.push(v); where.push(sql.replaceAll("?", "$" + (start + params.length - 1))); };
+  if (f.state) add("b.state = ?", f.state);
+  if (f.city) add("b.city_key = ?", cityKey(f.city));
+  if (f.pincode) add("b.pincode = ?", f.pincode);
+  if (f.category) add("(b.category = ? OR ? = ANY(b.categories))", f.category);
+  return { sql: where.length ? where.join(" AND ") : "TRUE", params, f };
+}
+
 export function adminRoutes(r) {
   r.get("/api/admin/stats", async (ctx) => {
     const me = staff(ctx);
     const free = await freeMode();
-    const t = await rone(`SELECT
+    // partner-side numbers follow the area / category filter; users, support and complaints are for all of India
+    const bf = bizFilter(ctx.query || {});
+    const t = await rone(`WITH b AS (SELECT * FROM businesses b WHERE ${bf.sql}) SELECT
       (SELECT count(*) FROM users)::int AS users,
-      (SELECT count(*) FROM businesses WHERE status = 'verified')::int AS verified,
-      (SELECT count(*) FROM businesses WHERE status = 'pending')::int AS pending,
-      (SELECT count(*) FROM businesses WHERE status = 'suspended')::int AS suspended,
+      (SELECT count(*) FROM b)::int AS partners,
+      (SELECT count(*) FROM b WHERE status = 'verified')::int AS verified,
+      (SELECT count(*) FROM b WHERE status = 'pending')::int AS pending,
+      (SELECT count(*) FROM b WHERE status = 'suspended')::int AS suspended,
       (SELECT count(*) FROM subscriptions s WHERE plan = 'customer' AND ${ACTIVE_SUB})::int AS customers,
-      (SELECT count(*) FROM subscriptions s WHERE plan = 'owner' AND ${ACTIVE_SUB})::int AS owners,
-      (SELECT count(*) FROM leads WHERE created_at > now() - interval '30 days')::int AS leads30,
-      (SELECT count(*) FROM reports WHERE status = 'open')::int AS open_reports,
-      (SELECT count(*) FROM offer_archive)::int AS archived,
+      (SELECT count(*) FROM subscriptions s JOIN b ON b.id = s.user_id WHERE s.plan = 'owner' AND ${ACTIVE_SUB})::int AS owners,
+      (SELECT count(*) FROM subscriptions s JOIN b ON b.id = s.user_id WHERE s.plan = 'owner' AND ${ACTIVE_SUB} AND s.current_period_end < now() + interval '3 days')::int AS owners_ending,
+      (SELECT count(*) FROM users u WHERE u.role = 'user' AND NOT EXISTS (SELECT 1 FROM businesses x WHERE x.id = u.id))::int AS customers_registered,
+      (SELECT count(*) FROM users u WHERE u.role = 'user' AND u.created_at >= $${bf.params.length + 1} AND NOT EXISTS (SELECT 1 FROM businesses x WHERE x.id = u.id))::int AS customers_today,
+      (SELECT count(*) FROM leads l JOIN b ON b.id = l.owner_id WHERE l.created_at > now() - interval '30 days')::int AS leads30,
+      (SELECT count(*) FROM reports r WHERE r.status = 'open' AND (r.business_id IS NULL OR r.business_id IN (SELECT id FROM b)))::int AS open_reports,
+      (SELECT count(*) FROM offer_archive a JOIN b ON b.id = a.owner_id)::int AS archived,
+      (SELECT count(*) FROM offers o JOIN b ON b.id = o.owner_id WHERE o.status = 'live' AND o.ends_at > now() AND b.status = 'verified')::int AS live,
+      (SELECT count(*) FROM offers o JOIN b ON b.id = o.owner_id WHERE o.created_at >= $${bf.params.length + 1})::int AS posted_today,
+      (SELECT count(*) FROM b WHERE created_at >= $${bf.params.length + 1})::int AS joined_today,
       (SELECT count(*) FROM grievances WHERE status IN ('open', 'acknowledged'))::int AS open_grievances,
-      (SELECT count(*) FROM reviews WHERE status = 'published')::int AS reviews`);
+      (SELECT count(*) FROM reviews WHERE status = 'published')::int AS reviews`, [...bf.params, new Date(startOfDayIST())]);
+
     const cities = (await rmany(
       `SELECT b.city_key AS key, max(b.city) AS name, max(b.state) AS state,
               count(DISTINCT b.id) FILTER (WHERE b.status = 'verified')::int AS verified,
               count(o.id) FILTER (WHERE o.status = 'live' AND o.ends_at > now() AND b.status = 'verified')::int AS live
-       FROM businesses b LEFT JOIN offers o ON o.owner_id = b.id WHERE b.city_key <> '' GROUP BY b.city_key ORDER BY live DESC LIMIT 300`))
-      .map((c) => ({ key: c.key, name: c.name, state: c.state, liveOffers: c.live, verifiedBusinesses: c.verified }))
+              , count(DISTINCT b.id)::int AS partners, count(DISTINCT b.id) FILTER (WHERE b.status = 'pending')::int AS pending
+       FROM businesses b LEFT JOIN offers o ON o.owner_id = b.id WHERE b.city_key <> '' AND ${bf.sql} GROUP BY b.city_key ORDER BY live DESC, partners DESC LIMIT 300`, bf.params))
+      .map((c) => ({ key: c.key, name: c.name, state: c.state, liveOffers: c.live, verifiedBusinesses: c.verified, partners: c.partners, pending: c.pending }))
       .filter((c) => me.canSee({ state: c.state, city: c.name }));
     const impact = await platformImpact();
     const support = await rone("SELECT count(*)::int AS n FROM support_tickets WHERE status = 'open'");
     return {
-      role: me.role, regions: me.regions, areaCities: me.cities || [], areaPincodes: me.pincodes || [], freeMode: free, impact, openSupport: support.n,
+      role: me.role, regions: me.regions, areaCities: me.cities || [], areaPincodes: me.pincodes || [], freeMode: free, impact, openSupport: support.n, filter: bf.f,
       totals: {
-        users: t.users, verified: t.verified, pending: t.pending, suspended: t.suspended, customers: t.customers, owners: t.owners,
-        leads30: t.leads30, openReports: t.open_reports, archived: t.archived, reviews: t.reviews,
-        liveOffers: cities.reduce((n, c) => n + c.liveOffers, 0), openGrievances: me.role === "admin" ? t.open_grievances : null,
+        users: t.users, partners: t.partners, ownersEnding: t.owners_ending, customersRegistered: t.customers_registered, customersToday: t.customers_today, verified: t.verified, pending: t.pending, suspended: t.suspended, customers: t.customers, owners: t.owners,
+        leads30: t.leads30, openReports: t.open_reports, archived: t.archived, reviews: t.reviews, postedToday: t.posted_today, joinedToday: t.joined_today,
+        liveOffers: me.role === "admin" ? t.live : cities.reduce((n, c) => n + c.liveOffers, 0), openGrievances: me.role === "admin" ? t.open_grievances : null,
       },
       cities,
     };
@@ -172,16 +197,32 @@ export function adminRoutes(r) {
   });
 
   // Registrations by pincode (partners), optionally for one category. Customers don't give a pincode, so only totals.
+  // Every state, city and pincode that has a partner: fills the admin's area filter (moderators: their area only)
+  r.get("/api/admin/areas", async (ctx) => {
+    const me = staff(ctx);
+    const rows = await many(`SELECT b.state, max(b.city) AS city, b.city_key, b.pincode, max(b.area) AS area, count(*)::int AS n
+                             FROM businesses b WHERE b.state <> '' GROUP BY b.state, b.city_key, b.pincode ORDER BY b.state, 2, b.pincode LIMIT 5000`);
+    const seen = rows.filter((x) => me.canSee({ state: x.state, city: x.city, pincode: x.pincode || null }));
+    const states = [...new Set(seen.map((x) => x.state))];
+    const cities = [...new Map(seen.filter((x) => x.city_key).map((x) => [x.state + "|" + x.city_key, { state: x.state, city: x.city }])).values()];
+    const pincodes = seen.filter((x) => x.pincode).map((x) => ({ pincode: x.pincode, area: x.area, city: x.city, state: x.state, partners: x.n }));
+    return { states, cities, pincodes };
+  });
+
   r.get("/api/admin/pincodes", async (ctx) => {
     const me = staff(ctx);
-    const cat = str(ctx.query.category, 30) || null;
+    const bf = bizFilter({ ...ctx.query, pincode: "" }, 2);
     const rows = await many(
       `SELECT b.pincode, max(b.area) AS area, max(b.city) AS city, max(b.state) AS state, count(*)::int AS partners,
               count(*) FILTER (WHERE b.status = 'verified')::int AS verified,
-              count(*) FILTER (WHERE b.created_at >= $2)::int AS today
+              count(*) FILTER (WHERE b.status = 'pending')::int AS pending,
+              count(*) FILTER (WHERE b.created_at >= $1)::int AS today,
+              (SELECT count(*) FROM offers o WHERE o.owner_id = ANY(array_agg(b.id)) AND o.status = 'live' AND o.ends_at > now())::int AS live,
+              (SELECT count(*) FROM subscriptions s WHERE s.user_id = ANY(array_agg(b.id)) AND s.plan = 'owner' AND ${ACTIVE_SUB})::int AS subs,
+              (SELECT count(*) FROM subscriptions s WHERE s.user_id = ANY(array_agg(b.id)) AND s.plan = 'owner' AND ${ACTIVE_SUB} AND s.current_period_end < now() + interval '3 days')::int AS ending
        FROM businesses b
-       WHERE b.pincode <> '' AND ($1::text IS NULL OR b.category = $1 OR $1 = ANY(b.categories))
-       GROUP BY b.pincode ORDER BY partners DESC, b.pincode LIMIT 500`, [cat, new Date(startOfDayIST())]);
+       WHERE b.pincode <> '' AND ${bf.sql}
+       GROUP BY b.pincode ORDER BY partners DESC, b.pincode LIMIT 500`, [new Date(startOfDayIST()), ...bf.params]);
     const customers = await one(`SELECT count(*)::int AS n, count(*) FILTER (WHERE created_at >= $1)::int AS today FROM users u WHERE role = 'user' AND NOT EXISTS (SELECT 1 FROM businesses b WHERE b.id = u.id)`, [new Date(startOfDayIST())]);
     return { pincodes: rows.filter((x) => me.canSee({ state: x.state, city: x.city, pincode: x.pincode })), customers: me.role === "admin" ? customers : null };
   });
@@ -189,22 +230,35 @@ export function adminRoutes(r) {
   r.get("/api/admin/businesses", async (ctx) => {
     const me = staff(ctx);
     const status = STATUSES.includes(ctx.query.status) ? ctx.query.status : null;
-    const state = str(ctx.query.state, 60) || null;
+    // ?q= business or owner name, or phone; ?plan=active|expiring|none; plus the area / category filter
+    const s = str(ctx.query.q, 80).toLowerCase();
+    const digits = s.replace(/\D/g, "");
+    const plan = ["active", "expiring", "none"].includes(ctx.query.plan) ? ctx.query.plan : null;
+    const bf = bizFilter(ctx.query || {}, 5);
     const rows = await many(
-      `SELECT b.*, c.phone, (SELECT count(*) FROM business_contacts c2 WHERE c2.phone = c.phone)::int AS same_phone,
-              s.status AS s_status, s.current_period_end AS s_end
-       FROM businesses b LEFT JOIN business_contacts c ON c.business_id = b.id
+      `SELECT b.*, c.phone, u.name AS owner_name, (SELECT count(*) FROM business_contacts c2 WHERE c2.phone = c.phone)::int AS same_phone,
+              s.status AS s_status, s.current_period_end AS s_end,
+              (SELECT count(*) FROM offers o WHERE o.owner_id = b.id AND o.status = 'live' AND o.ends_at > now())::int AS live,
+              (SELECT count(*) FROM offer_archive a WHERE a.owner_id = b.id)::int AS past
+       FROM businesses b JOIN users u ON u.id = b.id LEFT JOIN business_contacts c ON c.business_id = b.id
        LEFT JOIN subscriptions s ON s.user_id = b.id AND s.plan = 'owner'
-       WHERE ($1::text IS NULL OR b.status = $1) AND ($2::text IS NULL OR b.state = $2)
-       ORDER BY b.created_at DESC LIMIT 200`, [status, state]);
-    return rows.filter((b) => me.canSee({ state: b.state, city: b.city, pincode: b.pincode })).map((b) => {
+       WHERE ($1::text IS NULL OR b.status = $1)
+         AND ($2::text = '' OR lower(b.name) LIKE $3 OR lower(u.name) LIKE $3 OR ($4::text <> '' AND length($4) >= 6 AND c.phone LIKE '%' || $4 || '%'))
+         AND ${bf.sql}
+       ORDER BY b.created_at DESC LIMIT 500`, [status, s, "%" + s.replace(/[%_\\]/g, "\\$&") + "%", digits, ...bf.params]);
+    const now = Date.now();
+    const planOf = (b) => {
+      const end = subActive({ status: b.s_status, current_period_end: b.s_end }) ? ms(b.s_end) : null;
+      return !end ? "none" : end - now < 3 * DAY ? "expiring" : "active";
+    };
+    return rows.filter((b) => me.canSee({ state: b.state, city: b.city, pincode: b.pincode })).filter((b) => !plan || planOf(b) === plan || (plan === "active" && planOf(b) === "expiring")).map((b) => {
       const flags = [];
       if (b.report_count >= 2) flags.push(`Reported ${b.report_count}×`);
       if (b.same_phone > 1) flags.push("Same phone as another business");
       if (Date.now() - ms(b.created_at) < 2 * DAY) flags.push("New in last 48 h");
       if (b.categories_changed_at && Date.now() - ms(b.categories_changed_at) < 7 * DAY) flags.push("Changed categories this week");
       return {
-        id: b.id, name: b.name, category: b.category, categories: b.categories?.length ? b.categories : [b.category],
+        id: b.id, name: b.name, ownerName: b.owner_name || "", pincode: b.pincode, liveOffers: b.live, pastOffers: b.past, plan: planOf(b), category: b.category, categories: b.categories?.length ? b.categories : [b.category],
         rating: b.rating_count ? { avg: Number(b.rating_avg), count: b.rating_count } : null, address: b.address, area: b.area, city: b.city, state: b.state,
         lat: b.lat, lng: b.lng, status: b.status, statusNote: b.status_note, reportCount: b.report_count, createdAt: ms(b.created_at), phone: maskPhone(b.phone), masked: true, flags,
         trialEndsAt: ms(b.trial_ends_at), planUntil: subActive({ status: b.s_status, current_period_end: b.s_end }) ? ms(b.s_end) : null,
@@ -246,16 +300,17 @@ export function adminRoutes(r) {
   });
 
   // Super admins: app switches (one device at a time for customers).
-  const settingsNow = async () => ({ singleDevice: await singleDeviceOn(), freeMode: await freeMode(), maintenance: await maintenanceSetting() });
+  const settingsNow = async () => ({ singleDevice: await singleDeviceOn(), freeMode: await freeMode(), customerPass: await customerPassOn(), maintenance: await maintenanceSetting() });
   r.get("/api/admin/settings", async (ctx) => { staff(ctx); return settingsNow(); });
   r.post("/api/admin/settings", async (ctx) => {
     const me = superAdmin(ctx);
-    const { singleDevice, freeMode: free, maintenance } = ctx.body || {};
-    if (typeof singleDevice !== "boolean" && typeof free !== "boolean" && !maintenance) throw bad("Say which switch to turn on or off");
+    const { singleDevice, freeMode: free, customerPass, maintenance } = ctx.body || {};
+    if (typeof singleDevice !== "boolean" && typeof free !== "boolean" && typeof customerPass !== "boolean" && !maintenance) throw bad("Say which switch to turn on or off");
+    if (typeof customerPass === "boolean") await setSetting("customer_pass", customerPass, me.id);
     if (maintenance && typeof maintenance === "object") { await setMaintenance(maintenance, me.id); audit("maintenance_changed", me.id, maintenance); }
     if (typeof singleDevice === "boolean") await setSetting("single_device", singleDevice, me.id);
     if (typeof free === "boolean") await setFreeMode(free, me.id);
-    audit("setting_changed", me.id, { singleDevice, freeMode: free });
+    audit("setting_changed", me.id, { singleDevice, freeMode: free, customerPass });
     return settingsNow();
   });
 
@@ -271,9 +326,16 @@ export function adminRoutes(r) {
       if (![1, 3, 6, 12].includes(months)) throw bad("Pick 1, 3, 6 or 12 months");
       await grantPlan(id, "owner", months, me.id);
       await planEmail(id, "owner", months);
+    } else if (action === "pack") {
+      // a Business Pro pack paid outside the app (UPI, cash): 5, 15 or 30 days, added to the current end date
+      const pack = PAY_PACKS.owner.find((p) => p.days === Number(ctx.body.days));
+      if (!pack) throw bad("Pick 5, 15 or 30 days");
+      await grantDays(id, "owner", pack.days, pack.price, me.id);
+      const s2 = await one("SELECT current_period_end FROM subscriptions WHERE user_id = $1 AND plan = 'owner'", [id]);
+      await notify(id, "plan_active", { planName: PLAN_NAMES.owner, days: pack.days, amount: pack.price, until: s2?.current_period_end });
     } else if (action === "extendTrial") {
       const days = Number(ctx.body.days);
-      if (!(days >= 1 && days <= 90)) throw bad("Extend by 1 to 90 days");
+      if (!(Number.isInteger(days) && days >= 1 && days <= 365)) throw bad("Give 1 to 365 free days");
       const t = await one("UPDATE businesses SET trial_ends_at = greatest(now(), coalesce(trial_ends_at, now())) + make_interval(days => $2) WHERE id = $1 RETURNING trial_ends_at", [id, days]);
       await notify(id, "trial_extended", { until: t.trial_ends_at });
     } else if (action === "end") {
@@ -283,6 +345,9 @@ export function adminRoutes(r) {
     } else throw bad("Unknown action");
     clearCache("feed:"); clearCache("cities:");
     audit("admin_business_plan", me.id, { businessId: id, action, months: ctx.body.months || null, days: ctx.body.days || null });
+    const after = await one(`SELECT b.trial_ends_at, s.status, s.current_period_end FROM businesses b
+                             LEFT JOIN subscriptions s ON s.user_id = b.id AND s.plan = 'owner' WHERE b.id = $1`, [id]);
+    return { planUntil: subActive(after) ? ms(after.current_period_end) : null, trialEndsAt: ms(after?.trial_ends_at) };
   });
 
   // Activate or extend a plan by e-mail (e.g. a payment collected outside the app). months = 0 ends it.
@@ -291,8 +356,10 @@ export function adminRoutes(r) {
     const plan = ctx.body.plan;
     const months = Math.max(0, Math.min(24, Number(ctx.body.months) || 0));
     if (!PLANS.includes(plan)) throw bad("Unknown plan");
-    const target = await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
-    if (!target) throw notFound("No user with that email");
+    const target = ctx.body.userId
+      ? await one("SELECT id FROM users WHERE id = $1", [needUuid(ctx.body.userId, "user")])
+      : await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
+    if (!target) throw notFound(ctx.body.userId ? "User not found" : "No user with that email");
     if (months > 0) { await grantPlan(target.id, plan, months, me.id); await planEmail(target.id, plan, months); }
     else {
       await q("UPDATE subscriptions SET status = 'expired', current_period_end = now(), updated_at = now() WHERE user_id = $1 AND plan = $2", [target.id, plan]);
@@ -369,6 +436,12 @@ export function adminRoutes(r) {
 async function planEmail(userId, plan, months) {
   const s = await one("SELECT current_period_end FROM subscriptions WHERE user_id = $1 AND plan = $2", [userId, plan]);
   await notify(userId, "plan_active", { planName: PLAN_NAMES[plan], months, amount: planPrice(plan, months), until: s?.current_period_end });
+}
+
+// Adds days to a plan (a pack paid outside the app) and records the sale.
+async function grantDays(userId, plan, days, amount, by) {
+  await q("INSERT INTO plan_sales (user_id, plan, months, amount, source, created_by) VALUES ($1, $2, 1, $3, 'manual', $4)", [userId, plan, amount, by]);
+  await addPlanDays(q, { userId, plan, days, provider: "manual", by });
 }
 
 async function grantPlan(userId, plan, months, by) {

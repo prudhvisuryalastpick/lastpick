@@ -2,7 +2,7 @@ import { Logo } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive } from "../api/index.js";
-import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
+import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanBar, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay, CATEGORIES } from "../lib/config.js";
 import { isInstalled } from "../lib/install.js";
 import { Icon } from "../lib/icons.jsx";
@@ -22,7 +22,10 @@ export function Plans({ plan: initial }) {
   const [err, setErr] = useState("");
   const [paidSheet, setPaidSheet] = useState(null);
   const [runInstall, installUi] = useInstall();
-  const p = PLANS[plan], s = subs?.[plan], opt = p.packs.find((o) => o.days === days) || p.packs[p.packs.length - 1];
+  const p = PLANS[plan], s = subs?.[plan];
+  // one pack at a time: while a plan runs, only its own pack is open (a top-up); the others wait till it ends
+  const runPack = s?.active && s.packDays ? s.packDays : null;
+  const opt = p.packs.find((o) => o.days === (runPack || days)) || p.packs[p.packs.length - 1];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
   const payOn = !isLive || !!config?.payments; // Razorpay keys saved on the server
@@ -73,19 +76,23 @@ export function Plans({ plan: initial }) {
         <button className={plan === "customer" ? "on" : ""} onClick={() => setPlan("customer")}>For customers</button>
         <button className={plan === "owner" ? "on" : ""} onClick={() => setPlan("owner")}>For businesses</button>
       </div>}
-      {status && <div className={"status " + status[0]}><span style={{ fontSize: 24 }}>{status[1]}</span><div><b>{status[2]}</b><div className="muted small">{status[3]}</div></div></div>}
-      {free && <div className="banner" style={{ margin: "0 16px 12px", background: "var(--ok-soft, #DCFCE7)", color: "var(--ok, #166534)" }}>🎉 <span><b>Free during launch.</b> {plan === "owner" ? "Verified businesses can post offers" : "You can see every business's number"} at no cost right now. No payment is needed.</span></div>}
+      {plan === "owner" && business?.status === "verified" && <PlanBar topUp={false} />}
+      {status && !(plan === "owner" && business?.status === "verified") && <div className={"status " + status[0]}><span style={{ fontSize: 24 }}>{status[1]}</span><div><b>{status[2]}</b><div className="muted small">{status[3]}</div></div></div>}
+      {free && plan !== "owner" && <div className="banner" style={{ margin: "0 16px 12px", background: "var(--ok-soft, #DCFCE7)", color: "var(--ok, #166534)" }}>🎉 <span><b>Free during launch.</b> {plan === "owner" ? "Verified businesses can post offers" : "You can see every business's number"} at no cost right now. No payment is needed.</span></div>}
       <PlanCard plan={plan} fromDay={cheapestPerDay(plan)} />
       <div className="label-up" style={{ paddingBottom: 14 }}>Choose a pack{plan === "owner" ? " (verified businesses)" : ""}</div>
       <div className="packs">
         {p.packs.map((o, i) => {
           const cmp = packCompare(plan, o), best = i === p.packs.length - 1, d = perDay(o);
           const sub = i === 0 ? `₹${d} a day · try it out` : best ? `Just ₹${d} a day` : `Under ₹${Math.ceil(d)} a day (₹${d})`;
+          const inactive = runPack && o.days !== runPack;
           return (
-            <button key={o.days} type="button" className={"pack " + (o.days === opt.days ? "on" : "")} aria-pressed={o.days === opt.days} onClick={() => setDays(o.days)}>
-              {cmp && <span className={"tag " + (best ? "best" : "")}>{best ? "Best value · " : ""}Save {cmp.save}%</span>}
+            <button key={o.days} type="button" className={"pack " + (o.days === opt.days ? "on" : "") + (inactive ? " inactive" : "")} aria-pressed={o.days === opt.days} aria-disabled={inactive || undefined}
+              onClick={() => !inactive && setDays(o.days)}>
+              {cmp && !runPack && <span className={"tag " + (best ? "best" : "")}>{best ? "Best value · " : ""}Save {cmp.save}%</span>}
               <span className="rd" aria-hidden="true" />
-              <span className="grow"><span className="d" style={{ display: "block" }}>{o.days} days</span><span className="pd">{sub}</span></span>
+              <span className="grow"><span className="d" style={{ display: "block" }}>{o.days} days {runPack && <span className={"ptag " + (inactive ? "ina" : "act")}>{inactive ? "Inactive" : "Active"}</span>}</span>
+                <span className="pd">{inactive ? `Available after your ${runPack}-day plan ends` : sub}</span></span>
               <span style={{ textAlign: "right" }}>{cmp && <span className="was" style={{ display: "block" }} aria-label={`was ${rupee(cmp.was)}`}>{rupee(cmp.was)}</span>}<span className="pr">{rupee(o.price)}</span></span>
             </button>
           );
@@ -96,7 +103,8 @@ export function Plans({ plan: initial }) {
         {!isLive && <div className="banner warn" style={{ margin: "0 0 12px" }}>Demo mode: no real payment is taken.</div>}
         {err && <div className="error" style={{ marginBottom: 12 }}>{err} {err.includes("phone") && <a className="link" href="#/account">Open Account</a>}<TicketHint payment /></div>}
         {canPay
-          ? <button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : `Pay ${rupee(opt.price)} · ${opt.days} days`}</button>
+          ? <><button className="btn main" disabled={busy} onClick={pay}>{busy ? "Opening payment…" : runPack ? `Top up · ${opt.days} more days · ${rupee(opt.price)}` : `Pay ${rupee(opt.price)} · ${opt.days} days`}</button>
+            {runPack && <div className="note" style={{ textAlign: "center" }}>Your new days start right after {day(s.currentPeriodEnd)}, so you never lose a day.</div>}</>
           : <div className="box small"><b>{opt.days} days: {rupee(opt.price)}.</b> {left > 0
             ? "You already have access. You can buy a plan when your extra days end."
             : IS_NATIVE ? "Plans can't be bought inside the app yet." : plan === "owner" && business?.status !== "verified" ? "You can pay once we verify your business." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
@@ -467,7 +475,7 @@ function AdminBusinesses({ toast }) {
   );
 }
 
-function AdminReports({ toast }) {
+export function AdminReports({ toast }) {
   const [list, setList] = useState(null);
   const load = (first = false) => api.adminReports().then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } });
   useLive(load);
@@ -494,7 +502,7 @@ function AdminReports({ toast }) {
 }
 
 // Complaint tickets: acknowledge within 24 hours, resolve within 15 days (IT Rules 2021).
-function AdminComplaints({ toast }) {
+export function AdminComplaints({ toast }) {
   const [status, setStatus] = useState("open");
   const [list, setList] = useState(null);
   const [reply, setReply] = useState({});
@@ -527,7 +535,7 @@ function AdminComplaints({ toast }) {
 }
 
 // Customers and partners in two separate tables, each with search and a CSV download.
-function AdminUsers({ toast }) {
+export function AdminUsers({ toast }) {
   const [kind, setKind] = useState("customers");
   return (
     <>
@@ -720,7 +728,7 @@ function CustomerPass({ u, toast, onDone }) {
 }
 
 // Masked personal data with a "Show" button. Showing it is logged (who looked at whose details, and when).
-function Reveal({ masked, load, render }) {
+export function Reveal({ masked, load, render }) {
   const [full, setFull] = useState(null);
   const [busy, setBusy] = useState(false);
   if (full) return render ? render(full) : <span>{full}</span>;

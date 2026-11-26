@@ -14,7 +14,7 @@ const phoneChannel = () => (WA_VERIFY && whatsappOn() ? "whatsapp" : "");
 const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
-import { freeMode, CUSTOMERS_FREE } from "../plans.js";
+import { freeMode, customersFree } from "../plans.js";
 import { maintenanceNow } from "../maintenance.js";
 import { paymentsOn } from "./payments.js";
 import { enqueue } from "../queue.js";
@@ -421,8 +421,8 @@ export function accountRoutes(r) {
     throw precondition("Please update the app to pay online.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), customersFree: CUSTOMERS_FREE, maintenance: await maintenanceNow(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
-  }), { cache: "public, max-age=15" });
+    freeMode: await freeMode(), customersFree: await customersFree(), maintenance: await maintenanceNow(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
+  }), { cache: "public, max-age=5" }); // short: a maintenance switch must reach the apps quickly
 
   // ---------- consent ----------
   r.post("/api/consent", async (ctx) => {
@@ -436,7 +436,7 @@ export function accountRoutes(r) {
     const u = needUser(ctx);
     await limit(u.id, "export", 5, 86400);
     const id = u.id;
-    const [profileRow, business, contact, subscriptions, offers, offerHistory, contacts, numbersShared, leadsReceived, reviewsWritten, reviewsOfMyBusiness, grievances, consents] = await Promise.all([
+    const [profileRow, business, contact, subscriptions, offers, offerHistory, contacts, numbersShared, leadsReceived, reviewsWritten, reviewsOfMyBusiness, grievances, consents, myItems] = await Promise.all([
       one("SELECT id, email, name, phone, role, regions, area_cities, area_pincodes, trial_ends_at, consent, partner_consent, created_at FROM users WHERE id = $1", [id]),
       one("SELECT * FROM businesses WHERE id = $1", [id]),
       one("SELECT phone, whatsapp, updated_at FROM business_contacts WHERE business_id = $1", [id]),
@@ -450,11 +450,12 @@ export function accountRoutes(r) {
       many("SELECT customer_id, name, rating, text, status, reply_text, created_at FROM reviews WHERE business_id = $1", [id]),
       many("SELECT ticket, type, subject, details, status, reply, created_at, updated_at FROM grievances WHERE user_id = $1", [id]),
       many("SELECT kind, version, items, at FROM consent_log WHERE user_id = $1", [id]),
+      many("SELECT name, created_at FROM partner_items WHERE owner_id = $1 ORDER BY created_at", [id]),
     ]);
     audit("data_export", id);
     return {
       exportedAt: new Date().toISOString(), app: "LastPick", account: { uid: id, email: profileRow?.email || "" },
-      profile: profileRow, business, businessContact: contact, subscriptions, offers, offerHistory, contacts, numbersShared,
+      profile: profileRow, business, businessContact: contact, subscriptions, offers, offerHistory, myItems, contacts, numbersShared,
       leadsReceived, reviewsWritten, reviewsOfMyBusiness, grievances, consents,
     };
   });

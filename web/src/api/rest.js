@@ -65,6 +65,8 @@ if (typeof window !== "undefined") window.addEventListener("hashchange", () => {
 const live = (list) => list.filter((o) => o.endsAt > Date.now());
 const enc = encodeURIComponent;
 
+const qsOf = (filter) => { const qs = new URLSearchParams(Object.entries(filter || {}).filter(([, v]) => v)).toString(); return qs ? "?" + qs : ""; };
+
 export const api = {
   mode: "live",
 
@@ -153,6 +155,10 @@ export const api = {
   async myArchive() { return get("/api/owner/archive"); },
   async getOffer(id) { try { return await get(`/api/offers/${enc(id)}`); } catch (e) { if (e.status === 404) return null; throw e; } },
   async myOffers() { return get("/api/owner/offers"); },
+  // My items: the partner's list of item names (no prices)
+  async myItems() { return get("/api/owner/items"); },
+  async addMyItem(name) { return post("/api/owner/items", { name }); },
+  async removeMyItem(id) { return post(`/api/owner/items/${id}/remove`, {}); },
   async createOffer(o) { const r = await post("/api/owner/offers", o); clearCache(); return r; },
   async endOffer(id) { await post(`/api/owner/offers/${enc(id)}/end`); clearCache(); },
   async addView(id) { try { await post(`/api/offers/${enc(id)}/view`); } catch { /* not critical */ } },
@@ -179,8 +185,10 @@ export const api = {
   async report(offerId, reason, details) { await post(`/api/offers/${enc(offerId)}/report`, { reason, details }); },
 
   // ---------- admin & moderators (admin server) ----------
-  async adminStats() { return get("/api/admin/stats"); },
-  async adminPincodes(category) { return get(`/api/admin/pincodes${category ? `?category=${enc(category)}` : ""}`); },
+  // filter = { state, city, pincode, category } (any of them); a plain string is a category
+  async adminStats(filter = {}) { return get("/api/admin/stats" + qsOf(filter)); },
+  async adminPincodes(filter = {}) { return get("/api/admin/pincodes" + qsOf(typeof filter === "string" ? { category: filter } : filter)); },
+  async adminAreas() { return get("/api/admin/areas"); },
   async adminFindUsers(q) { return get(`/api/admin/users?q=${enc(q || "")}`); },
   async adminUsers(kind, q) { return get(`/api/admin/users?kind=${enc(kind)}&q=${enc(q || "")}`); },
   async adminUserPhoto(id) { return (await get(`/api/admin/users/${enc(id)}/photo`)).photo; },

@@ -196,6 +196,15 @@ function rerate(db, businessId) {
   const rs = db.reviews.filter((r) => r.businessId === businessId && r.status === "published");
   b.rating = { avg: rs.length ? Math.round((rs.reduce((n, r) => n + r.rating, 0) / rs.length) * 10) / 10 : 0, count: rs.length };
 }
+const settingsOut = (db) => ({ singleDevice: db.settings?.singleDevice !== false, freeMode: !!db.settings?.freeMode, customerPass: !!db.settings?.customerPass,
+  maintenance: db.settings?.maintenance || { on: false, from: null, until: null, apps: ["customer", "partner"], message: "" } });
+// admin filter: { state, city, pincode, category, q, plan } over the businesses this staff member can see
+function demoBizFilter(db, s, f = {}) {
+  const q = String(f.q || "").toLowerCase(), digits = q.replace(/\D/g, "");
+  return db.businesses.filter((b) => s.canSee(b) && (!f.state || b.state === f.state) && (!f.city || (b.city || "").toLowerCase() === String(f.city).toLowerCase())
+    && (!f.pincode || b.pincode === f.pincode) && (!f.category || b.category === f.category || (b.categories || []).includes(f.category))
+    && (!q || (b.name || "").toLowerCase().includes(q) || (db.users.find((u) => u.id === b.ownerId)?.name || "").toLowerCase().includes(q) || (digits.length >= 6 && (b.phone || "").includes(digits))));
+}
 const subOut = (s) => s && ({ ...s, active: ["active", "cancelled"].includes(s.status) && s.currentPeriodEnd > Date.now() });
 
 export const api = {
@@ -268,12 +277,19 @@ export const api = {
     const find = (p) => subOut(db.subs.find((s) => s.userId === u.id && s.plan === p));
     return { customer: find("customer"), owner: find("owner") };
   },
-  async subscribe(plan) {
+  async subscribe(plan, _profile, days = 30) {
     await wait(700);
     const db = load(); const u = me(db);
     let s = db.subs.find((x) => x.userId === u.id && x.plan === plan);
     if (!s) { s = { userId: u.id, plan, provider: "demo" }; db.subs.push(s); }
-    s.status = "active"; s.currentPeriodEnd = Math.max(s.currentPeriodEnd || 0, Date.now()) + 30 * D;
+    // like the real server: the day of payment is Day 1, the plan runs till 11:59 PM India time on its last day;
+    // a top-up (same pack only) adds the days after the current last day
+    const IST = 5.5 * H, endOfDay = (t) => (Math.floor((t + IST) / D) + 1) * D - IST - 1000;
+    const running = s.status === "active" && s.currentPeriodEnd > Date.now();
+    if (running && s.packDays && s.packDays !== days) throw new Error(`Your ${s.packDays}-day plan is running. Top up with ${s.packDays} more days, or pick another pack after it ends.`);
+    if (running) s.currentPeriodEnd = endOfDay(s.currentPeriodEnd) + days * D;
+    else { s.currentPeriodEnd = endOfDay(Date.now()) + (days - 1) * D; s.periodStart = Date.now(); s.packDays = days; }
+    s.status = "active";
     save(db);
   },
   async cancelPlan(plan) {
@@ -324,11 +340,23 @@ export const api = {
       .sort((a, b) => a.endsAt - b.endsAt);
   },
   async getConfig() { return { freeMode: false, night: night(), hours: { open: 4, close: 23 }, alwaysOpen: ALWAYS_OPEN }; },
-  async adminSettings() { const db = load(); staff(db); return { singleDevice: db.settings?.singleDevice !== false }; },
+  async adminSettings() { const db = load(); staff(db); return settingsOut(db); },
   async setAdminSettings(v) {
     const db = load(); staff(db, true); const s = { ...(db.settings || {}) };
-    if (typeof v.singleDevice === "boolean") s.singleDevice = v.singleDevice;
-    db.settings = s; save(db); return { singleDevice: s.singleDevice !== false };
+    for (const k of ["singleDevice", "freeMode", "customerPass"]) if (typeof v[k] === "boolean") s[k] = v[k];
+    if (v.maintenance && typeof v.maintenance === "object") {
+      const m = { ...(s.maintenance || { on: false, from: null, until: null, apps: ["customer", "partner"], message: "" }), ...v.maintenance };
+      if (v.maintenance.endNow) { m.on = false; m.from = null; m.until = null; }
+      delete m.endNow; s.maintenance = m;
+    }
+    db.settings = s; save(db); return settingsOut(db);
+  },
+  async adminAreas() {
+    const db = load(); const s = staff(db);
+    const bs = db.businesses.filter((b) => s.canSee(b) && b.state);
+    return { states: [...new Set(bs.map((b) => b.state))].sort(),
+      cities: [...new Map(bs.filter((b) => b.city).map((b) => [b.state + "|" + b.city, { state: b.state, city: b.city }])).values()],
+      pincodes: [...new Map(bs.filter((b) => b.pincode).map((b) => [b.pincode, { pincode: b.pincode, area: b.area, city: b.city, state: b.state }])).values()] };
   },
   async adminSetConfig() { const db = load(); staff(db, true); throw new Error("There is no free version. Turn plans on for people in Admin → Plans."); },
   async listCities() {
@@ -349,6 +377,27 @@ export const api = {
     const db = load(); const o = db.offers.find((x) => x.id === id);
     return o ? withBiz(db, o) : null;
   },
+  async myItems() {
+    const db = load(); const u = me(db);
+    return (db.myItems || []).filter((x) => x.ownerId === u.id).sort((a, b) => b.createdAt - a.createdAt).map(({ id, name }) => ({ id, name }));
+  },
+  async addMyItem(name) {
+    const db = load(); const u = me(db);
+    name = String(name || "").replace(/[;>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (name.length < 2) throw new Error("Give the item a name");
+    db.myItems = db.myItems || [];
+    const have = db.myItems.find((x) => x.ownerId === u.id && x.name.toLowerCase() === name.toLowerCase());
+    if (have) return { id: have.id, name: have.name };
+    if (db.myItems.filter((x) => x.ownerId === u.id).length >= 50) throw new Error("You can keep up to 50 items. Remove one first.");
+    const it = { id: rid(), ownerId: u.id, name, createdAt: Date.now() };
+    db.myItems.push(it); save(db);
+    return { id: it.id, name };
+  },
+  async removeMyItem(id) {
+    const db = load(); const u = me(db);
+    db.myItems = (db.myItems || []).filter((x) => !(x.id === id && x.ownerId === u.id)); save(db);
+    return { removed: true };
+  },
   async myOffers() {
     const db = load(); const u = me(db);
     const b = db.businesses.find((x) => x.ownerId === u.id);
@@ -365,7 +414,10 @@ export const api = {
     if (o.category !== "jobs" && !allowed.includes(o.category)) throw new Error("Your business can post only in its registered category. Every business can also post a job opening.");
     const allDay = runs24x7(o.category);
     const h = (Date.now() + 5.5 * H) % D / H;
-    if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels can post any time.");
+    if (!allDay && !(h >= 4 && h < 22.5)) throw new Error("Posting is open from 4 AM to 10:30 PM (India time). Hotels and local ads can post any time.");
+    // an offer is a list of items: its prices are the best item's (like the real server)
+    const its = Array.isArray(o.items) ? o.items.filter((x) => x.a > 0 && x.p >= 0 && x.p < x.a) : [];
+    if (its.length) { const best = its.reduce((m, x) => (1 - x.p / x.a > 1 - m.p / m.a ? x : m)); o = { ...o, origPrice: best.a, price: best.p }; }
     if (o.category === "jobs") {
       if (!(o.price > 0)) throw new Error("Enter the pay for this opening");
     } else {
@@ -523,10 +575,26 @@ export const api = {
   },
 
   // ---------- admin & moderators ----------
-  async adminPincodes() { return { pincodes: [], customers: { n: 0, today: 0 } }; },
-  async adminStats() {
+  async adminPincodes(filter = {}) {
+    const db = load(); const s = staff(db); const now = Date.now();
+    const f = typeof filter === "string" ? { category: filter } : filter;
+    const bs = demoBizFilter(db, s, { ...f, pincode: "" }).filter((b) => b.pincode);
+    const map = {};
+    for (const b of bs) {
+      const x = (map[b.pincode] ||= { pincode: b.pincode, area: b.area, city: b.city, state: b.state, partners: 0, verified: 0, pending: 0, today: 0, live: 0, subs: 0, ending: 0 });
+      x.partners++; if (b.status === "verified") x.verified++; if (b.status === "pending") x.pending++;
+      if (now - b.createdAt < D) x.today++;
+      x.live += db.offers.filter((o) => o.businessId === b.id && o.endsAt > now).length;
+      const sub = db.subs.find((y) => y.userId === b.ownerId && y.plan === "owner" && y.status === "active" && y.currentPeriodEnd > now);
+      if (sub) { x.subs++; if (sub.currentPeriodEnd - now < 3 * D) x.ending++; }
+    }
+    return { pincodes: Object.values(map).sort((a, b) => b.partners - a.partners), customers: { n: db.users.filter((u) => !db.businesses.some((b) => b.ownerId === u.id)).length, today: 0 } };
+  },
+  async adminStats(filter = {}) {
     const db = load(); const s = staff(db);
     const now = Date.now();
+    const fb = demoBizFilter(db, s, filter);
+    const ownerSubs = db.subs.filter((x) => x.plan === "owner" && x.status === "active" && x.currentPeriodEnd > now && fb.some((b) => b.ownerId === x.userId));
     const cities = (await this.listCities()).filter((c) => s.canSee(c.state))
       .map((c) => ({ ...c, verifiedBusinesses: db.businesses.filter((b) => b.cityKey === c.key && b.status === "verified").length }));
     const active = (p) => db.subs.filter((x) => x.plan === p && ["active", "cancelled"].includes(x.status) && x.currentPeriodEnd > now).length;
@@ -535,11 +603,13 @@ export const api = {
       totals: {
         users: db.users.length, verified: db.businesses.filter((b) => b.status === "verified").length,
         pending: db.businesses.filter((b) => b.status === "pending").length, suspended: db.businesses.filter((b) => b.status === "suspended").length,
-        customers: active("customer"), owners: active("owner"), leads30: db.leads.filter((l) => l.createdAt > now - 30 * D).length,
+        customers: active("customer"), owners: ownerSubs.length, leads30: db.leads.filter((l) => l.createdAt > now - 30 * D).length,
         openReports: db.reports.filter((r) => r.status === "open").length, archived: (db.archive || []).length,
         openGrievances: s.role === "admin" ? db.grievances.filter((g) => ["open", "acknowledged"].includes(g.status)).length : null,
         reviews: db.reviews.filter((r) => r.status === "published").length,
-        liveOffers: cities.reduce((n, c) => n + c.liveOffers, 0),
+        liveOffers: db.offers.filter((o) => o.endsAt > now && fb.some((b) => b.id === o.businessId)).length,
+        partners: fb.length, ownersFiltered: ownerSubs.length, ownersEnding: ownerSubs.filter((x) => x.currentPeriodEnd - now < 3 * D).length,
+        customersRegistered: db.users.filter((u) => (u.role || "user") === "user" && !db.businesses.some((b) => b.ownerId === u.id)).length, customersToday: 0,
       },
       cities,
       openSupport: (db.support || []).filter((t) => t.status === "open").length,
@@ -588,17 +658,20 @@ export const api = {
     save(db);
     return s;
   },
-  async adminBusinesses({ status, state } = {}) {
+  async adminBusinesses({ status, ...filter } = {}) {
     const db = load(); const s = staff(db);
-    const list = db.businesses.filter((b) => (!status || b.status === status) && (!state || b.state === state) && s.canSee(b))
-      .sort((a, b) => b.createdAt - a.createdAt);
+    const list = demoBizFilter(db, s, filter).filter((b) => !status || b.status === status).sort((a, b) => b.createdAt - a.createdAt);
     return list.map((b) => {
       const flags = [];
       if ((b.reportCount || 0) >= 2) flags.push(`Reported ${b.reportCount}×`);
       if (db.businesses.filter((x) => x.phone === b.phone).length > 1) flags.push("Same phone as another business");
       if (Date.now() - b.createdAt < 2 * D) flags.push("New in last 48 h");
       const sub = db.subs.find((x) => x.userId === b.ownerId && x.plan === "owner" && x.status === "active" && x.currentPeriodEnd > Date.now());
-      return { ...b, phone: maskPhone(b.phone), masked: true, flags, trialEndsAt: b.trialEndsAt || null, planUntil: sub ? sub.currentPeriodEnd : null };
+      const owner = db.users.find((u) => u.id === b.ownerId);
+      return { ...b, phone: maskPhone(b.phone), masked: true, flags, trialEndsAt: b.trialEndsAt || null, planUntil: sub ? sub.currentPeriodEnd : null,
+        ownerName: owner?.name || "", liveOffers: db.offers.filter((o) => o.businessId === b.id && o.endsAt > Date.now()).length,
+        pastOffers: (db.archive || []).filter((a) => a.ownerId === b.ownerId).length,
+        plan: !sub ? "none" : sub.currentPeriodEnd - Date.now() < 3 * D ? "expiring" : "active" };
     });
   },
   async setBusinessStatus(id, status, note) {
@@ -734,6 +807,13 @@ export const api = {
       const base = s.status === "active" && s.currentPeriodEnd > now ? s.currentPeriodEnd : now;
       s.status = "active"; s.months = months; s.provider = "manual"; s.currentPeriodEnd = base + months * 30 * D;
       recordSale(db, b.ownerId, "owner", months);
+    } else if (action === "pack") {
+      if (!s) { s = { userId: b.ownerId, plan: "owner", provider: "manual" }; db.subs.push(s); }
+      const IST = 5.5 * H, endOfDay = (t) => (Math.floor((t + IST) / D) + 1) * D - IST - 1000;
+      const running = s.status === "active" && s.currentPeriodEnd > now;
+      s.currentPeriodEnd = running ? endOfDay(s.currentPeriodEnd) + days * D : endOfDay(now) + (days - 1) * D;
+      if (!running) { s.periodStart = now; s.packDays = days; }
+      s.status = "active"; s.provider = "manual";
     } else if (action === "extendTrial") {
       const cur = b.trialEndsAt || 0;
       b.trialEndsAt = Math.max(now, cur) + days * D;

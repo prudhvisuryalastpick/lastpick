@@ -58,8 +58,25 @@ export const mapReview = (r) => ({
 
 export const mapSub = (s) => s && ({
   plan: s.plan, status: s.status, currentPeriodEnd: ms(s.current_period_end), provider: s.provider,
+  periodStart: ms(s.period_start), packDays: s.pack_days || null,
   active: ["active", "cancelled"].includes(s.status) && !!s.current_period_end && new Date(s.current_period_end) > new Date(),
 });
+
+// Adds a pack of days to a plan. The day of payment is Day 1 and the plan runs till 11:59:59 PM (India time) on its
+// last day: 5 days bought on 25 Nov = 25–29 Nov. A top-up while the plan runs adds the days after its last day and
+// keeps the run's start and pack. `run` is a query function (pool or transaction client).
+export const ADD_PLAN_DAYS_SQL = `
+  INSERT INTO subscriptions (user_id, plan, provider, status, months, current_period_end, period_start, pack_days, provider_subscription_id, granted_by)
+  VALUES ($1, $2, $3, 'active', $7, lp_ist_day_end(now()) + make_interval(days => $4 - 1), now(), $4, $5, $6)
+  ON CONFLICT (user_id, plan) DO UPDATE SET provider = $3, status = 'active', months = $7, updated_at = now(),
+    provider_subscription_id = coalesce($5, subscriptions.provider_subscription_id), granted_by = coalesce($6, subscriptions.granted_by),
+    period_start = CASE WHEN subscriptions.status IN ('active', 'cancelled') AND subscriptions.current_period_end > now() THEN coalesce(subscriptions.period_start, now()) ELSE now() END,
+    pack_days = CASE WHEN subscriptions.status IN ('active', 'cancelled') AND subscriptions.current_period_end > now() THEN coalesce(subscriptions.pack_days, $4) ELSE $4 END,
+    current_period_end = CASE WHEN subscriptions.status IN ('active', 'cancelled') AND subscriptions.current_period_end > now()
+      THEN lp_ist_day_end(subscriptions.current_period_end) + make_interval(days => $4)
+      ELSE lp_ist_day_end(now()) + make_interval(days => $4 - 1) END`;
+export const addPlanDays = (run, { userId, plan, days, provider, paymentId = null, by = null, months = 1 }) =>
+  run(ADD_PLAN_DAYS_SQL, [userId, plan, provider, days, paymentId, by, months]);
 
 export const mapBusiness = (b) => b && ({
   id: b.id, ownerId: b.id, name: b.name, category: b.category, categories: b.categories?.length ? b.categories : [b.category || "other"],

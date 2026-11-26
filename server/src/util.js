@@ -23,19 +23,19 @@ export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 
 // ---- Working hours (India time). Outside them only ALWAYS_OPEN categories are shown and can be contacted.
-// Hotels stay open 24×7 (offers till 12 midnight); everything else is shown 4 AM – 11 PM and ends by 11 PM.
+// Hotels and local ads run 24×7 (offers up to 24 hours); everything else is shown 4 AM – 11 PM and ends by 11 PM.
 // Every partner (hotels too) can post only between 4 AM and 10:30 PM. Everything is gone at 12 midnight.
 export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 4), close: Number(process.env.CLOSE_HOUR ?? 23) };
 // last post at 10:30 PM, so every offer has at least 30 minutes before 11 PM (22.5 = 10:30 PM)
 export const POSTING_HOURS = { from: Number(process.env.POST_FROM_HOUR ?? 4), till: Number(process.env.POST_TILL_HOUR ?? 22.5) };
-export const ALWAYS_OPEN = ["stay"]; // 24x7: hotels only
+export const ALWAYS_OPEN = ["stay", "ads"]; // 24x7, offers up to 24 hours: hotels and local ads
 export const istHour = (now = Date.now()) => new Date(now + 5.5 * 3600000).getUTCHours();
 export const isNight = (now = Date.now()) => { const h = istHour(now); return h < BUSINESS_HOURS.open || h >= BUSINESS_HOURS.close; };
 
 // midnight today in India (UTC+05:30)
 const IST = 5.5 * 3600000;
 export const startOfDayIST = (now = Date.now()) => Math.floor((now + IST) / DAY) * DAY - IST;
-// hotels run 24×7
+// hotels and local ads run 24×7
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // "Haircut slots, 40% off" with prices 400 -> 80 becomes "Haircut slots, 80% off"
 export function fixTitlePercent(title, pct) {

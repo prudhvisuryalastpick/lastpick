@@ -1,11 +1,11 @@
 import { BIZ_TYPE_KEY } from "./auth.jsx";
 import { ContactCard } from "./contactus.jsx";
 import { TermsBox } from "./privacy.jsx";
-import { partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
+import { POSTING_RULES, POSTING_RULES_VERSION, partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
-import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, TEMPLATES, categoryOf } from "../lib/config.js";
+import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanBar, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
+import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, categoryOf, itemOptions } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
@@ -115,10 +115,7 @@ export function OwnerDashboard() {
   const perDay = [6, 5, 4, 3, 2, 1, 0].map((d) => week.filter((l) => Math.floor((now - l.createdAt) / 86400000) === d).length);
   const maxDay = Math.max(1, ...perDay);
   const left = daysLeft(trial?.owner);
-  // days left on Business Pro, shown straight away at the top (paid days first, else free days)
-  const paidLeft = subs.owner?.active ? daysLeft(subs.owner.currentPeriodEnd) : 0;
-  const daysText = freeLaunch && business.status === "verified" ? "Free during launch" : paidLeft > 0 ? `${PLANS.owner.name} · ${paidLeft} day${paidLeft > 1 ? "s" : ""} left`
-    : left > 0 ? `Free days · ${left} left` : business.status === "verified" ? `${PLANS.owner.name} · 0 days left` : "";
+  // the plan (days left) is shown in one bar: <PlanBar />
   const cheapest = PLANS.owner.packs[0];
   const hour = new Date().getHours();
   const [photo] = useMyPhoto();
@@ -135,7 +132,6 @@ export function OwnerDashboard() {
           </div>
           <div className="gap" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
             <a className="pill" style={{ background: "rgba(255,255,255,.16)", color: "#fff" }} href="#/owner/business">{business.status === "verified" ? "✔ Verified" : business.status === "pending" ? "● KYC in progress" : "Profile"}</a>
-            {daysText && <a className="pill" style={{ background: "var(--hi)", color: "var(--hi-ink)" }} href="#/plans">{daysText}</a>}
           </div>
         </div>
         <div className="row" style={{ alignItems: "flex-end", marginTop: 22 }}>
@@ -147,6 +143,7 @@ export function OwnerDashboard() {
           <div className="bars" aria-hidden="true">{perDay.map((n, k) => <span key={k} style={{ height: 8 + (n / maxDay) * 56, animationDelay: `${0.1 + k * 0.07}s` }} />)}</div>
         </div>
       </div>
+      {business.status === "verified" && <PlanBar />}
       <div className="kpis three lift">
         <div className="kpi"><div className="n">{offers ? live.length : "…"}</div><div className="l">Live offers</div></div>
         <div className="kpi"><div className="n">{views}</div><div className="l">Views</div></div>
@@ -161,10 +158,7 @@ export function OwnerDashboard() {
       <a className="cta" href="#/owner/post"><span className="plus" aria-hidden="true">＋</span>
         <span className="grow"><b style={{ display: "block", fontSize: 16 }}>Post an offer</b><span className="small" style={{ color: "#C9D8E8" }}>Goes live to customers within 30 km</span></span><span aria-hidden="true">›</span></a>
       <ContactCard />
-      <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans">🎁 <span>{freeLaunch && business.status === "verified" ? `Free during launch: post up to 3 offers a day at no cost.` : paidLeft > 0 ? `${PLANS.owner.name}: ${paidLeft} day${paidLeft > 1 ? "s" : ""} left (till ${day(subs.owner.currentPeriodEnd)}). Add more days any time.`
-        : left > 0 ? `Free days from ${APP_NAME}: ${left} day${left > 1 ? "s" : ""} left. Then from ${rupee(cheapest.price)} for ${cheapest.days} days.`
-          : business.status !== "verified" ? `After verification, ${PLANS.owner.name} from ${rupee(cheapest.price)} for ${cheapest.days} days.`
-            : `${PLANS.owner.name}: 0 days left. Plans from ${rupee(cheapest.price)} for ${cheapest.days} days.`}</span></a>
+      {business.status !== "verified" && <a className="banner" style={{ background: "var(--warn-soft)", color: "var(--warn)" }} href="#/plans"><span>After verification, {PLANS.owner.name} from {rupee(cheapest.price)} for {cheapest.days} days.</span></a>}
       {live.length > 0 && <>
         <div className="sect"><h3>Live now</h3><a className="link small" href="#/owner/offers">All offers</a></div>
         {live.slice(0, 3).map((o) => (
@@ -314,15 +308,26 @@ export function PostOffer() {
     api.myOffers().then((l) => setPostedToday(l.filter((o) => o.createdAt >= dayStart).length)).catch(() => setPostedToday(0));
   }, []);
   const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
-  // An offer is a list of items: name, actual price, offer price (add or remove rows, up to 10). No description or photo.
-  const blank = () => ({ n: "", a: "", p: "" });
+  // An offer is a list of items (up to 10). Names come from My items (the partner's own list, names only);
+  // each day the partner types the actual price, the offer price and, if they like, a quantity ("10 plates").
+  const row = (n, unit) => ({ n, a: "", p: "", qn: "", qu: unit });
   const [f, setF] = useState(() => {
     let again = null; try { again = JSON.parse(sessionStorage.getItem("lp-post-again") || "null"); sessionStorage.removeItem("lp-post-again"); } catch { /* ignore */ }
-    return { category: again?.category && allowed.includes(again.category) ? again.category : allowed[0], emoji: "📦", title: again?.title || "", items: again?.items?.length ? again.items : [blank()], hours: 6 };
+    const cat = again?.category && allowed.includes(again.category) ? again.category : allowed[0];
+    const unit = itemOptions(cat).units[0];
+    return { category: cat, emoji: "📦", title: again?.title || "", items: (again?.items || []).map((x) => ({ ...row(x.n, unit), a: String(x.a ?? ""), p: String(x.p ?? "") })), hours: runs24x7(cat) ? 6 : "close" };
   });
+  const [myItems, setMyItems] = useState(null);
+  useEffect(() => { api.myItems().then(setMyItems).catch(() => setMyItems([])); }, []);
+  const [adding, setAdding] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const units = itemOptions(f.category).units;
   const setItem = (i, k, v) => setF((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
-  const addItem = () => setF((p) => (p.items.length >= 10 ? p : { ...p, items: [...p.items, blank()] }));
-  const removeItem = (i) => setF((p) => ({ ...p, items: p.items.length > 1 ? p.items.filter((_, j) => j !== i) : [blank()] }));
+  const picked = (name) => f.items.some((x) => x.n === name);
+  const togglePick = (name) => setF((p) => (p.items.some((x) => x.n === name)
+    ? { ...p, items: p.items.filter((x) => x.n !== name) }
+    : p.items.length >= 10 ? p : { ...p, items: [...p.items, row(name, units[0])] }));
+  const removeItem = (i) => setF((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const now = useNow(60000);
@@ -337,18 +342,23 @@ export function PostOffer() {
   const hourNow = (now - dayStart) / 3600000; // hours since midnight, India time
   const postingOpen = allDay || (hourNow >= HOURS.postFrom && hourNow < HOURS.postTill);
   const hoursLeft = (closing - now) / 3600000;
-  const choices = allDay ? [...DURATIONS, 18, 24] : [...DURATIONS.filter((h) => h < hoursLeft), "close"];
-  const endsAtOf = (h) => (h === "close" ? closing : Math.min(Date.now() + h * 3600000, allDay ? Date.now() + 24 * 3600000 : closing));
+  // Hotels and local ads: a length of time (up to 24 hours). Everyone else: a clock time today, on the hour,
+  // at least 30 minutes away (9 PM, 10 PM, ... 11 PM).
+  const firstHour = Math.ceil(hourNow + 0.5);
+  const clockChoices = []; for (let h = Math.max(firstHour, HOURS.open + 1); h < HOURS.close; h++) clockChoices.push("h" + h);
+  const choices = allDay ? [...DURATIONS, 18, 24] : [...clockChoices, "close"];
+  const endsAtOf = (h) => (h === "close" ? closing
+    : typeof h === "string" && h[0] === "h" ? Math.min(dayStart + Number(h.slice(1)) * 3600000, closing)
+      : Math.min(Date.now() + Number(h) * 3600000, allDay ? Date.now() + 24 * 3600000 : closing));
+  const hourLabel = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
   const closeLabel = allDay ? "24 hours" : "11 PM";
   const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
-  const templates = TEMPLATES.filter((t) => own.includes(t.category));
-  const useTemplate = (t) => setF((p) => ({ ...p, category: t.category, emoji: t.emoji, title: t.title, items: [{ n: t.label, a: String(t.origPrice), p: String(t.price) }], hours: t.hours }));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
-  const items = f.items.map((x) => ({ n: x.n.trim(), a: Number(x.a), p: Number(x.p), raw: x }));
+  const items = f.items.map((x) => ({ n: x.n.trim(), a: Number(x.a), p: Number(x.p), q: Number(x.qn) > 0 ? `${Number(x.qn)} ${x.qu || units[0]}` : "", raw: x }));
   const filled = items.filter((x) => x.n || x.raw.a !== "" || x.raw.p !== "");
   const problems = [];
   if (f.title.trim().length < 3) problems.push("an offer name");
-  if (!filled.length) problems.push("at least one item");
+  if (!filled.length) problems.push("at least one item from My items");
   filled.forEach((x, i) => {
     if (x.n.length < 2) problems.push(`a name for item ${i + 1}`);
     else if (!(x.a > 0) || x.raw.p === "" || !(x.p >= 0)) problems.push(`both prices for ${x.n}`);
@@ -361,17 +371,20 @@ export function PostOffer() {
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
-    title: f.title || "Your offer name", description: "", category: f.category, emoji: f.emoji, photoUrl: null, items: good.map(({ n, a, p }) => ({ n, a, p })),
+    title: f.title || "Your offer name", description: "", category: f.category, emoji: f.emoji, photoUrl: null, items: good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })),
     origPrice: orig || 0, price, quantity: "", endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
-  const submit = async () => {
-    if (problems.length) return;
+  // "Make offer live" first shows the posting rules; posting happens after "I understand, post my offer"
+  const submit = () => { if (!problems.length) setRulesOpen(true); };
+  const post = async () => {
+    setRulesOpen(false);
     setBusy(true); setErr("");
     try {
       await api.createOffer({
         title: f.title.trim(), category: f.category, emoji: f.emoji,
-        items: good.map(({ n, a, p }) => ({ n, a, p })), endsAt: endsAtOf(f.hours),
+        items: good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })), endsAt: endsAtOf(f.hours),
+        rulesAccepted: true, rulesVersion: POSTING_RULES_VERSION,
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
       navigate("/owner/offers");
@@ -386,7 +399,7 @@ export function PostOffer() {
       <div className="card" style={{ textAlign: "center", padding: 24, marginTop: 16 }}>
         <div style={{ fontSize: 40 }}>🌙</div>
         <h2>Posting opens at 4 AM</h2>
-        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels can post at night.</p>
+        <p className="muted">You can post offers between 4 AM and 10:30 PM (India time), and every offer ends by 11 PM the same day. Only hotels and local ads can post at night.</p>
         <a className="btn ghost" href="#/owner/offers">See my offers</a>
       </div>
     </div>
@@ -406,37 +419,50 @@ export function PostOffer() {
       <div className="page-h"><h1 className="title">Post an offer</h1><div className="muted">A real discount for today only</div></div>
       <StatusBanner />
       {(!business.state || !business.city || !business.pincode || business.lat == null) && <a className="banner warn" href="#/owner/business">📍 Add your pincode and shop location in Business profile before posting. Customers see offers near them.</a>}
-      <div className="chips">{templates.map((t) => <button key={t.label} className="chip" onClick={() => useTemplate(t)}>{t.label}</button>)}</div>
       <div className="form">
         <div className="fld"><label>Category</label>
           <select value={f.category} onChange={(e) => setCategory(e.target.value)}>{allowed.map((id) => <option key={id} value={id}>{categoryOf(id).label}</option>)}</select>
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
             : allDay
-              ? "Hotels run 24×7: post any time, and your offer can run for up to 24 hours."
+              ? "Hotels and local ads run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
         <div className="fld"><label>Offer name</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Evening sweets sale" /></div>
-        <div className="fld"><label>Items</label>
-          <div className="itemsed">
-            <div className="ih"><span>Item</span><span>Actual ₹</span><span>Offer ₹</span><span /></div>
+        <div className="fld"><label>My items <a className="link small" href="#/owner/items" style={{ float: "right", fontWeight: 600 }}>Manage</a></label>
+          {myItems == null ? <Spinner /> : myItems.length
+            ? <div className="chips wrap" aria-label="Pick items from My items">{myItems.map((it) => (
+                <button key={it.id} type="button" className={"chip " + (picked(it.name) ? "on" : "")} aria-pressed={picked(it.name)} onClick={() => togglePick(it.name)}>{picked(it.name) ? "✓ " : "+ "}{it.name}</button>))}</div>
+            : <span className="hint">No items yet. Add your items below once; next time you just pick them.</span>}
+          {adding
+            ? <div className="card" style={{ marginTop: 8 }}><NewItemForm category={f.category} onAdded={(it) => { setMyItems((l) => [it, ...(l || []).filter((x) => x.id !== it.id)]); if (!picked(it.name)) togglePick(it.name); setAdding(false); }} onCancel={() => setAdding(false)} /></div>
+            : <button type="button" className="chip" style={{ marginTop: 8, alignSelf: "flex-start" }} onClick={() => setAdding(true)}>+ Add a new item</button>}
+        </div>
+        {f.items.length > 0 && <div className="fld"><label>Today's prices</label>
+          <div className="pitems">
             {f.items.map((x, i) => (
-              <div className="ir" key={i}>
-                <input maxLength={60} value={x.n} onChange={(e) => setItem(i, "n", e.target.value)} placeholder={i === 0 ? "e.g. Kaju katli 500 g" : "Item name"} aria-label={`Item ${i + 1} name`} />
-                <input type="number" min="1" inputMode="numeric" value={x.a} onChange={(e) => setItem(i, "a", e.target.value)} placeholder="400" aria-label={`Item ${i + 1} actual price`} />
-                <input className="op" type="number" min="0" inputMode="numeric" value={x.p} onChange={(e) => setItem(i, "p", e.target.value)} placeholder="200" aria-label={`Item ${i + 1} offer price`} />
-                <button type="button" className="ix" onClick={() => removeItem(i)} aria-label={`Remove item ${i + 1}`}><Icon d="x" size={16} stroke={2.4} /></button>
+              <div className="pitem" key={x.n}>
+                <div className="pin"><b>{x.n}</b><button type="button" className="ix" onClick={() => removeItem(i)} aria-label={`Remove ${x.n} from this offer`}><Icon d="x" size={16} stroke={2.4} /></button></div>
+                <div className="pgrid">
+                  <label>Actual ₹<input type="number" min="1" inputMode="numeric" value={x.a} onChange={(e) => setItem(i, "a", e.target.value)} placeholder="400" /></label>
+                  <label>Offer ₹<input className="op" type="number" min="0" inputMode="numeric" value={x.p} onChange={(e) => setItem(i, "p", e.target.value)} placeholder="200" /></label>
+                  <label>Quantity<input type="number" min="1" inputMode="numeric" value={x.qn} onChange={(e) => setItem(i, "qn", e.target.value)} placeholder="Optional" /></label>
+                </div>
+                {units.length > 1 && <div className="chips wrap" style={{ marginTop: 6 }}>{units.map((u) => (
+                  <button key={u} type="button" className={"chip small " + ((x.qu || units[0]) === u ? "on" : "")} aria-pressed={(x.qu || units[0]) === u} onClick={() => setItem(i, "qu", u)}>{u}</button>))}</div>}
+                {Number(x.qn) > 0 && <div className="hint">Customers see "{Number(x.qn)} {x.qu || units[0]} left"</div>}
               </div>
             ))}
-            {f.items.length < 10 && <button type="button" className="iadd" onClick={addItem}><Icon d="plus" size={16} stroke={2.4} />Add item</button>}
           </div>
-        </div>
+        </div>}
         {realPct != null && <div className="pctline">Best deal: <b>{realPct}% off</b> <span className="muted small">· customers see "Up to {realPct}% off"</span></div>}
         <div className="two">
           <div className="fld"><label>{job ? "Show for" : "Offer ends in"}</label>
-            <select value={choices.includes(f.hours) ? f.hours : "close"} onChange={(e) => set("hours", e.target.value === "close" ? "close" : Number(e.target.value))}>
-              {choices.map((h) => <option key={h} value={h}>{h === "close" ? "Till 11 PM (today)" : `${h} hour${h > 1 ? "s" : ""} · till ${whenText(Math.min(now + h * 3600000, closing))}`}</option>)}
+            <select value={choices.includes(f.hours) ? f.hours : allDay ? 6 : "close"} onChange={(e) => set("hours", allDay ? Number(e.target.value) : e.target.value)}>
+              {choices.map((h) => <option key={h} value={h}>{h === "close" ? `Till ${hourLabel(HOURS.close)} (closing time)`
+                : typeof h === "string" ? `Till ${hourLabel(Number(h.slice(1)))}`
+                  : `${h} hour${h > 1 ? "s" : ""} · till ${whenText(Math.min(now + h * 3600000, closing))}`}</option>)}
             </select>
-            <span className="hint">{allDay ? "Runs 24×7: up to 24 hours from now." : "Ends by 11 PM today. Last time to post: 10:30 PM. (Hotels: any time, up to 24 hours.)"}</span></div>
+            <span className="hint">{allDay ? "Hotels and local ads run 24×7: up to 24 hours from now." : "Pick the time your offer ends today. Everything ends by 11 PM. Last time to post: 10:30 PM."}</span></div>
         </div>
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
@@ -447,10 +473,93 @@ export function PostOffer() {
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
           ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
           : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
-        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels can post any time. Post again at 4 AM.</span></div>}
+        {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels and local ads can post any time. Post again at 4 AM.</span></div>}
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
         <div className="note">By posting, you confirm this offer is genuine and you will honour it. You are responsible for your offer; {APP_NAME} only connects you with customers.</div>
+      </div>
+      {rulesOpen && <PostingRules category={f.category} onAgree={post} onClose={() => setRulesOpen(false)} />}
+    </>
+  );
+}
+
+// Shown before every post: the partner scrolls to the end, then posts. The acceptance is saved with the offer.
+function PostingRules({ category, onAgree, onClose }) {
+  const box = useRef(null);
+  const [read, setRead] = useState(false);
+  const check = () => { const el = box.current; if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setRead(true); };
+  useEffect(() => { check(); }, []); // short enough to fit: no scrolling needed
+  return (
+    <Sheet onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="rules-h" className="rules">
+        <h2 id="rules-h" style={{ marginTop: 0 }}>Before you post</h2>
+        <div className="rulesbox" ref={box} onScroll={check} tabIndex={0}>
+          {POSTING_RULES.common.map((t) => <p key={t}>{t}</p>)}
+          <p><b>{POSTING_RULES.byCategory[category] || POSTING_RULES.byCategory.other}</b></p>
+        </div>
+        <button className="btn main" disabled={!read} onClick={onAgree}>I understand, post my offer</button>
+        <div className="note" style={{ textAlign: "center" }}>{read ? "Your acceptance is saved with this offer." : "Scroll to the end to continue."}</div>
+        <button className="btn ghost" onClick={onClose}>Cancel</button>
+      </div>
+    </Sheet>
+  );
+}
+
+// Adds one name to My items: the name, plus the category's optional choice ("Chicken biryani (full)", "Deluxe room (ac)").
+function NewItemForm({ category, onAdded, onCancel }) {
+  const io = itemOptions(category);
+  const [name, setName] = useState("");
+  const [opt, setOpt] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    const base = name.trim();
+    if (base.length < 2) { setErr("Enter an item name first"); return; }
+    setBusy(true); setErr("");
+    try { const it = await api.addMyItem(opt ? `${base} (${opt.toLowerCase()})` : base); setName(""); setOpt(""); onAdded?.(it); } catch (e) { setErr(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="newitem">
+      <input maxLength={50} value={name} onChange={(e) => { setName(e.target.value); setErr(""); }} placeholder={io.example} aria-label="Item name" />
+      {io.options && <div className="chips wrap" aria-label={io.label}><span className="muted small" style={{ alignSelf: "center" }}>{io.label}:</span>
+        {io.options.map((o) => <button key={o} type="button" className={"chip small " + (opt === o ? "on" : "")} aria-pressed={opt === o} onClick={() => setOpt(opt === o ? "" : o)}>{o}</button>)}</div>}
+      {err && <div className="error small">{err}</div>}
+      <div className="row" style={{ gap: 8 }}>
+        <button type="button" className="btn" disabled={busy} onClick={add}>{busy ? "Adding…" : "+ Add to My items"}</button>
+        {onCancel && <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>}
+      </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ My items: names only, added once, picked when posting
+export function MyItems() {
+  return <NeedLogin why="Log in to manage your items"><MyItemsInner /></NeedLogin>;
+}
+function MyItemsInner() {
+  const { business, toast } = useApp();
+  const [list, setList] = useState(null);
+  const category = business?.category || "other";
+  useEffect(() => { api.myItems().then(setList).catch(() => setList([])); }, []);
+  const remove = async (it) => {
+    try { await api.removeMyItem(it.id); setList((l) => l.filter((x) => x.id !== it.id)); toast?.(`Removed ${it.name}`); } catch (e) { toast?.(errText(e)); }
+  };
+  return (
+    <>
+      <div className="page-h"><h1 className="title">My items</h1>
+        <div className="muted">Add your items once, names only. When you post, pick them and type that day's prices and quantity.</div></div>
+      <div className="form">
+        <div className="card myitems">
+          {list == null ? <Spinner /> : list.length
+            ? list.map((it) => (
+              <div className="mi" key={it.id}><span>{it.name}</span>
+                <button type="button" className="ix" aria-label={`Remove ${it.name}`} onClick={() => remove(it)}><Icon d="x" size={16} stroke={2.4} /></button></div>))
+            : <div className="muted small">No items yet. Add your first one below.</div>}
+        </div>
+        <div className="fld"><label>Add an item</label>
+          <NewItemForm category={category} onAdded={(it) => setList((l) => [it, ...(l || []).filter((x) => x.id !== it.id)])} /></div>
+        <a className="btn main" href="#/owner/post">Post an offer</a>
       </div>
     </>
   );

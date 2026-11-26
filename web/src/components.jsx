@@ -3,7 +3,7 @@ import { APP_NAME, IS_ADMIN_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SOCIAL, SUPPORT
 import { install, isInstalled, onInstallChange } from "./lib/install.js";
 import { api } from "./api/index.js";
 import { Icon, catStyle } from "./lib/icons.jsx";
-import { clockIST, discount, distanceKm, hoursText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
+import { clockIST, discount, distanceKm, hoursText, timerText, kmText, rupee, timeLeft, isJob } from "./lib/format.js";
 import { navigate, useApp, useNow } from "./state.jsx";
 import { msToNextSlot, quoteForOffer, stripQuotes } from "./lib/quotes.js";
 
@@ -77,9 +77,15 @@ export function Empty({ icon, title, children, action }) {
 }
 
 export function Countdown({ end }) {
-  const now = useNow();
+  const now = useNow(1000);
   const ms = end - now;
-  return <span className={"tm " + (ms < 3600000 ? "hot" : "")} title={ms > 0 ? "Ends at " + clockIST(end) : ""}>{ms > 0 ? "Ends in " + hoursText(ms) : "Ended"}</span>;
+  return <span className={"tm " + (ms < 3600000 ? "hot" : "")} title={ms > 0 ? "Ends at " + clockIST(end) : ""}>{ms > 0 ? "Ends in " + timerText(ms) : "Ended"}</span>;
+}
+
+// "Offer ends in" as a live timer that ticks every second: 2h 05m 09s
+export function LiveTimer({ end }) {
+  const now = useNow(1000);
+  return <span className="livetimer" style={{ fontVariantNumeric: "tabular-nums" }}>{timerText(end - now)}</span>;
 }
 
 // The offer's photo, or its category icon on the category colour when there's no photo.
@@ -351,5 +357,45 @@ export function InstallTopButton() {
       </button>
       {ui}
     </>
+  );
+}
+
+// ---------- Partner plan bar: one bar for the current plan, at the top of the partner's screens ----------
+// The day of payment is Day 1 and a plan runs till 11:59 PM (India time) on its last day.
+const IST_MS = 19800000;
+const istDayNo = (t) => Math.floor((t + IST_MS) / 86400000);
+const shortDay = (ts) => new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+export function planBarState({ sub, trialEnd, freeMode, now = Date.now() }) {
+  if (sub?.active && sub.currentPeriodEnd > now) {
+    const left = istDayNo(sub.currentPeriodEnd) - istDayNo(now) + 1;
+    const total = sub.periodStart ? istDayNo(sub.currentPeriodEnd) - istDayNo(sub.periodStart) + 1 : null;
+    const dayNo = sub.periodStart ? istDayNo(now) - istDayNo(sub.periodStart) + 1 : null;
+    return { kind: "pro", title: `${PLANS.owner.name}${sub.packDays ? ` · ${sub.packDays} days` : ""}`, left, total, dayNo, until: sub.currentPeriodEnd, packDays: sub.packDays || null };
+  }
+  if (trialEnd && trialEnd > now) {
+    const left = istDayNo(trialEnd) - istDayNo(now) + 1;
+    return { kind: "free", title: "Free days", left, until: trialEnd };
+  }
+  return { kind: "none", title: "No active plan", left: 0, freeMode };
+}
+export function PlanBar({ topUp = true }) {
+  const { subs, trial, config } = useApp();
+  const now = useNow(60000);
+  const st = planBarState({ sub: subs?.owner, trialEnd: trial?.owner, freeMode: !!config?.freeMode, now });
+  const low = st.left > 0 && st.left <= 2;
+  const color = st.kind === "none" ? "#A23B2A" : low ? "#B45309" : "#C2410C";
+  const pct = st.total ? Math.min(100, Math.max(4, (st.dayNo / st.total) * 100)) : st.kind === "none" ? 0 : 100;
+  return (
+    <div className="planbar" role="status" aria-label={`Your plan: ${st.title}, ${st.left} day${st.left === 1 ? "" : "s"} left`}>
+      <div className="pbtop"><div><div className="pbk">Your plan</div><div className="pbt">{st.title}</div></div>
+        <div className="pbl" style={{ color }}>{st.left} day{st.left === 1 ? "" : "s"} left</div></div>
+      <div className="pbtrack"><div style={{ width: pct + "%", background: color }} /></div>
+      <div className="pbsub">
+        <span>{st.kind === "pro" ? `${st.dayNo ? `Day ${st.dayNo} of ${st.total} · ` : ""}till ${shortDay(st.until)}, 11:59 PM`
+          : st.kind === "free" ? `Till ${shortDay(st.until)}, 11:59 PM`
+            : st.freeMode ? "Posting is free right now" : "Pick 5, 15 or 30 days to post offers"}</span>
+        {topUp && <a href="#/plans">{st.kind === "pro" ? "Top up" : "See packs"}</a>}
+      </div>
+    </div>
   );
 }

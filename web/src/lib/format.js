@@ -95,6 +95,14 @@ export function clockIST(ts) {
   return `${h}:${String(m).padStart(2, "0")} ${ap}`;
 }
 // "4 hours", "2 hours 30 min", "45 min"
+// a ticking timer: "2h 05m 09s", "12m 09s", "45s"
+export function timerText(ms) {
+  if (ms <= 0) return "Ended";
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  const p = (n) => String(n).padStart(2, "0");
+  return h ? `${h}h ${p(m)}m ${p(x)}s` : m ? `${m}m ${p(x)}s` : `${x}s`;
+}
+
 export function hoursText(ms) {
   if (ms <= 0) return "Ended";
   const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);

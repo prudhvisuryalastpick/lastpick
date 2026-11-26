@@ -480,7 +480,7 @@ test("own category only, everything ends the same day, no job openings", async (
   assert.equal(room.status, 200, JSON.stringify(room.data));
 });
 
-test("working hours: after 11 PM only hotels", async () => {
+test("working hours: after 11 PM only hotels and local ads", async () => {
   const { isNight, istHour, postingOpen } = await import("../src/util.js");
   const at = (h) => Date.UTC(2026, 10, 20, h, 0) - 5.5 * 3600000; // h o'clock India time
   assert.equal(istHour(at(23)), 23);
@@ -503,12 +503,12 @@ test("working hours: after 11 PM only hotels", async () => {
     assert.ok(runs24x7("stay") && !runs24x7("travel") && !runs24x7("gym") && !runs24x7("combo") && !runs24x7("food"));
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["stay"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "ads"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
   // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["stay"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "ads"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
   // radius 6: a fresh (uncached) list, so no offer removed by an earlier test is picked
@@ -809,7 +809,9 @@ test("Razorpay: pay once, get 30 days; each payment counts once; wrong signature
   const v = await c.post("/api/payments/verify", { orderId: o.data.orderId, paymentId: "pay_X1", signature: sign(o.data.orderId, "pay_X1") });
   assert.equal(v.status, 200, JSON.stringify(v.data));
   const end1 = v.data.subscription.currentPeriodEnd;
-  assert.ok(v.data.subscription.active && Math.abs(end1 - (Date.now() + 30 * 86400000)) < 120000);
+  // the day of payment is Day 1: 30 days run till 11:59:59 PM (India time) on the 30th day, counting today
+  const IST = 19800000, endOfIstDay = (t) => (Math.floor((t + IST) / 86400000) + 1) * 86400000 - IST - 1000;
+  assert.ok(v.data.subscription.active && Math.abs(end1 - (endOfIstDay(Date.now()) + 29 * 86400000)) < 2000, String(end1));
   // the same payment again changes nothing
   await c.post("/api/payments/verify", { orderId: o.data.orderId, paymentId: "pay_X1", signature: sign(o.data.orderId, "pay_X1") });
   assert.equal((await c.get("/api/me/subscriptions")).data.customer.currentPeriodEnd, end1);
@@ -838,13 +840,20 @@ test("Razorpay: pay once, get 30 days; each payment counts once; wrong signature
     const before = (await p.get("/api/me/subscriptions")).data.owner?.currentPeriodEnd || 0;
     const v5 = await p.post("/api/payments/verify", { orderId: p5.data.orderId, paymentId: "pay_P5", signature: sign(p5.data.orderId, "pay_P5") });
     assert.equal(v5.status, 200, JSON.stringify(v5.data));
-    const base = Math.max(before, Date.now());
-    assert.ok(Math.abs(v5.data.subscription.currentPeriodEnd - (base + 5 * 86400000)) < 120000, "5 days added");
-    assert.equal((await p.post("/api/payments/order", { plan: "owner", days: 15 })).data.amount, 29900);
+    // a top-up adds the days after the current last day; a fresh plan counts today as Day 1
+    const IST = 19800000, endOfIstDay = (t) => (Math.floor((t + IST) / 86400000) + 1) * 86400000 - IST - 1000;
+    const want = before > Date.now() ? endOfIstDay(before) + 5 * 86400000 : endOfIstDay(Date.now()) + 4 * 86400000;
+    assert.ok(Math.abs(v5.data.subscription.currentPeriodEnd - want) < 2000, "5 days added");
+    // one pack at a time: while this plan runs, only a top-up with the same pack is open
+    const pk = v5.data.subscription.packDays;
+    const other = pk === 15 ? 5 : 15;
+    assert.equal((await p.post("/api/payments/order", { plan: "owner", days: other })).status, 409);
+    assert.equal((await p.post("/api/payments/order", { plan: "owner", days: pk })).status, 200);
     assert.equal((await p.post("/api/payments/order", { plan: "owner", days: 7 })).status, 400);
   }
-  assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 5 })).data.amount, 2900);
-  assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 15 })).data.amount, 5900);
+  // the customer's 30-day pass is running: 5 and 15 days wait till it ends, a 30-day top-up is open
+  assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 5 })).status, 409);
+  assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 30 })).status, 200);
   assert.equal((await c.post("/api/payments/order", { plan: "customer", days: 7 })).status, 400);
 });
 
@@ -890,10 +899,89 @@ test("offers are a list of items: the best deal sets the price, bad items are re
   assert.equal(bad.status, 400, JSON.stringify(bad.data));
   const r = await p.post("/api/owner/offers", { title: "Evening sweets", category: "food", endsAt: Date.now() + 20 * 60000,
     items: [{ n: "Kaju katli", a: 400, p: 200 }, { n: "Samosa (4)", a: 60, p: 40 }] });
-  if (r.status === 412) return; // posting hours or today's 3 posts already used by earlier tests
+  // posting hours, or today's 3 posts already used by earlier tests (ended offers still count)
+  if (r.status === 412 || (r.status === 409 && /offers a day/.test(r.data?.error || ""))) return;
   assert.equal(r.status, 200, JSON.stringify(r.data));
   const mine = (await p.get("/api/owner/offers")).data.find((o) => o.id === r.data.id);
   assert.equal(mine.price, 200); assert.equal(mine.origPrice, 400);
   assert.deepEqual(mine.items.map((i) => i.n), ["Kaju katli", "Samosa (4)"]);
   await p.post(`/api/owner/offers/${r.data.id}/end`);
+});
+
+test("admin filters by area and category; Business Pro day packs; maintenance off ends a running window", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const areas = (await a.get("/api/admin/areas")).data;
+  assert.ok(areas.states.length >= 1 && areas.cities.length >= 1 && areas.pincodes.length >= 1, JSON.stringify(areas));
+  const pin = areas.pincodes[0];
+  const inPin = (await a.get(`/api/admin/businesses?pincode=${pin.pincode}`)).data;
+  assert.ok(inPin.length >= 1 && inPin.every((b) => b.pincode === pin.pincode));
+  const byCat = (await a.get(`/api/admin/businesses?category=${inPin[0].category}&state=${encodeURIComponent(pin.state)}`)).data;
+  assert.ok(byCat.length >= 1 && byCat.every((b) => b.categories.includes(inPin[0].category) && b.state === pin.state));
+  assert.equal((await a.get("/api/admin/businesses?category=no-such-category")).data.length, 0);
+  assert.equal((await a.get(`/api/admin/businesses?q=${encodeURIComponent(inPin[0].name.slice(0, 4))}`)).data.some((b) => b.id === inPin[0].id), true);
+  const s = (await a.get(`/api/admin/stats?pincode=${pin.pincode}`)).data;
+  assert.ok(s.totals.partners >= 1 && s.filter.pincode === pin.pincode);
+  assert.equal((await a.get("/api/admin/stats?category=no-such-category")).data.totals.partners, 0);
+  assert.equal((await a.get(`/api/admin/pincodes?state=${encodeURIComponent(pin.state)}`)).status, 200);
+
+  // packs paid outside the app: 5, 15 or 30 days added to the current end date
+  const before = (await a.post(`/api/admin/businesses/${inPin[0].id}/plan`, { action: "pack", days: 5 })).data.planUntil;
+  const after = (await a.post(`/api/admin/businesses/${inPin[0].id}/plan`, { action: "pack", days: 15 })).data.planUntil;
+  assert.ok(before > Date.now() && Math.round((after - before) / 86400000) === 15);
+  assert.equal((await a.post(`/api/admin/businesses/${inPin[0].id}/plan`, { action: "pack", days: 7 })).status, 400);
+  assert.equal((await a.post(`/api/admin/businesses/${inPin[0].id}/plan`, { action: "extendTrial", days: 120 })).status, 200);
+
+  // switching maintenance off also ends a window that is running now
+  await a.post("/api/admin/settings", { maintenance: { on: false, from: Date.now() - 60000, until: Date.now() + 3600000, apps: ["customer", "partner"] } });
+  assert.equal((await a.get("/api/admin/settings")).data.maintenance.from != null, true);
+  const off = (await a.post("/api/admin/settings", { maintenance: { endNow: true } })).data;
+  assert.equal(off.maintenance.from, null);
+});
+
+test("My items (names only), optional quantity, and plans counted from Day 1 till 11:59 PM", async () => {
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  const a1 = (await o.post("/api/owner/items", { name: "Chicken biryani (full)" })).data;
+  assert.ok(a1.id && a1.name === "Chicken biryani (full)");
+  assert.equal((await o.post("/api/owner/items", { name: "chicken BIRYANI (full)" })).data.id, a1.id); // no duplicates
+  await o.post("/api/owner/items", { name: "Rice; 25 kg > bag" });
+  let mine = (await o.get("/api/owner/items")).data;
+  assert.ok(mine.some((x) => x.name === "Rice 25 kg bag"), JSON.stringify(mine)); // ";" and ">" taken out
+  assert.equal((await o.post("/api/owner/items", { name: "x" })).status, 400);
+  assert.equal((await o.post(`/api/owner/items/${a1.id}/remove`)).data.removed, true);
+  mine = (await o.get("/api/owner/items")).data;
+  assert.ok(!mine.some((x) => x.id === a1.id));
+  assert.equal((await o.post(`/api/owner/items/${a1.id}/remove`)).status, 404);
+
+  // a post with a quantity: the quantity is kept, and the posted name joins My items
+  const r = await o.post("/api/owner/offers", { title: "Lunch specials", category: "food", items: [{ n: "Mutton biryani (full)", a: 380, p: 299, q: "5 plates" }], endsAt: Date.now() + 3600000 });
+  if (r.status === 200) {
+    assert.equal(r.data.items[0].q, "5 plates");
+    assert.ok((await o.get("/api/owner/items")).data.some((x) => x.name === "Mutton biryani (full)"));
+  }
+
+  // Day 1 rule: a 5-day pack runs till 11:59:59 PM India time on the 5th day, counting today
+  const ad = client("admin"); await ad.login("admin@test.lastpick.in");
+  const me = (await o.get("/api/me")).data;
+  const id = me.user?.id || me.id;
+  await ad.post(`/api/admin/businesses/${id}/plan`, { action: "lock" }).catch(() => {});
+  const sub = (await o.get("/api/me/subscriptions")).data.owner;
+  const IST = 19800000, dayOf = (t) => Math.floor((t + IST) / 86400000);
+  if (sub?.active && sub.packDays) {
+    const days = dayOf(sub.currentPeriodEnd) - dayOf(sub.periodStart) + 1;
+    assert.ok(days >= sub.packDays, JSON.stringify(sub));
+    assert.equal(new Date(sub.currentPeriodEnd + IST).getUTCHours(), 23);
+  }
+});
+
+test("admin: Customer Pass switch, Business Pro counts per pincode", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const before = (await a.get("/api/admin/settings")).data.customerPass;
+  assert.equal(typeof before, "boolean");
+  assert.equal((await a.post("/api/admin/settings", { customerPass: !before })).data.customerPass, !before);
+  assert.equal((await client("customer").get("/api/config")).data.customersFree, before); // switched: free is now the opposite of the pass
+  await a.post("/api/admin/settings", { customerPass: before });
+  const s = (await a.get("/api/admin/stats")).data.totals;
+  assert.ok(Number.isInteger(s.ownersEnding) && Number.isInteger(s.customersRegistered), JSON.stringify(s));
+  const pins = (await a.get("/api/admin/pincodes")).data.pincodes;
+  assert.ok(pins.length && pins.every((x) => Number.isInteger(x.subs) && Number.isInteger(x.ending)));
 });

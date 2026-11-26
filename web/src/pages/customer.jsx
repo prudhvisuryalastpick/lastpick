@@ -4,7 +4,7 @@ import { SponsoredBanner } from "./revenue.jsx";
 import { StickerHero, IconSticker } from "./hero.jsx";
 import { ContactCard } from "./contactus.jsx";
 import { Logo } from "../lib/brand.jsx";
-import { InstallTopButton, useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
+import { InstallTopButton, useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, LiveTimer, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
 import { APP_NAME, CATEGORIES, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, MAJOR_CITIES, PARTNER_URL, PLANS, REPORT_REASONS, categoryOf, cityKey } from "../lib/config.js";
 import { HOME_TILES, Icon, catStyle } from "../lib/icons.jsx";
 import { RatingBadge, ReviewSheet, ReviewsBlock } from "./reviews.jsx";
@@ -126,8 +126,8 @@ export function Home() {
         </>
       ) : <>
         {config?.night
-          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
-          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels are available 24×7.</span></div>}
+          ? <div className="nightcard"><Icon d="moon" size={22} /><span><b>Night hours.</b> Only hotels and local ads are available 24×7. Other offers open again at {hourText(hours.open)} and run till {hourText(hours.close)}.</span></div>
+          : <div className="rulecard"><Icon d="clock" size={20} /><span><b>Today's deals only.</b> Offers are shown from {hourText(hours.open)} to {hourText(hours.close)}, valid for today only and removed at 12 midnight. Only hotels and local ads are available 24×7.</span></div>}
         {!isCustomer && session && <a className="cbanner" href="#/plans"><span className="bi"><Icon d="lock" size={20} /></span><span>{PLANS.customer.tagline} · just {PLANS.customer.perDay} ({rupee(PLANS.customer.price)} for {PLANS.customer.period}). See shops' numbers and contact them.</span></a>}
         {error && <div className="pad"><div className="error">{error}</div><TicketHint /></div>}
         {stats?.joined?.length > 0 && <JoinedTicker joined={stats.joined} />}
@@ -207,7 +207,7 @@ function Featured({ offers }) {
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 13, opacity: .95 }}><b style={{ fontSize: 16 }}>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s style={{ opacity: .7 }}>{rupee(o.origPrice)}</s>} · ends in {hoursText(o.endsAt - Date.now())}</span>
+        <span style={{ fontSize: 13, opacity: .95 }}><b style={{ fontSize: 16 }}>{o.price === 0 ? "Free" : rupee(o.price)}</b> {o.origPrice > o.price && <s style={{ opacity: .7 }}>{rupee(o.origPrice)}</s>} · ends in <LiveTimer end={o.endsAt} /></span>
         <span className="go" style={{ color: bg }}>See deal</span>
       </div>
       {offers.length > 1 && <div className="dots" onClick={(e) => e.preventDefault()}>{offers.map((x, k) => <button key={x.id} className={k === i % offers.length ? "on" : ""} aria-label={`Banner ${k + 1}`} onClick={(e) => { e.preventDefault(); setI(k); }} />)}</div>}
@@ -236,7 +236,7 @@ function MiniRail({ title, icon, color, items, action, onAction }) {
           <a key={o.id} className="mini" href={"#/offer/" + o.id}>
             <OfferImage offer={o} className="mt" size={34}>
               {offLabel(o) && <span className="b1">{offLabel(o)}</span>}
-              <span className="b2">Ends in {hoursText(o.endsAt - Date.now())}</span>
+              <span className="b2">Ends in <LiveTimer end={o.endsAt} /></span>
             </OfferImage>
             <span className="mb">
               <b className="tt">{o.title}</b>
@@ -260,7 +260,7 @@ function TripList({ items }) {
           <span className="r1"><span className="tt">{o.title}</span><span className="p">{rupee(o.price)}<small> /seat</small></span></span>
           <span className="r2">
             <span className="ini" style={{ background: "#FCE9F2", color: "#9C1F5A" }}>{initialsOf(o.business?.name)}</span>
-            <span className="ellipsis">{o.business?.name} · ends in {hoursText(o.endsAt - Date.now())}</span>
+            <span className="ellipsis">{o.business?.name} · ends in <LiveTimer end={o.endsAt} /></span>
             {o.quantity && <span className="seats" style={{ color: "#9C1F5A" }}>{o.quantity}</span>}
           </span>
         </a>
@@ -405,13 +405,13 @@ export function OfferPage({ id }) {
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
         {offer.items?.length > 0 && <div className="olist" aria-label="Items in this offer">{offer.items.map((it, i) => (
-          <div className="oi" key={i}><span>{it.n}</span><span><s>{rupee(it.a)}</s><b>{rupee(it.p)}</b><small>{Math.round((1 - it.p / it.a) * 100)}% off</small></span></div>
+          <div className="oi" key={i}><span>{it.n}{it.q && <em className="qleft">{it.q} left</em>}</span><span><s>{rupee(it.a)}</s><b>{rupee(it.p)}</b><small>{Math.round((1 - it.p / it.a) * 100)}% off</small></span></div>
         ))}</div>}
         <OfferQuote offer={offer} big />
 
         <div className="box row" style={{ marginTop: 14 }}>
           <div className="price">{isJob(offer) && <span className="muted small" style={{ marginRight: 6 }}>Pay</span>}<b style={{ fontSize: 26 }}>{offer.price === 0 ? "Free" : rupee(offer.price)}</b>{!isJob(offer) && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pill p-ok">{discount(offer)}% off</span></>}</div>
-          <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Offer ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : hoursText(rem)}</b>{!ended && <div className="muted small">at {clockIST(offer.endsAt)} today</div>}</div>
+          <div style={{ textAlign: "right" }}><div className="muted small">{ended ? "Status" : "Offer ends in"}</div><b style={{ color: rem < 3600000 ? "var(--bad)" : "var(--ink)" }}>{ended ? "Ended" : <LiveTimer end={offer.endsAt} />}</b>{!ended && <div className="muted small">at {clockIST(offer.endsAt)} {new Date(offer.endsAt + 19800000).getUTCDate() === new Date(Date.now() + 19800000).getUTCDate() ? "today" : "tomorrow"}</div>}</div>
         </div>
         {offer.quantity && <div className="row" style={{ marginTop: 10 }}><span className="muted">Available</span><b>{offer.quantity}</b></div>}
 

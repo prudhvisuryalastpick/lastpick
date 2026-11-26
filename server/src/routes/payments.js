@@ -5,7 +5,7 @@
 // Flow: the app asks for an order (POST /api/payments/order) → opens Razorpay Checkout → sends Razorpay's reply to
 // POST /api/payments/verify, which checks the signature and extends the plan. If the app never gets that reply (closed
 // tab, lost network), POST /api/payments/check asks Razorpay whether the order was paid. Each order counts only once.
-import { CUSTOMERS_FREE } from "../plans.js";
+import { customersFree } from "../plans.js";
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import { needUser } from "../auth.js";
@@ -14,7 +14,7 @@ import { one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { notify, PLAN_NAMES } from "../notify.js";
 import { limit } from "../ratelimit.js";
-import { audit, mapSub } from "../shared.js";
+import { addPlanDays, audit, mapSub } from "../shared.js";
 import { bad, denied, notFound, precondition, str } from "../util.js";
 import { PAY_PACKS } from "./revenue.js";
 
@@ -36,10 +36,10 @@ async function razorpay(method, path, body) {
 }
 
 // The plan this app sells: customers buy the Customer Pass, partners buy Business Pro.
-function planFor(ctx) {
+async function planFor(ctx) {
   const plan = ctx.body.plan;
   if (plan !== "customer" && plan !== "owner") throw bad("Unknown plan");
-  if (plan === "customer" && CUSTOMERS_FREE) throw bad("LastPick is free for customers. There's nothing to pay.");
+  if (plan === "customer" && (await customersFree())) throw bad("LastPick is free for customers. There's nothing to pay.");
   if (SERVICE !== "all" && plan !== (SERVICE === "partner" ? "owner" : "customer")) throw denied("This plan can't be bought in this app");
   return plan;
 }
@@ -57,13 +57,7 @@ async function fulfil(order, paymentId) {
     if (!r.rows.length) return false; // already counted
     const p = r.rows[0];
     await c.query("INSERT INTO plan_sales (user_id, plan, months, amount, source) VALUES ($1, $2, $3, $4, 'gateway')", [p.user_id, p.plan, p.months, p.amount]);
-    await c.query(
-      `INSERT INTO subscriptions (user_id, plan, provider, status, months, current_period_end, provider_subscription_id)
-       VALUES ($1, $2, 'razorpay', 'active', $3, now() + make_interval(days => $5), $4)
-       ON CONFLICT (user_id, plan) DO UPDATE SET provider = 'razorpay', status = 'active', months = $3, provider_subscription_id = $4, updated_at = now(),
-         current_period_end = (CASE WHEN subscriptions.status IN ('active', 'cancelled') AND subscriptions.current_period_end > now()
-                                    THEN subscriptions.current_period_end ELSE now() END) + make_interval(days => $5)`,
-      [p.user_id, p.plan, p.months, paymentId, p.days]);
+    await addPlanDays((sql, params) => c.query(sql, params), { userId: p.user_id, plan: p.plan, days: p.days, provider: "razorpay", paymentId, months: p.months });
     return p;
   });
   if (done) {
@@ -91,7 +85,7 @@ export function paymentRoutes(r) {
   r.post("/api/payments/order", async (ctx) => {
     const u = needUser(ctx);
     if (!paymentsOn()) throw precondition("Online payment is not set up yet. Please contact support.");
-    const plan = planFor(ctx);
+    const plan = await planFor(ctx);
     if (plan === "owner") {
       const b = await one("SELECT status FROM businesses WHERE id = $1", [u.id]);
       if (!b) throw precondition("Register your business first.");
@@ -101,6 +95,9 @@ export function paymentRoutes(r) {
     const days = Number(ctx.body.days ?? 30);
     const pack = PAY_PACKS[plan].find((x) => x.days === days);
     if (!pack) throw bad(`Pick one of: ${PAY_PACKS[plan].map((x) => `${x.days} days`).join(", ")}`);
+    // one pack at a time: while a plan runs, only a top-up with the same pack (5, 15 or 30 days) is open
+    const run = await one("SELECT pack_days FROM subscriptions WHERE user_id = $1 AND plan = $2 AND status IN ('active', 'cancelled') AND current_period_end > now()", [u.id, plan]);
+    if (run?.pack_days && run.pack_days !== days) throw precondition(`Your ${run.pack_days}-day plan is running. Top up with ${run.pack_days} more days, or pick another pack after it ends.`);
     const amount = pack.price;
     const ord = await razorpay("POST", "/orders", {
       amount: amount * 100, currency: "INR", receipt: `${plan}-${days}d-${Date.now()}`.slice(0, 40),

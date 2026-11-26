@@ -5,9 +5,10 @@ import { CUSTOMER_PASS } from "./config.js";
 import { one } from "./db.js";
 import { getSetting, setSetting } from "./settings.js";
 
-// Customers use LastPick for free (launch decision: get known first). The Customer Pass code below is kept, switched
-// off; the CUSTOMER_PASS=on setting brings it back.
-export const CUSTOMERS_FREE = !CUSTOMER_PASS;
+// Customers use LastPick for free unless the admin switches the Customer Pass on (Admin → Settings → Customer plan;
+// app_settings "customer_pass"). The CUSTOMER_PASS=on server setting is only the starting value.
+export async function customerPassOn() { return (await getSetting("customer_pass", CUSTOMER_PASS)) === true; }
+export async function customersFree() { return !(await customerPassOn()); }
 
 export async function freeMode() { return (await getSetting("free_mode", false)) === true; }
 export async function setFreeMode(on, by) { await setSetting("free_mode", !!on, by); }
@@ -21,7 +22,7 @@ export const OWNER_ACTIVE_SQL = (b, free) => `(${free} OR ${b}.trial_ends_at > n
 
 // Is this user's plan active? (trial_ends_at is only set when an admin gives someone extra days by hand.)
 export async function planActive(uid, plan) {
-  if (plan === "customer" && CUSTOMERS_FREE) return true;
+  if (plan === "customer" && (await customersFree())) return true;
   if (await freeMode()) {
     if (plan === "customer") return true;
     const b = await one("SELECT status FROM businesses WHERE id = $1", [uid]);

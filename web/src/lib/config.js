@@ -114,6 +114,22 @@ export const CATEGORIES = [
 ];
 // Not a business category: any shop can post a job opening for workers at its own shop. Shown only to
 // customers in that local area (10 km / same pincode), like an advertisement.
+// Adding an item to My items: an optional choice that becomes part of the name ("Chicken biryani (full)"),
+// and the units a partner can pick for the optional quantity ("10 plates left").
+export const ITEM_OPTIONS = {
+  food: { label: "Portion", options: ["Full", "Half"], units: ["plates", "pieces", "boxes", "kg"], example: "Chicken biryani" },
+  stay: { label: "Room type", options: ["AC", "Non-AC"], units: ["rooms"], example: "Deluxe room, 2 guests" },
+  beauty: { label: "For", options: ["Men", "Women", "Kids"], units: ["slots"], example: "Haircut" },
+  makeup: { units: ["bookings", "slots"], example: "Party makeup" },
+  gym: { units: ["passes", "slots"], example: "Day pass" },
+  farm: { units: ["bags", "kg", "dozen", "bunches"], example: "Sona masoori rice, 25 kg bag" },
+  fashion: { label: "Size", options: ["S", "M", "L", "XL"], units: ["pieces", "sets"], example: "Cotton kurta" },
+  appliances: { label: "Condition", options: ["New", "Open box"], units: ["units"], example: "1.5 ton split AC, 3 star" },
+  ads: { units: ["seats", "slots"], example: "Spoken English classes, 1 month" },
+  other: { units: ["pieces", "units", "slots"], example: "Bike service" },
+};
+export const itemOptions = (category) => ITEM_OPTIONS[category] || ITEM_OPTIONS.other;
+
 export const JOB_CATEGORY = { id: "jobs", label: "Job opening at my shop", icon: "📣" };
 export const normCategory = (id) => (id === "jobs" ? id : CATEGORIES.some((c) => c.id === id) ? id : "other");
 export const categoryOf = (id) => (id === "jobs" ? JOB_CATEGORY : CATEGORIES.find((c) => c.id === normCategory(id)));
@@ -128,12 +144,12 @@ export const EMOJIS = ["🍰", "🥐", "🍱", "🥬", "🛏️", "💒", "🚌"
 
 // Everything posted is for the same day (India time). Keep in sync with server/src/util.js.
 export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing runs past today
-// Hotels stay open 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
+// Hotels and local ads run 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
 // and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
 // Everything is removed at 12 midnight.
-export const ALWAYS_OPEN = ["stay"]; // 24x7: hotels only
+export const ALWAYS_OPEN = ["stay", "ads"]; // 24x7, offers up to 24 hours: hotels and local ads
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
-// Hotels run 24×7: post any time, up to 24 hours.
+// Hotels and local ads run 24×7: post any time, up to 24 hours.
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);
 // The % in a title always matches the prices: "40% off" with 400 -> 80 becomes "80% off". Same rule as the server.
 export function fixTitlePercent(title, pct) {

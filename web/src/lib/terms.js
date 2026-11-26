@@ -56,7 +56,7 @@ export const TERMS_SECTIONS = [
     [
       `Only businesses verified by ${APP_NAME} with an active Business Pro plan can post. Verification is a basic check, not a guarantee of your business.`,
       `You may post only in the one category you registered (for example, a bakery posts only food offers), up to 3 posts a day.`,
-      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
+      `Offers are for the same day only. You can post between 4 AM and 10:30 PM (India time). Every offer ends by 11 PM and is closed automatically, even if you forget to end it, and is removed at 12 midnight. Only hotels and local ads run 24×7: they may post at any time and an offer may run for up to 24 hours.`,
       `Post only genuine offers you can honour. The "normal price" must be the price you really charge; the offer price is the final price with no hidden charges. The discount shown is worked out from these two prices.`,
       `Hold every licence and registration your business needs (for example FSSAI for food, permits for travel operators, GST where it applies) and follow all laws, including consumer protection, weights and measures, and labour laws.`,
       `Use a customer's details only to reply about the offer they showed interest in. No marketing lists, spam, resale or sharing with anyone else.`,
@@ -137,7 +137,7 @@ export async function sha256Hex(text) {
 const COMMON_PARTNER = [
   `I am the owner of this business, or authorised by the owner, and the details I give (name, address, shop location, contact number) are true. ${APP_NAME} may verify them and may refuse or remove my business.`,
   `I will post only genuine same-day offers in my registered category, at real prices, with no hidden charges, and I will honour every offer I post.`,
-  `I can post between 4 AM and 10:30 PM (India time), up to 3 posts a day; every offer ends by 11 PM and is closed automatically. Only hotels may post at any time, for up to 24 hours.`,
+  `I can post between 4 AM and 10:30 PM (India time), up to 3 posts a day; every offer ends by 11 PM and is closed automatically. Only hotels and local ads may post at any time, for up to 24 hours.`,
   `Customers' names and details shared with me are only for replying about my offer. I will not misuse, sell or share them.`,
   `I am solely responsible for my goods, services, staff, premises, licences, taxes and my dealings with customers. ${APP_NAME} is only a platform and is not liable for them.`,
   `Business Pro costs ${rupee(PLANS.owner.price)} a month and is needed to post. ${APP_NAME} may pause or remove my business for breaking these rules, without refund for the period lost.`,
@@ -216,3 +216,25 @@ export function partnerTermsText(category) {
   }
   return lines.join("\n");
 }
+
+// The pop-up a partner reads and accepts before every post (scroll to the end, then "I understand, post my offer").
+// The acceptance is recorded with the offer (rulesVersion).
+export const POSTING_RULES_VERSION = "2026-11-26";
+export const POSTING_RULES = {
+  common: [
+    "Post only genuine offers for your own business. Do not post anything that breaks Indian law, harms public order or national security, promotes hatred or violence, or is obscene, false or misleading.",
+    "If you do, we will remove the offer at once. Depending on how serious it is, we may suspend or cancel your partnership, and report it to the police or the right authority for legal action. Your account details and posts may be shared with them as the law requires.",
+  ],
+  byCategory: {
+    food: "Food: no expired, stale or unhygienic food, and no food you aren't licensed (FSSAI) to sell.",
+    stay: "Hotels: no rooms without guest ID checks, and nothing illegal on your premises.",
+    beauty: "Salon: no fake or expired products, and no medical or treatment claims you can't back up.",
+    makeup: "Makeup: no counterfeit or expired cosmetics, and no false \"guaranteed results\" claims.",
+    gym: "Gym: no steroids, banned supplements or unsafe health promises.",
+    farm: "Farm fresh: no spoiled produce, banned pesticides or short weights.",
+    fashion: "Fashion: no fake branded goods or copied labels.",
+    appliances: "Home appliances: no stolen, smuggled or fake-warranty goods, and nothing sold above MRP.",
+    ads: "Local ads: no political, religious, adult, betting or gambling ads, and no ads for anyone else's business.",
+    other: "Nothing that needs a licence you don't have.",
+  },
+};

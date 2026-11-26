@@ -27,7 +27,7 @@ export function maintenanceState(s, now = Date.now()) {
 }
 
 export async function maintenanceNow() {
-  return cached("maintenance", 15000, async () => maintenanceState(await maintenanceSetting()));
+  return cached("maintenance", 5000, async () => maintenanceState(await maintenanceSetting()));
 }
 
 export async function setMaintenance(body, by) {
@@ -36,6 +36,9 @@ export async function setMaintenance(body, by) {
   if (typeof body.on === "boolean") next.on = body.on;
   if ("from" in body) next.from = toMs(body.from);
   if ("until" in body) next.until = toMs(body.until);
+  // "end now" (the switch turned off while a scheduled window is running) also ends that window
+  if (body.endNow === true) next.on = false;
+  if (body.endNow === true && next.from != null && next.from <= Date.now() && (next.until == null || next.until > Date.now())) { next.from = null; next.until = null; }
   if (Number.isNaN(next.from) || Number.isNaN(next.until)) throw new HttpError(400, "Please pick valid times", "invalid-argument");
   if (next.from != null && next.until != null && next.until <= next.from) throw new HttpError(400, "\"Until\" must be after \"From\"", "invalid-argument");
   if (Array.isArray(body.apps)) next.apps = body.apps.filter((a) => APPS.includes(a));

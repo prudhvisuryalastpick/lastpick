@@ -24,11 +24,11 @@ async function offerFor(ctx, id) {
   return o;
 }
 
-// After working hours only hotels stay listed.
+// After working hours only hotels and local ads stay listed.
 const hoursSql = () => (isNight() ? `o.category IN (${ALWAYS_OPEN.map((c) => `'${c}'`).join(", ")})` : "true");
 function needOpen(o) {
   if (isNight() && !runs24x7(o.category)) {
-    const e = precondition(`This business is closed for the night. Contact them after ${BUSINESS_HOURS.open} AM. Hotels stay open 24×7.`);
+    const e = precondition(`This business is closed for the night. Contact them after ${BUSINESS_HOURS.open} AM. Hotels and local ads stay open 24×7.`);
     e.code = "closed_for_night";
     throw e;
   }
