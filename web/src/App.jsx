@@ -72,7 +72,7 @@ function Page({ path, query }) {
   if (path === "/account/privacy") return <PrivacyCenter />;
   if (path === "/delete-account") return <DeleteAccountInfo />;
   if (path === "/grievance") return <Grievance />;
-  if (path === "/admin") return <Admin />;
+  if (path === "/admin" && IS_ADMIN_APP) return <Admin />; // the customer and partner apps have no admin pages
   if (path === "/savings") return <Savings />;
   if (path === "/owner/insights") return <OwnerGate allowWithoutPlan><BusinessInsights /></OwnerGate>;
   if (path === "/support") return <Support />;

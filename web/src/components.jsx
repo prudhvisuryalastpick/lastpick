@@ -10,12 +10,12 @@ import { msToNextSlot, quoteForOffer, stripQuotes } from "./lib/quotes.js";
 export const Spinner = () => <div className="spinner" aria-label="Loading" />;
 
 // Shown under a problem message (customer and partner apps): where to get help, and how long it takes.
-export const TICKET_DAYS = "1–5 working days";
+export const TICKET_DAYS = "1–5 business days";
 // payment: ask for a clear screenshot of the payment when they e-mail us
 export function TicketHint({ style, payment = false }) {
   if (IS_ADMIN_APP) return null;
   const mail = <a className="link" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(payment ? "Payment problem" : "Problem in LastPick")}`}>{SUPPORT_EMAIL}</a>;
-  return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/grievance">Raise a ticket</a>, or e-mail {payment ? "a clear screenshot of the payment" : "the details (a screenshot helps)"} to {mail}. We resolve it in {TICKET_DAYS}.</div>;
+  return <div className="muted small" style={{ marginTop: 6, ...style }}>Still a problem? <a className="link" href="#/support">Get help</a>, or e-mail {payment ? "a clear screenshot of the payment" : "the details (a screenshot helps)"} to {mail}. We reply within {TICKET_DAYS}.</div>;
 }
 
 // ---- live counts (real numbers from /api/stats, refreshed every minute) ----

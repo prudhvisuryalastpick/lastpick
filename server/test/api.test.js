@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // a consent as the app sends it: the whole Terms were read and their exact text is attached
-import { createHash } from "node:crypto";
+import { createHash, createVerify, generateKeyPairSync } from "node:crypto";
 import { CONSENT_VERSION as TERMS_V } from "../src/util.js";
 const termsDoc = () => { const docText = `LastPick Terms and Conditions\nVersion ${TERMS_V}\n\n1. About these terms\nTest text.`; return { readFull: true, docText, docHash: createHash("sha256").update(docText).digest("hex") }; };
 const fullConsent = (extra = {}) => ({ adult: true, items: ["account"], ...termsDoc(), ...extra });
@@ -26,7 +26,13 @@ const waSent = [];
 // a fake Razorpay API: orders, and the payments of an order (rzPaid = orders the "customer" paid)
 const RZ_PORT = 18091, RZ_SECRET = "rz_test_secret";
 const rzOrders = [], rzPaid = new Map();
-const WA_ENV = { RAZORPAY_KEY_ID: "rzp_test_key", RAZORPAY_KEY_SECRET: RZ_SECRET, RAZORPAY_API_BASE: `http://localhost:${RZ_PORT}`, WA_LOGIN: "on", WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
+// a fake Google Play: OAuth token + the purchases API (gpPurchases: token -> purchase as Google would report it)
+const GP_PORT = 18092;
+const gpKeys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const GP_ACCOUNT = JSON.stringify({ client_email: "lastpick@test.iam.gserviceaccount.com", private_key: gpKeys.privateKey.export({ type: "pkcs8", format: "pem" }) });
+const gpPurchases = new Map(), gpConsumed = [];
+const WA_ENV = { GOOGLE_PLAY_SERVICE_ACCOUNT: Buffer.from(GP_ACCOUNT).toString("base64"), GOOGLE_PLAY_API_BASE: `http://localhost:${GP_PORT}`, GOOGLE_OAUTH_URL: `http://localhost:${GP_PORT}/token`,
+  RAZORPAY_KEY_ID: "rzp_test_key", RAZORPAY_KEY_SECRET: RZ_SECRET, RAZORPAY_API_BASE: `http://localhost:${RZ_PORT}`, WA_LOGIN: "on", WA_PHONE_NUMBER_ID: "123456", WA_ACCESS_TOKEN: "test-token", WA_UPDATE_TEMPLATE: "lastpick_update", WA_API_BASE: `http://localhost:${WA_PORT}` };
 
 async function sh(cmd, args, env = {}) {
   return new Promise((resolve, reject) => {
@@ -104,6 +110,26 @@ before(async () => {
   });
   await new Promise((r) => rz.listen(RZ_PORT, r));
   procs.push({ kill: () => rz.close() });
+  const gp = http.createServer((req, res) => {
+    let b = ""; req.on("data", (d) => (b += d));
+    req.on("end", () => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/token") {
+        // check the service account's signed JWT like Google does
+        const jwt = decodeURIComponent(new URLSearchParams(b).get("assertion") || "").split(".");
+        const ok = jwt.length === 3 && createVerify("RSA-SHA256").update(`${jwt[0]}.${jwt[1]}`).verify(gpKeys.publicKey, Buffer.from(jwt[2].replace(/-/g, "+").replace(/_/g, "/"), "base64"));
+        res.writeHead(ok ? 200 : 401); return res.end(ok ? '{"access_token":"gp-token","expires_in":3600}' : '{"error":"invalid_grant"}');
+      }
+      if (req.headers.authorization !== "Bearer gp-token") { res.writeHead(401); return res.end("{}"); }
+      const m = req.url.match(/^\/androidpublisher\/v3\/applications\/in\.lastpick\.partner\/purchases\/products\/([^/]+)\/tokens\/([^/:]+)(:consume)?$/);
+      const p = m && gpPurchases.get(decodeURIComponent(m[2]));
+      if (!p || p.productId !== m[1]) { res.writeHead(404); return res.end('{"error":{"message":"not found"}}'); }
+      if (m[3]) { gpConsumed.push(m[2]); p.consumptionState = 1; return res.end("{}"); }
+      res.end(JSON.stringify(p));
+    });
+  });
+  await new Promise((r) => gp.listen(GP_PORT, r));
+  procs.push({ kill: () => gp.close() });
   await Promise.all(Object.keys(PORTS).map(startServer));
 });
 after(() => procs.forEach((p) => p.kill("SIGTERM")));
@@ -1117,4 +1143,50 @@ test("support desk: ticket numbers, photos, area in-charges see only their area,
   li = await d.post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "newdesk1234" }); assert.equal(li.status, 200);
   assert.equal((await a.post(`/api/desk/incharges/${made.data.id}/remove`)).status, 200);
   assert.equal((await d.post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "newdesk1234" })).status, 400);
+});
+
+test("Google Play in the partner app: same packs, checked with Google, counted once, test purchases are ₹0", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  assert.equal((await o.get("/api/config")).data.googlePlay, true);
+  // Business Pro packs follow the same rules as the website
+  const bad = await o.post("/api/payments/google/start", { plan: "owner", days: 7 });
+  assert.equal(bad.status, 400);
+  const st = await o.post("/api/payments/google/start", { plan: "owner", days: 5 });
+  assert.equal(st.status, 200, JSON.stringify(st.data));
+  assert.equal(st.data.productId, "business_pro_5d");
+  // Google reports the purchase (a license tester: purchaseType 0 = test)
+  gpPurchases.set("tok-owner-5", { productId: "business_pro_5d", purchaseState: 0, consumptionState: 0, purchaseType: 0, orderId: "GPA.1111", obfuscatedExternalAccountId: st.data.accountId, obfuscatedExternalProfileId: st.data.ref });
+  // someone else can't claim it
+  const c = client("customer"); await c.post("/api/auth/login", { email: "freecust@test.lastpick.in", password: "longpassword" }).then((r) => { c.token = r.data.token; });
+  assert.notEqual((await c.post("/api/payments/google/confirm", { productId: "business_pro_5d", purchaseToken: "tok-owner-5" })).status, 200);
+  const ok = await o.post("/api/payments/google/confirm", { productId: "business_pro_5d", purchaseToken: "tok-owner-5" });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  assert.equal(ok.data.paid, true);
+  assert.equal(ok.data.subscription.plan, "owner");
+  assert.ok(gpConsumed.includes("tok-owner-5"), "consumed so the pack can be bought again");
+  const end1 = ok.data.subscription.currentPeriodEnd;
+  // sending it again doesn't add more days
+  const again = await o.post("/api/payments/google/confirm", { productId: "business_pro_5d", purchaseToken: "tok-owner-5" });
+  assert.equal(again.data.subscription.currentPeriodEnd, end1);
+  // a cancelled purchase adds nothing
+  const st2 = await o.post("/api/payments/google/start", { plan: "owner", days: 5 });
+  gpPurchases.set("tok-cancel", { productId: "business_pro_5d", purchaseState: 1, purchaseType: 0, obfuscatedExternalAccountId: st2.data.accountId, obfuscatedExternalProfileId: st2.data.ref });
+  assert.equal((await o.post("/api/payments/google/confirm", { productId: "business_pro_5d", purchaseToken: "tok-cancel" })).status, 400);
+  // pending (e.g. UPI not finished yet): nothing yet
+  gpPurchases.set("tok-pending", { productId: "business_pro_5d", purchaseState: 2, obfuscatedExternalAccountId: st2.data.accountId, obfuscatedExternalProfileId: st2.data.ref });
+  assert.equal((await o.post("/api/payments/google/confirm", { productId: "business_pro_5d", purchaseToken: "tok-pending" })).data.pending, true);
+  // a rental listing paid in the app goes live
+  const me = (await o.get("/api/me")).data;
+  await a.post(`/api/admin/businesses/${me.id}/category`, { category: "rentals", reason: "test: rentals in the app" });
+  await o.post("/api/auth/login", { email: "owner@test.lastpick.in", password: PASSWORD }).then((r) => { o.token = r.data.token; });
+  const lr = await o.post("/api/owner/rentals", { kind: "work", type: "Coworking desk", rent: 4000 }); const l = lr.data; assert.equal(lr.status, 200, JSON.stringify(lr.data));
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  const m = (await o.post(`/api/owner/rentals/${l.id}/media`, { kind: "photo", type: "image/png", bytes: 100 })).data;
+  await o.post(`/api/owner/rentals/${l.id}/media/${m.mediaId}/data`, { data: png });
+  const rs = await o.post("/api/payments/google/start", { plan: "rental", days: 15, listingId: l.id });
+  assert.equal(rs.data.productId, "rental_15d", JSON.stringify(rs.data));
+  gpPurchases.set("tok-rental-15", { productId: "rental_15d", purchaseState: 0, consumptionState: 0, purchaseType: 0, orderId: "GPA.2222", obfuscatedExternalAccountId: rs.data.accountId, obfuscatedExternalProfileId: rs.data.ref });
+  const rc = await o.post("/api/payments/google/confirm", { productId: "rental_15d", purchaseToken: "tok-rental-15" }); assert.equal(rc.data.paid, true, JSON.stringify(rc.data));
+  assert.equal((await o.get(`/api/owner/rentals/${l.id}`)).data.status, "live");
 });

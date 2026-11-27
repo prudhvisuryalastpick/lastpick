@@ -166,7 +166,7 @@ export function RentalForm({ id }) {
         <div className="fld"><label>{live ? "Renew for" : "Show this listing for"}</label>
           <div className="grid2">{RENTALS.packs.map((p) => (
             <button key={p.days} type="button" className={"packbtn " + (days === p.days ? "on" : "")} aria-pressed={days === p.days} onClick={() => setDays(p.days)}><b>{p.days} days</b><span>{rupee(p.price)}</span></button>))}</div>
-          <span className="hint">Counted from today (Day 1); ends at 11:59 PM on the last day. {IS_NATIVE ? "Pay once on partner.lastpick.in." : "Pay once, securely with Razorpay."}</span></div>
+          <span className="hint">Counted from today (Day 1); ends at 11:59 PM on the last day. {IS_NATIVE ? "Pay once, securely with Google Play." : "Pay once, securely with Razorpay."}</span></div>
         <div className="gap">
           {l.id && <button type="button" className="btn ghost" disabled={busy} onClick={saveOnly}>{saving ? "Saving…" : "Save"}</button>}
           <button type="button" className="btn main" disabled={busy} onClick={post}>{saving ? "Posting…" : live ? `Renew · ${rupee(pack.price)}` : `Post listing · ${rupee(pack.price)}`}</button>

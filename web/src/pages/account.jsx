@@ -1,7 +1,7 @@
 import { Logo } from "../lib/brand.jsx";
 import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
-import { api, isLive } from "../api/index.js";
+import { api, isLive, canBuyInApp } from "../api/index.js";
 import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanBar, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
 import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay, CATEGORIES } from "../lib/config.js";
 import { isInstalled } from "../lib/install.js";
@@ -28,9 +28,10 @@ export function Plans({ plan: initial }) {
   const opt = p.packs.find((o) => o.days === (runPack || days)) || p.packs[p.packs.length - 1];
   const trialEnd = trial?.[plan];
   const left = daysLeft(trialEnd);
-  const payOn = !isLive || !!config?.payments; // Razorpay keys saved on the server
+  // website: Razorpay keys saved on the server; Android app: Google Play payments switched on
+  const payOn = IS_NATIVE ? canBuyInApp() && !!config?.googlePlay : !isLive || !!config?.payments;
   const free = !!config?.freeMode;
-  const canPay = !free && !IS_NATIVE && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
+  const canPay = !free && !!session && left === 0 && payOn && (plan !== "owner" || business?.status === "verified");
   const pay = async () => {
     if (plan === "customer" && !validPhone(profile?.phone)) { setErr("Add your phone number in Account first, so businesses can reach you."); return; }
     setBusy(true); setErr("");
@@ -107,7 +108,7 @@ export function Plans({ plan: initial }) {
             {runPack && <div className="note" style={{ textAlign: "center" }}>Your new days start right after {day(s.currentPeriodEnd)}, so you never lose a day.</div>}</>
           : <div className="box small"><b>{opt.days} days: {rupee(opt.price)}.</b> {left > 0
             ? "You already have access. You can buy a plan when your extra days end."
-            : IS_NATIVE ? "Plans can't be bought inside the app yet." : plan === "owner" && business?.status !== "verified" ? "You can pay once we verify your business." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
+            : IS_NATIVE && !payOn ? "Plans can't be bought in the app right now. Please try again later." : plan === "owner" && business?.status !== "verified" ? "You can pay once we verify your business." : `Online payment is coming soon. Until then, write to ${SUPPORT_EMAIL} and we turn your plan on after you pay.`}</div>}
         <div className="note">{plan === "owner"
           ? "Business Pro is for business partners we have verified: up to 3 offers a day in your own category."
           : "Customer Pass: see businesses' numbers and contact them."} {APP_NAME} only connects customers and businesses; offers are paid to the business directly. <a className="link" href="#/refund">Refund policy</a></div>

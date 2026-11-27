@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api } from "./api/index.js";
+import { api, finishGooglePurchases } from "./api/index.js";
 import { DEFAULT_LOCATION, MAJOR_CITIES, cityKey } from "./lib/config.js";
 import { distanceKm } from "./lib/format.js";
 import { DEFAULT_RADIUS_KM } from "./lib/geo.js";
@@ -132,6 +132,16 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => { refresh(); return api.onAuthChange(refresh); }, [refresh]);
+  // Android partner app: finish Google Play purchases that completed while the app was closed or offline
+  const signedIn = !!state.session;
+  useEffect(() => {
+    if (!signedIn) return;
+    const run = () => finishGooglePurchases().then((n) => { if (n) { refresh(); setToastMsg("Payment received. Your plan is active."); } });
+    run();
+    const back = () => { if (document.visibilityState === "visible") run(); };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [signedIn, refresh]);
 
   const loggedIn = !!state.session;
   // Idle timeout: after 15 minutes without any tap, typing or scrolling, log out automatically (also when the app is

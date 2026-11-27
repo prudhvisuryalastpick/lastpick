@@ -73,6 +73,12 @@ export const WA_API_BASE = env.WA_API_BASE || "https://graph.facebook.com"; // t
 export const RAZORPAY_KEY_ID = env.RAZORPAY_KEY_ID || "";
 export const RAZORPAY_KEY_SECRET = env.RAZORPAY_KEY_SECRET || "";
 export const RAZORPAY_API_BASE = env.RAZORPAY_API_BASE || "https://api.razorpay.com"; // tests point this at a fake server
+// Google Play payments in the partner app: a service account (JSON key, plain or base64) that may read and consume
+// the app's purchases (Play Console → Users and permissions). Tests point the two URLs at a fake server.
+export const GOOGLE_PLAY_SERVICE_ACCOUNT = env.GOOGLE_PLAY_SERVICE_ACCOUNT || "";
+export const GOOGLE_PLAY_PACKAGE = env.GOOGLE_PLAY_PACKAGE || "in.lastpick.partner";
+export const GOOGLE_PLAY_API_BASE = env.GOOGLE_PLAY_API_BASE || "https://androidpublisher.googleapis.com";
+export const GOOGLE_OAUTH_URL = env.GOOGLE_OAUTH_URL || "https://oauth2.googleapis.com/token";
 // Replies to LastPick e-mails go here.
 export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";
 

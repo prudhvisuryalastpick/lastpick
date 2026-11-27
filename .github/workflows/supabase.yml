@@ -10,6 +10,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #   CLOUDFLARE_API_TOKEN    Cloudflare → API Tokens ("Edit Cloudflare Workers", zone lastpick.in)
 #   CLOUDFLARE_ACCOUNT_ID   Cloudflare dashboard home, right side
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
+#   GOOGLE_PLAY_SERVICE_ACCOUNT  JSON key of a Google Cloud service account invited in Play Console (payments in the partner app)
 #   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET  Razorpay online payments (keys saved Nov 2026, updated) (Customer Pass ₹99 / Business Pro ₹499, 30 days per payment).
 #                             Razorpay Dashboard → Account & Settings → API Keys. Test keys (rzp_test_…) take no real money.
 #   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY  Cloudflare R2 (photos/videos), with CLOUDFLARE_ACCOUNT_ID; bucket lastpick-photos.
@@ -124,6 +125,8 @@ jobs:
         run: node scripts/seed.js
 
       - name: Function secrets
+        env:
+          GP_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
         run: |
           S="npx --yes supabase@latest secrets"
           # the sign-in secret is created once and then kept (changing it would sign everyone out)
@@ -146,6 +149,13 @@ jobs:
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >/dev/null
           else
             $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET >/dev/null 2>&1 || true
+          fi
+          # Google Play payments in the partner app: the service account's JSON key (saved in GitHub as-is)
+          if [ -n "$GP_ACCOUNT" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "GOOGLE_PLAY_SERVICE_ACCOUNT=$(printf '%s' "$GP_ACCOUNT" | base64 -w0)" >/dev/null
+          else
+            echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT not saved in GitHub: payments inside the partner app stay off"
+            $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" GOOGLE_PLAY_SERVICE_ACCOUNT >/dev/null 2>&1 || true
           fi
           # Cloudflare R2 for photos, videos and files (bucket lastpick-photos), only when both keys are saved in GitHub
           if [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.R2_SECRET_ACCESS_KEY }}" ] && [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then

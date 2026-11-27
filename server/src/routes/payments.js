@@ -19,6 +19,7 @@ import { bad, denied, needUuid, notFound, precondition, str } from "../util.js";
 import { RENTAL_PACKS, activateListing } from "./rentals.js";
 import { clearCache } from "../cache.js";
 import { PAY_PACKS } from "./revenue.js";
+import { GOOGLE_PRODUCTS, accountTag, consumePurchase, getPurchase, googlePlayOn, productFor } from "../googleplay.js";
 
 export const paymentsOn = () => !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
 const MONTHS = 1; // kept in the months column for reports; the real length is "days"
@@ -59,9 +60,10 @@ async function fulfil(order, paymentId) {
     const r = await c.query("UPDATE payments SET status = 'paid', payment_id = $2, paid_at = now() WHERE order_id = $1 AND status = 'created' RETURNING *", [order.order_id, paymentId]);
     if (!r.rows.length) return false; // already counted
     const p = r.rows[0];
-    await c.query("INSERT INTO plan_sales (user_id, plan, months, amount, source) VALUES ($1, $2, $3, $4, 'gateway')", [p.user_id, p.plan, p.months, p.amount]);
+    // Google test purchases (license testers) switch the plan on but count as ₹0 in sales
+    await c.query("INSERT INTO plan_sales (user_id, plan, months, amount, source) VALUES ($1, $2, $3, $4, 'gateway')", [p.user_id, p.plan, p.months, p.test ? 0 : p.amount]);
     if (p.plan === "rental") await activateListing((sql, params) => c.query(sql, params), p.listing_id, p.days);
-    else await addPlanDays((sql, params) => c.query(sql, params), { userId: p.user_id, plan: p.plan, days: p.days, provider: "razorpay", paymentId, months: p.months });
+    else await addPlanDays((sql, params) => c.query(sql, params), { userId: p.user_id, plan: p.plan, days: p.days, provider: p.provider || "razorpay", paymentId, months: p.months });
     return p;
   });
   if (done && done.plan === "rental") { audit("rental_paid", done.user_id, { listingId: done.listing_id, amount: done.amount, orderId: done.order_id, paymentId }); clearCache("rentals:"); return true; }
@@ -107,7 +109,79 @@ async function rentalOrder(ctx, u) {
   };
 }
 
+// Checks before selling a pack (same rules for Razorpay and Google Play): returns { plan, days, price, listingId }
+async function checkPack(ctx, u) {
+  const plan = await planFor(ctx);
+  const days = Number(ctx.body.days ?? 30);
+  if (plan === "rental") {
+    const listingId = needUuid(ctx.body.listingId, "listing");
+    const l = await one("SELECT id, owner_id, status, media_deleted_at FROM rental_listings WHERE id = $1", [listingId]);
+    if (!l || l.owner_id !== u.id) throw notFound("Listing not found");
+    if (l.media_deleted_at || l.status === "removed") throw precondition("Post this listing again.");
+    const pack = RENTAL_PACKS.find((x) => x.days === days);
+    if (!pack) throw bad("Pick 15 or 30 days");
+    return { plan, days, price: pack.price, listingId };
+  }
+  if (plan === "owner") {
+    const b = await one("SELECT status FROM businesses WHERE id = $1", [u.id]);
+    if (!b) throw precondition("Register your business first.");
+    if (b.status !== "verified") throw precondition("You can buy Business Pro once we verify your business.");
+  }
+  const pack = PAY_PACKS[plan].find((x) => x.days === days);
+  if (!pack) throw bad(`Pick one of: ${PAY_PACKS[plan].map((x) => `${x.days} days`).join(", ")}`);
+  const run = await one("SELECT pack_days FROM subscriptions WHERE user_id = $1 AND plan = $2 AND status IN ('active', 'cancelled') AND current_period_end > now()", [u.id, plan]);
+  if (run?.pack_days && run.pack_days !== days) throw precondition(`Your ${run.pack_days}-day plan is running. Top up with ${run.pack_days} more days, or pick another pack after it ends.`);
+  return { plan, days, price: pack.price, listingId: null };
+}
+const result = async (u, plan) => ({ paid: true, subscription: plan === "rental" ? null : await mySub(u.id, plan) });
+
 export function paymentRoutes(r) {
+  // ---------- Google Play (partner app on Android) ----------
+  // 1. before opening Google's payment sheet: same checks as the website, and a reference for this purchase
+  r.post("/api/payments/google/start", async (ctx) => {
+    const u = needUser(ctx);
+    if (!googlePlayOn()) throw precondition("Payments in the app aren't switched on yet. Please try again later.");
+    const k = await checkPack(ctx, u);
+    const productId = productFor(k.plan, k.days);
+    if (!productId) throw bad("This pack can't be bought in the app");
+    await limit(u.id, "payOrder", 20, 3600);
+    const ref = "gp_" + crypto.randomUUID().replace(/-/g, "");
+    await q("INSERT INTO payments (user_id, plan, months, days, amount, order_id, listing_id, provider) VALUES ($1, $2, $3, $4, $5, $6, $7, 'google')",
+      [u.id, k.plan, MONTHS, k.days, k.price, ref, k.listingId]);
+    return { ref, productId, accountId: accountTag(u.id) };
+  }, { limit: "write" });
+
+  // 2. after Google says paid (or when the app finds an unfinished purchase): check it with Google, then switch on
+  r.post("/api/payments/google/confirm", async (ctx) => {
+    const u = needUser(ctx);
+    const productId = str(ctx.body.productId, 60);
+    const purchaseToken = str(ctx.body.purchaseToken, 1000);
+    if (!GOOGLE_PRODUCTS[productId] || purchaseToken.length < 10) throw bad("Unknown purchase");
+    await limit(u.id, "payConfirm", 60, 3600);
+    const seen = await one("SELECT * FROM payments WHERE purchase_token = $1", [purchaseToken]);
+    if (seen) {
+      if (seen.user_id !== u.id) throw denied("This purchase belongs to another account");
+      if (seen.status === "paid") { await consumePurchase(productId, purchaseToken); return result(u, seen.plan); }
+    }
+    const g = await getPurchase(productId, purchaseToken);
+    if (!g) throw bad("Google Play doesn't know this purchase. If money was taken, contact support with the Google order number.");
+    if (g.obfuscatedExternalAccountId !== accountTag(u.id)) { log.warn("google purchase other account", { userId: u.id, productId }); throw denied("This purchase belongs to another account"); }
+    if (g.purchaseState === 2) return { paid: false, pending: true }; // e.g. paying by cash or UPI collect: finishes later
+    if (g.purchaseState !== 0) throw bad("This payment was cancelled. No plan was added.");
+    const ref = str(g.obfuscatedExternalProfileId || ctx.body.ref, 60);
+    const order = seen || (ref && await one("SELECT * FROM payments WHERE order_id = $1 AND provider = 'google'", [ref]));
+    if (!order || order.user_id !== u.id) throw notFound("Payment not found. Please contact support with the Google order number.");
+    const want = GOOGLE_PRODUCTS[productId];
+    if (order.plan !== want.plan || order.days !== want.days) throw bad("This purchase is for a different pack");
+    if (order.status !== "paid") {
+      await q("UPDATE payments SET purchase_token = $2, test = $3 WHERE id = $1 AND purchase_token IS NULL", [order.id, purchaseToken, g.purchaseType === 0]);
+      await fulfil({ order_id: order.order_id }, g.orderId || purchaseToken.slice(0, 60));
+    }
+    await consumePurchase(productId, purchaseToken);
+    return result(u, order.plan);
+  }, { limit: "write" });
+
+
   // 1. create a Razorpay order for a pack of days (body: plan, days; days defaults to 30)
   r.post("/api/payments/order", async (ctx) => {
     const u = needUser(ctx);

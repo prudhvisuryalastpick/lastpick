@@ -78,7 +78,8 @@ export function mobileProblem(p) {
 
 export const prettyPhone = (p) => { const n = indianPhone(p); return n ? `+91 ${n.slice(3, 8)} ${n.slice(8)}` : String(p || ""); };
 
-export const errText = (e) => (e && (e.message || e.error_description || e.error)) || String(e);
+// no connection (e.offline): no error text at all; the app shows its small "Reconnecting…" strip instead
+export const errText = (e) => (e?.offline ? "" : (e && (e.message || e.error_description || e.error)) || String(e));
 
 // whole days left until a time (0 when it has passed)
 export const daysLeft = (t) => (t ? Math.max(0, Math.ceil((t - Date.now()) / 86400000)) : 0);

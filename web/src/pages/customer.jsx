@@ -18,10 +18,12 @@ function useLiveOffers(city) {
   useEffect(() => {
     let alive = true;
     setOffers(null); setError("");
-    const load = () => api.listLive(city).then((o) => alive && setOffers(o)).catch((e) => alive && setError(errText(e)));
+    let again = null;
+    const load = () => api.listLive(city).then((o) => { if (alive) { setOffers(o); setError(""); } })
+      .catch((e) => { if (!alive) return; if (e?.offline) { again = setTimeout(load, 10000); return; } setError(errText(e)); });
     load();
     const i = setInterval(load, 120000);
-    return () => { alive = false; clearInterval(i); };
+    return () => { alive = false; clearInterval(i); clearTimeout(again); };
   }, [city]);
   return { offers, error };
 }
@@ -38,12 +40,15 @@ function useAreaOffers() {
     if (needGps) { setOffers(null); return; }
     let alive = true;
     setOffers(null); setError("");
+    let again = null;
+    // no connection: keep what's on screen and try again quietly every 10 seconds (the "Reconnecting…" strip shows)
     const load = () => (area.mode === "near" ? api.listNearby(location.lat, location.lng, area.radius)
       : area.mode === "pincode" ? api.listByPincode(area.pincode) : api.listLive(city.key))
-      .then((o) => alive && setOffers(o)).catch((e) => alive && setError(errText(e)));
+      .then((o) => { if (alive) { setOffers(o); setError(""); } })
+      .catch((e) => { if (!alive) return; if (e?.offline) { again = setTimeout(load, 10000); return; } setError(errText(e)); });
     load();
     const i = setInterval(load, 120000);
-    return () => { alive = false; clearInterval(i); };
+    return () => { alive = false; clearInterval(i); clearTimeout(again); };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return { offers, error, needGps, locationStatus };
 }
@@ -701,7 +706,6 @@ function AccountInner() {
       <MenuGroup title="Your LastPick" items={[
         canInstall && ["install", "Install app", runInstall, IS_OWNER_APP ? "#FFEAD5" : "#E4F5F2", IS_OWNER_APP ? "#3B1606" : "#0F6E5C"],
         !(IS_CUSTOMER_APP && customersFree) && ["card", "Plans and pricing", "#/plans"],
-        isStaff && ["shield", profile?.role === "moderator" ? "Moderator panel" : "Admin panel", "#/admin"],
         IS_CUSTOMER_APP ? ["store", "Own a business? Get LastPick Business", PARTNER_URL, "#FFF1E0", "#B35A00", true]
           : IS_OWNER_APP ? ["store", "Business profile", "#/owner/business"]
             : ["store", business ? "Switch to owner mode" : "Post offers as a business owner", () => { setMode("owner"); navigate("/owner"); }, "#FFF1E0", "#B35A00"],

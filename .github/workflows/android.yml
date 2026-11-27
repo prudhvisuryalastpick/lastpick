@@ -7,7 +7,7 @@ name: Build Android APKs
 on:
   push:
     branches: [main]
-    paths: ["web/**", "android-assets/**", ".github/workflows/android.yml"]
+    paths: ["web/**", "android-assets/**", "android-native/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
 jobs:
@@ -69,6 +69,16 @@ jobs:
           cp -r ../android-assets/${{ matrix.variant }}/res/* android/app/src/main/res/
           # location permission for "Near me" and "Use my location"
           sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />#' android/app/src/main/AndroidManifest.xml
+          # partner app: Google Play payments (our own small plugin, Play Billing Library 8)
+          if [ "${{ matrix.variant }}" = owner ]; then
+            main=$(find android/app/src/main/java -name MainActivity.java | head -1)
+            test -n "$main" || { echo "::error::MainActivity.java not found"; exit 1; }
+            dir=$(dirname "$main"); pkg=$(grep -m1 '^package ' "$main")
+            sed "s/^package .*/$pkg/" ../android-native/owner/PlayBillingPlugin.java > "$dir/PlayBillingPlugin.java"
+            printf '%s\n\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;\n\npublic class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(PlayBillingPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}\n' "$pkg" > "$main"
+            printf '\ndependencies {\n    implementation "com.android.billingclient:billing:8.0.0"\n}\n' >> android/app/build.gradle
+            cat "$main"
+          fi
           npx cap sync android
           # every build gets a higher version number (Play Store requires it): 1.0.<build number>
           sed -i -E "s/versionCode( =)? [0-9]+/versionCode\1 $((100 + ${{ github.run_number }}))/; s/versionName( =)? \"[^\"]*\"/versionName\1 \"1.0.${{ github.run_number }}\"/" android/app/build.gradle

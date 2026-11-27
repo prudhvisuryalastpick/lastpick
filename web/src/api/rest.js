@@ -19,16 +19,32 @@ async function call(method, path, body, { anonymous = false, quiet = false } = {
   const finish = startRequest({ quiet });
   try { return await send(method, path, body, anonymous); } finally { finish(); }
 }
+// A request that never reached LastPick (no internet, or the server restarting for a moment): GETs are tried again
+// quietly (after 1, 2 and 4 seconds). If it still fails, the app shows only the small "Reconnecting…" strip, never an
+// error box (errText gives "" for these). Saves (POST, PUT…) aren't repeated automatically, so nothing is done twice.
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function offline() {
+  try { window.dispatchEvent(new Event("lastpick-recheck")); } catch { /* not in a browser */ }
+  const e = new Error(""); e.code = "offline"; e.offline = true; return e;
+}
 async function send(method, path, body, anonymous) {
   let res;
-  try {
-    res = await fetch(BASE + path, {
-      method,
-      // public lists are fetched without the login, so Cloudflare can serve the same copy to everyone nearby
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token && !anonymous ? { Authorization: `Bearer ${token}` } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch { throw new Error("Can't reach LastPick right now. Check your internet and try again."); }
+  const tries = method === "GET" ? [0, 1000, 2000, 4000] : [0];
+  for (const delay of tries) {
+    if (delay) await wait(delay);
+    try {
+      res = await fetch(BASE + path, {
+        method,
+        // public lists are fetched without the login, so Cloudflare can serve the same copy to everyone nearby
+        headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token && !anonymous ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      // the server's front door answering 502/503/504 while it restarts: same as no answer for a GET
+      if (method === "GET" && [502, 503, 504].includes(res.status) && delay !== tries[tries.length - 1]) { res = null; continue; }
+      break;
+    } catch { res = null; }
+  }
+  if (!res) throw offline();
   const data = await res.json().catch(() => null);
   if (res.status === 401 && token) {
     // logged in on another device, or the login expired: remember why, for the login screen
@@ -41,6 +57,38 @@ async function send(method, path, body, anonymous) {
 const get = (p) => call("GET", p);
 const publicGet = (p) => call("GET", p, undefined, { anonymous: true });
 const post = (p, b = {}) => call("POST", p, b);
+
+// ---------- Google Play payments (Android partner app). Same packs and prices as the website. ----------
+const playBilling = () => (IS_NATIVE && window.Capacitor?.Plugins?.PlayBilling) || null;
+export const canBuyInApp = () => !!playBilling();
+const PENDING_TEXT = "Your payment is still processing with Google. Your plan switches on by itself as soon as it's confirmed.";
+async function googleBuy(plan, days, extra = {}) {
+  const pb = playBilling();
+  if (!pb) throw new Error("Please update the LastPick Partner app from the Play Store to buy plans.");
+  const s = await post("/api/payments/google/start", { plan, days, ...extra });
+  const r = await pb.buy({ productId: s.productId, accountId: s.accountId, ref: s.ref });
+  if (r?.cancelled) throw new Error("Payment was not completed. No money was taken.");
+  if (r?.pending) throw new Error(PENDING_TEXT);
+  if (!r?.purchaseToken) throw new Error("Google Play didn't finish the payment. If money was taken, your plan switches on automatically within a few minutes.");
+  const c = await post("/api/payments/google/confirm", { productId: r.productId || s.productId, purchaseToken: r.purchaseToken, ref: s.ref });
+  if (c.pending) throw new Error(PENDING_TEXT);
+  return true;
+}
+// purchases Google finished while the app was closed or offline (or pending UPI that went through later):
+// confirm them quietly when the app opens
+export async function finishGooglePurchases() {
+  const pb = playBilling();
+  if (!pb || !token) return 0;
+  let n = 0;
+  try {
+    const { purchases = [] } = await pb.unfinished();
+    for (const p of purchases) {
+      if (p.state !== "purchased") continue;
+      try { const c = await call("POST", "/api/payments/google/confirm", { productId: p.productId, purchaseToken: p.purchaseToken, ref: p.ref }, { quiet: true }); if (c.paid) n++; } catch { /* tried again next time */ }
+    }
+  } catch { /* billing not available on this phone */ }
+  return n;
+}
 // Razorpay Checkout's script, loaded only when someone pays
 let rzLoading = null;
 function razorpayScript() {
@@ -116,9 +164,10 @@ export const api = {
   },
   async updateProfile({ name, phone }) { await call("PATCH", "/api/me", { name, phone }); },
 
-  // ---------- plans: pay once with Razorpay, get 30 days (no auto-renewal) ----------
+  // ---------- plans: pay once (website: Razorpay; Android app: Google Play), no auto-renewal ----------
   async mySubscriptions() { return get("/api/me/subscriptions"); },
   async subscribe(plan, _profile, days = 30, extra = {}) {
+    if (IS_NATIVE) return googleBuy(plan, days, extra);
     const o = await post("/api/payments/order", { plan, days, ...extra });
     await razorpayScript();
     const check = () => post("/api/payments/check", { orderId: o.orderId });
@@ -163,11 +212,10 @@ export const api = {
     await putWithProgress(start.uploadUrl, blob, type, onProgress);
     return post(`/api/owner/rentals/${enc(id)}/media/${enc(start.mediaId)}/done`);
   },
-  // live for 15 or 30 days: free in free launch mode, else paid with Razorpay (website only)
+  // live for 15 or 30 days: free in free launch mode, else paid (website: Razorpay; Android app: Google Play)
   async publishRental(id, days) {
     const r = await post(`/api/owner/rentals/${enc(id)}/publish`, { days });
     if (r.live) return r;
-    if (IS_NATIVE) { const e = new Error("Please pay for listings on partner.lastpick.in. After payment your listing goes live here too."); e.code = "pay-on-web"; throw e; }
     await this.subscribe("rental", null, days, { listingId: id });
     return { live: true };
   },

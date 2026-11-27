@@ -5,3 +5,4 @@ import { api as live } from "./rest.js";
 export const isLive = import.meta.env?.VITE_DEMO !== "1";
 export const api = isLive ? live : demo;
 export { DEMO_ACCOUNTS } from "./demo.js";
+export { canBuyInApp, finishGooglePurchases } from "./rest.js";

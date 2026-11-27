@@ -17,6 +17,7 @@ import { log } from "../log.js";
 import { freeMode, customersFree } from "../plans.js";
 import { maintenanceNow } from "../maintenance.js";
 import { paymentsOn } from "./payments.js";
+import { googlePlayOn } from "../googleplay.js";
 import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
@@ -429,7 +430,7 @@ export function accountRoutes(r) {
   });
   r.get("/api/config", async () => ({
     freeMode: await freeMode(), customersFree: await customersFree(), maintenance: await maintenanceNow(),
-    categoryPhotos: categoryPhotoUrls(await getSetting("category_photos", {})), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
+    categoryPhotos: categoryPhotoUrls(await getSetting("category_photos", {})), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(), googlePlay: googlePlayOn(),
   }), { cache: "public, max-age=5" }); // short: a maintenance switch must reach the apps quickly
 
   // ---------- consent ----------
