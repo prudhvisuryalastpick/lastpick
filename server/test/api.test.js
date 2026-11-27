@@ -995,3 +995,27 @@ test("file storage: save, read back and delete (database store when R2 keys are 
   assert.equal(r.data.store, "database");
   assert.equal((await client("customer").get("/api/admin/storage-check")).status >= 400, true);
 });
+
+test("partners can't change their category; admins can (live offers end, reason logged)", async () => {
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  const biz = (await o.get("/api/business")).data;
+  const base = { name: biz.name, phone: "9988776655", city: biz.city, state: biz.state, pincode: biz.pincode, area: biz.area, lat: biz.lat, lng: biz.lng };
+  const tryChange = await o.put("/api/business", { ...base, category: "fashion", categories: ["fashion"] });
+  assert.equal(tryChange.status, 409);
+  assert.match(tryChange.data.error, /contact LastPick support/);
+  const same = await o.put("/api/business", { ...base, category: biz.category, categories: biz.categories, about: "Same category, new text" });
+  assert.equal(same.status, 200);
+  const id = (await o.get("/api/me")).data.id;
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  assert.equal((await a.post(`/api/admin/businesses/${id}/category`, { category: "farm" })).status, 400); // reason needed
+  const ch = await a.post(`/api/admin/businesses/${id}/category`, { category: "farm", reason: "Shop now sells vegetables" });
+  assert.equal(ch.status, 200);
+  assert.equal(ch.data.category, "farm");
+  const after = (await o.get("/api/business")).data;
+  assert.equal(after.category, "farm");
+  assert.deepEqual(after.categories, ["farm"]);
+  assert.equal((await o.get("/api/owner/offers")).data.filter?.((x) => x.status === "live").length ?? 0, 0);
+  // a moderator or a partner can't do it
+  assert.equal((await o.post(`/api/admin/businesses/${id}/category`, { category: "food", reason: "try" })).status >= 400, true);
+  await a.post(`/api/admin/businesses/${id}/category`, { category: biz.category, reason: "back for the next tests" });
+});

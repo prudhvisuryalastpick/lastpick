@@ -1,16 +1,16 @@
-import { Buffer } from "node:buffer";
 // Admin panel API. "admin" (super admin) sees all of India. A "moderator" (area agent) sees only their area:
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
 import { setSetting, singleDeviceOn } from "../settings.js";
 import { needUser } from "../auth.js";
 import { PLAN_NAMES, notify } from "../notify.js";
 import { clearCache } from "../cache.js";
-import { many, one, q, rmany, rone } from "../db.js";
+import { many, one, q, rmany, rone, tx } from "../db.js";
 import { customerPassOn, freeMode, setFreeMode, subActive } from "../plans.js";
 import { maintenanceSetting, setMaintenance } from "../maintenance.js";
 import { addPlanDays, audit } from "../shared.js";
-import { R2_ON, deleteFile, fileUrl, saveFile } from "../storage.js";
+import { fileUrl, storageCheck } from "../storage.js";
 import { platformImpact } from "./insights.js";
+import { CATEGORY_IDS } from "./partner.js";
 import { PAY_PACKS, planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
 import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str } from "../util.js";
@@ -135,28 +135,16 @@ export function adminRoutes(r) {
   });
 
   // Checks file storage end to end: save a tiny file, read it back through its link, delete it.
-  r.get("/api/admin/storage-check", async (ctx) => {
-    superAdmin(ctx);
-    const text = "lastpick-check-" + Date.now();
-    const ref = await saveFile(`health/${text}.txt`, "data:text/plain;base64," + Buffer.from(text).toString("base64"));
-    let readBack = false, error = null;
-    try {
-      const url = await fileUrl(ref, 120);
-      if (url?.startsWith("data:")) readBack = Buffer.from(url.split(",")[1], "base64").toString() === text;
-      else if (url) readBack = (await (await fetch(url)).text()) === text;
-    } catch (e) { error = e.message; }
-    await deleteFile(ref);
-    return { store: R2_ON ? "r2" : "database", saved: true, readBack, error };
-  });
+  r.get("/api/admin/storage-check", async (ctx) => { superAdmin(ctx); return storageCheck(); });
 
   // A user's Terms acceptances with the exact text they accepted (for disputes). Logged.
-  // partner KYC: the owner's profile photo (admins only; every view is logged)
+  // the partner's shop photo (admins only; every view is logged)
   r.get("/api/admin/users/:id/photo", async (ctx) => {
     const me = superAdmin(ctx);
     const id = needUuid(ctx.params.id, "user");
     const row = await one("SELECT data FROM user_photos WHERE user_id = $1", [id]);
     audit("admin_view_photo", me.id, { target: id });
-    return { photo: row?.data || null };
+    return { photo: await fileUrl(row?.data, 600) };
   });
 
   r.get("/api/admin/users/:id/consents", async (ctx) => {
@@ -314,6 +302,27 @@ export function adminRoutes(r) {
       const after = await one("SELECT trial_ends_at FROM businesses WHERE id = $1", [id]);
       await notify(id, "business_" + status, { business: b.name, note, trialEnds: after?.trial_ends_at });
     }
+  });
+
+  // Super admins: change a partner's category (partners can't). Their live offers end; the reason is logged.
+  r.post("/api/admin/businesses/:id/category", async (ctx) => {
+    const me = superAdmin(ctx);
+    const id = needUuid(ctx.params.id, "business");
+    const category = ctx.body?.category;
+    if (!CATEGORY_IDS.includes(category)) throw bad("Pick a category");
+    const reason = str(ctx.body?.reason, 300);
+    if (reason.length < 3) throw bad("Write the reason (kept in the log)");
+    const b = await one("SELECT name, category, categories FROM businesses WHERE id = $1", [id]);
+    if (!b) throw notFound("Business not found");
+    if (b.category === category && b.categories.length === 1) return { category, endedOffers: 0 };
+    let ended = 0;
+    await tx(async (c) => {
+      await c.query("UPDATE businesses SET category = $2, categories = $3, categories_changed_at = now(), updated_at = now() WHERE id = $1", [id, category, [category]]);
+      ended = (await c.query("UPDATE offers SET status = 'ended' WHERE owner_id = $1 AND status = 'live'", [id])).rowCount;
+    });
+    clearCache("feed:"); clearCache("cities:");
+    audit("admin_category_changed", me.id, { businessId: id, from: b.category, to: category, reason, endedOffers: ended });
+    return { category, endedOffers: ended };
   });
 
   // Super admins: app switches (one device at a time for customers).

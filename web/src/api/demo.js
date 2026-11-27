@@ -796,6 +796,10 @@ export const api = {
     return { ticket };
   },
   async myGrievances() { const db = load(); const u = me(db); return db.grievances.filter((g) => g.userId === u.id); },
+  async adminChangeCategory(businessId, category) {
+    const b = this._db?.businesses?.find?.((x) => x.id === businessId); if (b) { b.category = category; b.categories = [category]; }
+    return { category, endedOffers: 0 };
+  },
   async adminBusinessPlan(businessId, action, { months, days } = {}) {
     await wait();
     const db = load(); staff(db, true);

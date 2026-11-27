@@ -182,6 +182,8 @@ function ManagePartner({ b, isAdmin, toast, onClose, onDone }) {
   const [note, setNote] = useState("");
   const [free, setFree] = useState(7);
   const [busy, setBusy] = useState(false);
+  const [newCat, setNewCat] = useState("");
+  const [why, setWhy] = useState("");
   const run = async (fn, msg) => { setBusy(true); try { await fn(); toast(msg); onDone(); } catch (e) { toast(errText(e)); setBusy(false); } };
   const status = (st) => run(() => api.setBusinessStatus(b.id, st, st === "verified" ? "" : note.trim()), `${b.name}: ${st}`);
   const plan = (action, extra, msg) => run(() => api.adminBusinessPlan(b.id, action, extra), msg);
@@ -207,6 +209,19 @@ function ManagePartner({ b, isAdmin, toast, onClose, onDone }) {
           <input type="number" min="1" max="365" value={free} onChange={(e) => setFree(Number(e.target.value))} aria-label="Free days" style={{ width: 90 }} />
           <button type="button" className="btn ghost sm" disabled={busy || !(free >= 1 && free <= 365)} onClick={() => plan("extendTrial", { days: free }, `${free} free days given`)}>Give free days</button>
           <button type="button" className="btn ghost sm bc-danger" disabled={busy} onClick={() => plan("end", {}, "Plan ended")}>End plan</button>
+        </div>
+      </>}
+      {isAdmin && <>
+        <h3 style={{ margin: "16px 0 4px" }}>Change category · now {categoryOf(b.category)?.label}</h3>
+        <div className="muted small">Partners can't change their own category. Their live offers end; the reason is kept in the log.</div>
+        <div className="gap" style={{ marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <select value={newCat} onChange={(e) => setNewCat(e.target.value)} aria-label="New category" style={{ maxWidth: 200 }}>
+            <option value="">New category…</option>
+            {CATEGORIES.filter((c) => c.id !== b.category).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Reason, e.g. ticket #LP-10241" aria-label="Reason" style={{ flex: 1, minWidth: 160 }} />
+          <button type="button" className="btn dark sm" disabled={busy || !newCat || why.trim().length < 3}
+            onClick={() => run(async () => { const r = await api.adminChangeCategory(b.id, newCat, why.trim()); if (r.endedOffers) toast(`${r.endedOffers} live offer(s) ended`); }, `Category changed to ${categoryOf(newCat)?.label}`)}>Change category</button>
         </div>
       </>}
       <button type="button" className="btn ghost" style={{ marginTop: 14, width: "100%" }} onClick={onClose}>Close</button>

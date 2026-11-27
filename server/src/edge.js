@@ -9,6 +9,7 @@ import { handleFetch } from "./http.js";
 import { registerJobs } from "./jobs.js";
 import { log } from "./log.js";
 import { runOne, runSchedules } from "./queue.js";
+import { storageCheck } from "./storage.js";
 
 export function createEdgeHandler({ dbUrl, dbSsl = false }) {
   const router = buildRouter(SERVICE);
@@ -43,6 +44,12 @@ export function createEdgeHandler({ dbUrl, dbSsl = false }) {
         try { await q("SELECT 1"); db = true; } catch (e) { log.error("health check failed", { error: e.message }); }
         return json(db ? 200 : 503, { ok: db, service: SERVICE, db });
       });
+    }
+
+    // file storage check, called by the deploy pipeline after each release (same shared secret)
+    if (path === "/storage-check") {
+      if (!CRON_SECRET || request.headers.get("x-cron-secret") !== CRON_SECRET) return json(403, { error: "Forbidden" });
+      return withDb(waitUntil, async () => json(200, await storageCheck()));
     }
 
     // background jobs, called by pg_cron every 5 minutes with the shared secret

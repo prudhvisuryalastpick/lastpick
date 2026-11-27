@@ -18,7 +18,7 @@ const operator = LEGAL.operator || `${APP_NAME} (operator name to be added)`;
 export const NOTICE_ITEMS = [
   { data: "Name, e-mail and mobile number", why: "To create your account and log you in. Your e-mail is checked with a one-time code; your mobile number is saved for login and contact, and is not checked with a code for now. Businesses never get your number; they see only your name if you tap \"I'm interested\"." },
   { data: "Business details: name, address, pincode, map location, contact number (business accounts)", why: "To show your offers to customers nearby. Your business contact number is shown to logged-in customers." },
-  { data: "Profile photo of the owner (business accounts)", why: "For KYC: to check the person running the business. Seen only by you and the LastPick team, never shown to customers." },
+  { data: "Photo of the shop (business accounts)", why: "For KYC: to check the business is real. Seen only by you and the LastPick team, never shown to customers." },
   { data: "Your location", why: "Needed to show offers within 30 km of you. Sent only rounded to about 1 km to find offers, and to OpenStreetMap to show your area name and pincode. We don't store it." },
   { data: "Activity: offers you open or contact, numbers you share, reviews and reports", why: "For your contacts list, a business's leads, reviews, and to stop fraud and misuse." },
   { data: "Technical data: app error reports and server logs", why: "To keep the service secure and fix crashes." },

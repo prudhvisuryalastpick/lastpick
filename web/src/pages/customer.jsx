@@ -607,7 +607,7 @@ export function KycStatus({ compact }) {
     phoneCheckOn
       ? ["Mobile number", profile.phoneVerified ? "✓ Verified" : profile.phone ? "Not verified" : "Not added", profile.phoneVerified]
       : ["Mobile number", profile.phone ? "✓ Added" : "Not added", !!profile.phone],
-    ...(IS_OWNER_APP ? [["Profile photo", profile.hasPhoto ? "✓ Added" : "Needed", profile.hasPhoto]] : []),
+    ...(IS_OWNER_APP ? [["Shop photo", profile.hasPhoto ? "✓ Added" : "Needed", profile.hasPhoto]] : []),
     ...(IS_OWNER_APP && business ? [["Business check by LastPick", business.status === "verified" ? "✓ Verified" : business.status === "pending" ? "In progress" : "Action needed", business.status === "verified"]] : []),
   ];
   return (

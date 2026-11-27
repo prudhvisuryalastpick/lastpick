@@ -81,4 +81,19 @@ export async function deleteFile(ref) {
   if (ref.startsWith("db:")) await q("DELETE FROM stored_files WHERE key = $1", [ref.slice(3)]);
 }
 
-export const newKey = (folder, ext = "jpg") => `${folder}/${Date.now().toString(36)}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
+export const newKey = (name = "f", ext = "jpg") => `${name}-${Date.now().toString(36)}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
+
+// End-to-end check: save a tiny file, read it back through its link, delete it. Used by the admin panel and by
+// the deploy pipeline after every release.
+export async function storageCheck() {
+  const text = "lastpick-check-" + Date.now();
+  let ref = null, readBack = false, error = null;
+  try {
+    ref = await saveFile(`health/${text}.txt`, "data:text/plain;base64," + Buffer.from(text).toString("base64"));
+    const url = await fileUrl(ref, 120);
+    if (url?.startsWith("data:")) readBack = Buffer.from(url.split(",")[1], "base64").toString() === text;
+    else if (url) readBack = (await (await fetch(url)).text()) === text;
+  } catch (e) { error = e.message; }
+  if (ref) await deleteFile(ref).catch(() => {});
+  return { store: R2_ON ? "r2" : "database", saved: !!ref, readBack, error };
+}

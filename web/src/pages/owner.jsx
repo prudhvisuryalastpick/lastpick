@@ -44,7 +44,7 @@ function OwnerPaywall() {
   );
 }
 
-// the owner's profile photo (partner KYC), loaded once
+// the shop photo (partner KYC), loaded once
 function useMyPhoto() {
   const { profile } = useApp();
   const [photo, setPhoto] = useState(null);
@@ -63,7 +63,7 @@ function KycCard() {
     setBusy(false);
   };
   const rows = [
-    ["Profile photo", profile?.hasPhoto ? "✓ Added" : "Needed", profile?.hasPhoto ? "var(--ok)" : "var(--bad)"],
+    ["Shop photo", profile?.hasPhoto ? "✓ Added" : "Needed", profile?.hasPhoto ? "var(--ok)" : "var(--bad)"],
     ["E-mail", profile?.emailVerified ? "✓ Verified" : "Not verified", profile?.emailVerified ? "var(--ok)" : "var(--warn)"],
     profile?.phoneCheck
       ? ["Mobile number", profile?.phoneVerified ? "✓ Verified" : "Not verified (verify in Account)", profile?.phoneVerified ? "var(--ok)" : "var(--warn)"]
@@ -80,8 +80,9 @@ function KycCard() {
       <div style={{ background: "#fff", borderRadius: 16, padding: "4px 14px" }}>
         {rows.map(([a, b, c]) => <div key={a} className="row" style={{ padding: "11px 0", borderBottom: "1px solid var(--soft)", fontSize: 13.5 }}><span>{a}</span><b style={{ color: c }}>{b}</b></div>)}
       </div>
-      {!profile?.hasPhoto && <label className="btn dark" style={{ cursor: "pointer" }}>{busy ? "Uploading…" : "Add your profile photo"}
-        <input type="file" accept="image/*" capture="user" style={{ display: "none" }} disabled={busy} onChange={(e) => addPhoto(e.target.files?.[0])} /></label>}
+      {!profile?.hasPhoto && <div className="muted small" style={{ lineHeight: 1.5 }}>Upload a clear photo of your shop from the front, showing your name board.</div>}
+      {!profile?.hasPhoto && <label className={"btn dark" + (busy ? " is-busy" : "")} style={{ cursor: "pointer" }}>{busy ? "Uploading shop photo…" : "Upload shop photo"}
+        <input type="file" accept="image/*" style={{ display: "none" }} disabled={busy} onChange={(e) => addPhoto(e.target.files?.[0])} /></label>}
     </div>
   );
 }
@@ -510,24 +511,31 @@ function NewItemForm({ category, onAdded, onCancel }) {
   const io = itemOptions(category);
   const [name, setName] = useState("");
   const [opt, setOpt] = useState("");
+  const [sizes, setSizes] = useState([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const toggleSize = (z) => setSizes((l) => (l.includes(z) ? l.filter((x) => x !== z) : [...l, z]));
   const add = async () => {
     const base = name.trim();
     if (base.length < 2) { setErr("Enter an item name first"); return; }
+    // "Cotton kurta (men · M, L, XXL)"; sizes keep the shop's order of the list
+    const picked = (io.sizes || []).filter((z) => sizes.includes(z));
+    const extra = [opt && opt.toLowerCase(), picked.length && picked.join(", ")].filter(Boolean).join(" · ");
     setBusy(true); setErr("");
-    try { const it = await api.addMyItem(opt ? `${base} (${opt.toLowerCase()})` : base); setName(""); setOpt(""); onAdded?.(it); } catch (e) { setErr(errText(e)); }
+    try { const it = await api.addMyItem(extra ? `${base} (${extra})` : base); setName(""); setOpt(""); setSizes([]); onAdded?.(it); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
   return (
     <div className="newitem">
-      <input maxLength={50} value={name} onChange={(e) => { setName(e.target.value); setErr(""); }} placeholder={io.example} aria-label="Item name" />
+      <input maxLength={40} value={name} onChange={(e) => { setName(e.target.value); setErr(""); }} placeholder={io.example} aria-label="Item name" />
       {io.options && <div className="chips wrap" aria-label={io.label}><span className="muted small" style={{ alignSelf: "center" }}>{io.label}:</span>
         {io.options.map((o) => <button key={o} type="button" className={"chip small " + (opt === o ? "on" : "")} aria-pressed={opt === o} onClick={() => setOpt(opt === o ? "" : o)}>{o}</button>)}</div>}
+      {io.sizes && <div className="chips wrap" aria-label={io.sizesLabel}><span className="muted small" style={{ alignSelf: "center" }}>{io.sizesLabel} (pick all you have):</span>
+        {io.sizes.map((z) => <button key={z} type="button" className={"chip small " + (sizes.includes(z) ? "on" : "")} aria-pressed={sizes.includes(z)} onClick={() => toggleSize(z)}>{z}</button>)}</div>}
       {err && <div className="error small">{err}</div>}
       <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="btn" disabled={busy} onClick={add}>{busy ? "Adding…" : "+ Add to My items"}</button>
-        {onCancel && <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>}
+        <button type="button" className="btn" disabled={busy} aria-busy={busy} onClick={add}>{busy ? <><span className="spin" aria-hidden="true" /> Adding…</> : "+ Add to My items"}</button>
+        {onCancel && <button type="button" className="btn ghost" disabled={busy} onClick={onCancel}>Cancel</button>}
       </div>
     </div>
   );
@@ -663,8 +671,9 @@ function BusinessForm({ first = false }) {
     setBusy(true);
     try {
       const city = f.city.trim().replace(/\s+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
-      const categories = [f.category];
-      await api.saveBusiness({ ...business, ...f, whatsapp: false, categories, name: f.name.trim(), area: f.area.trim(), city, phone: f.phone.trim() });
+      // the category is fixed after registration (only the LastPick team can change it)
+      const categories = business ? (business.categories?.length ? business.categories : [business.category]) : [f.category];
+      await api.saveBusiness({ ...business, ...f, category: business ? business.category : f.category, whatsapp: false, categories, name: f.name.trim(), area: f.area.trim(), city, phone: f.phone.trim() });
       if (needsConsent) await api.recordConsent("partner", { items: ["genuine-offers", "categories", "licences", "number-visible", "customer-data-use"], readFull: true, docText: termsDoc.text, docHash: termsDoc.hash });
       await refresh();
       toast(first ? "Business created. Next: choose your plan." : "Business details saved");
@@ -681,8 +690,11 @@ function BusinessForm({ first = false }) {
       <div className="form" style={{ paddingTop: 12 }}>
         <div className="fld"><label>Business name</label><input maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Sunrise Bakery" /></div>
         <div className="fld"><label>Main category</label>
-          <select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-          <span className="hint">You post offers only in this category.</span></div>
+          {business
+            ? <><div className="locked-field" aria-label="Category (locked)"><span>{categoryOf(business.category)?.label}</span><span aria-hidden="true">🔒</span></div>
+              <span className="hint">Your category can't be changed here. To change it, <a href="#/help">contact LastPick support</a>.</span></>
+            : <><select value={f.category} onChange={(e) => set("category", e.target.value)}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              <span className="hint">Choose carefully: you post offers only in this category, and it can't be changed later without contacting support.</span></>}</div>
         <div className="fld"><label>Contact number for customers</label><div className="pfx"><span aria-hidden="true">+91</span><input inputMode="numeric" maxLength={14} value={typePhone(f.phone, { landline: true })} onChange={(e) => set("phone", typePhone(e.target.value, { landline: true }))} placeholder="Mobile, or landline with STD code" /></div>
           <span className="hint">Shown to logged-in customers on your offers.</span></div>
         <div className="toggle">

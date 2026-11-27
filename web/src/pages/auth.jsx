@@ -129,7 +129,7 @@ export function Login({ next = "/", start }) {
   // "Is this your correct mobile number?" asked once before the code is sent
   const [askMobile, setAskMobile] = useState(false);
   const mobileOk = useRef("");
-  // partner app: the owner's profile photo is required (KYC)
+  // partner app: a photo of the shop is required (KYC)
   const [photo, setPhoto] = useState("");
   const pickPhoto = async (file) => {
     if (!file) return;
@@ -190,7 +190,7 @@ export function Login({ next = "/", start }) {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr("Enter a valid e-mail");
     if (password.length < 8) return setErr("Password must be at least 8 characters");
     if (password2 !== password) return setErr("Passwords don't match. Type the same password in both boxes.");
-    if (IS_OWNER_APP && !photo) return setErr("Please add your profile photo");
+    if (IS_OWNER_APP && !photo) return setErr("Please add a photo of your shop");
     if (phoneWanted && viaWa && !waOk) return setErr("Please tick the WhatsApp box to get your code on WhatsApp");
     if (IS_OWNER_APP && !bizType) return setErr("Choose your business type");
     if (!consent.adult || !consent.agree || !consent.platform) return setErr("Please tick all the boxes to continue");
@@ -306,13 +306,13 @@ export function Login({ next = "/", start }) {
         <form className="form" style={{ padding: "20px 0 0" }} onSubmit={signUp}>
           <div style={{ display: codeSent ? "none" : "contents" }}>
           {IS_OWNER_APP && <div style={{ display: "flex", gap: 14, alignItems: "center", background: "#fff", borderRadius: 16, padding: 14, border: "1.5px dashed var(--brand-2)" }}>
-            {photo ? <img src={photo} alt="Your profile photo" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
-              : <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--soft)", display: "grid", placeItems: "center", flex: "none", fontSize: 28 }}>📷</div>}
+            {photo ? <img src={photo} alt="Your shop" style={{ width: 72, height: 72, borderRadius: 14, objectFit: "cover", flex: "none" }} />
+              : <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: 14, background: "var(--soft)", display: "grid", placeItems: "center", flex: "none", fontSize: 28 }}>🏪</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <b>Profile photo (required)</b>
-              <span className="muted small">A clear photo of you, the owner. Used for KYC; customers don't see it.</span>
+              <b>Photo of your shop (required)</b>
+              <span className="muted small">Take it from the front so we can see your name board. Good light, no people's faces. Only the LastPick team sees it.</span>
               <label className="btn dark sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}>{photo ? "Change photo" : "Take photo / Upload"}
-                <input type="file" accept="image/*" capture="user" style={{ display: "none" }} onChange={(e) => pickPhoto(e.target.files?.[0])} /></label>
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => pickPhoto(e.target.files?.[0])} /></label>
             </div>
           </div>}
           {IS_OWNER_APP && <div className="fld"><label htmlFor="su-cat">Business type</label>

@@ -156,11 +156,11 @@ export function AppProvider({ children }) {
     events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
     const onShow = () => { if (document.visibilityState === "visible") check(); };
     document.addEventListener("visibilitychange", onShow);
-    const i = setInterval(check, 30000);
+    const i = setInterval(check, 180000); // every 3 minutes, and at once when the app comes back on screen
     return () => { clearInterval(i); events.forEach((e) => window.removeEventListener(e, onActivity)); document.removeEventListener("visibilitychange", onShow); };
   }, [loggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // One device at a time: every 30 seconds, and whenever the app comes back to the screen, check the login is still
+  // One device at a time: every 3 minutes, and whenever the app comes back to the screen, check the login is still
   // valid. If it was ended (logged in on another device), log out here and show why on the login screen.
   useEffect(() => {
     if (!loggedIn) return undefined;
@@ -172,7 +172,7 @@ export function AppProvider({ children }) {
       busy = false;
       if (!ok) navigate("/login", { replace: true });
     };
-    const i = setInterval(check, 30000);
+    const i = setInterval(check, 180000); // every 3 minutes, and at once when the app comes back on screen
     const onShow = () => { if (document.visibilityState === "visible") check(); };
     document.addEventListener("visibilitychange", onShow);
     window.addEventListener("focus", check);

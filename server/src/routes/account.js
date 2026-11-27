@@ -11,7 +11,7 @@ import { sendWhatsAppCode, whatsappOn } from "../whatsapp.js";
 const waLogin = () => WA_LOGIN && whatsappOn();
 // how the mobile number is checked at sign-up: a WhatsApp code (WA_VERIFY=on), or not at all
 const phoneChannel = () => (WA_VERIFY && whatsappOn() ? "whatsapp" : "");
-const PHOTO_MAX = 400_000; // data URL characters (~300 KB)
+const PHOTO_MAX = 1_400_000; // data URL characters (~1 MB); the apps shrink photos to about 200 KB first
 import { many, one, q, tx } from "../db.js";
 import { log } from "../log.js";
 import { freeMode, customersFree } from "../plans.js";
@@ -20,6 +20,7 @@ import { paymentsOn } from "./payments.js";
 import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
+import { deleteFile, fileUrl, newKey, saveFile } from "../storage.js";
 import {
   ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail, isDataImage,
 } from "../util.js";
@@ -199,10 +200,10 @@ export function accountRoutes(r) {
     if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("An account with this e-mail already exists. Log in instead (the same account works in the customer and partner apps).");
     if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number is already registered. Log in instead (the same account works in the customer and partner apps).");
     if (!phone) throw bad("Please enter your mobile number");
-    // partner app: a profile photo of the owner is required (for KYC)
+    // partner app: a photo of the shop is required (stored in R2, private to the partner and admins)
     const photo = body.photo == null || body.photo === "" ? null : body.photo;
-    if (photo !== null && !isDataImage(photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
-    if (SERVICE === "partner" && !photo) throw bad("Please add your profile photo");
+    if (photo !== null && !isDataImage(photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo of your shop (under 1 MB)");
+    if (SERVICE === "partner" && !photo) throw bad("Please add a photo of your shop");
     const channel = phoneChannel(); // the mobile number is checked with a WhatsApp or SMS code, when switched on
     if (channel === "whatsapp" && body.waOptIn !== true) throw bad("Please tick the WhatsApp box to get your code on WhatsApp");
     // WhatsApp sending was skipped for this number (our side not ready): sign up without the mobile code
@@ -224,7 +225,7 @@ export function accountRoutes(r) {
         `INSERT INTO users (email, password_hash, name, phone, trial_ends_at) VALUES ($1, $2, $3, $4, now() + make_interval(days => $5))
          RETURNING id, email, token_version`, [email, hash, name, phone || "", TRIAL_DAYS]);
       if (body.consent) await recordConsent(c, rows[0].id, { kind: "user", version: CONSENT_VERSION, ...body.consent }, userAgent, ip);
-      if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
+      if (photo) await c.query("INSERT INTO user_photos (user_id, data) VALUES ($1, $2)", [rows[0].id, await saveFile(`shops/${rows[0].id}/${newKey("shop")}`, photo)]);
       if (channel && !waSkipped) await c.query("UPDATE users SET phone_verified_at = now() WHERE id = $1", [rows[0].id]);
       if (body.waOptIn === true) await c.query("UPDATE users SET whatsapp_optin_at = now() WHERE id = $1", [rows[0].id]);
       return rows[0];
@@ -368,16 +369,19 @@ export function accountRoutes(r) {
     return { verified: true };
   }, { limit: "auth" });
 
-  // the owner's own profile photo (partner KYC): view and change it
+  // the partner's shop photo: view and change it (the file is in R2; the database keeps its reference)
   r.get("/api/me/photo", async (ctx) => {
     const row = await one("SELECT data FROM user_photos WHERE user_id = $1", [needUser(ctx).id]);
-    return { photo: row?.data || null };
+    return { photo: await fileUrl(row?.data) };
   });
   r.put("/api/me/photo", async (ctx) => {
     const u = needUser(ctx);
-    if (!isDataImage(ctx.body?.photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo (under 300 KB)");
+    if (!isDataImage(ctx.body?.photo, PHOTO_MAX)) throw bad("Please add a clear JPEG or PNG photo of your shop (under 1 MB)");
+    const old = await one("SELECT data FROM user_photos WHERE user_id = $1", [u.id]);
+    const ref = await saveFile(`shops/${u.id}/${newKey("shop")}`, ctx.body.photo);
     await q(`INSERT INTO user_photos (user_id, data) VALUES ($1, $2)
-             ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`, [u.id, ctx.body.photo]);
+             ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`, [u.id, ref]);
+    if (old?.data && old.data !== ref) await deleteFile(old.data).catch(() => {});
     audit("photo_set", u.id);
     return { ok: true };
   });

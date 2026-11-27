@@ -3,6 +3,7 @@
 // Same-origin by default; the Android apps set VITE_API_URL to their server's address.
 import { CONSENT_VERSION, IS_ADMIN_APP, IS_CUSTOMER_APP } from "../lib/config.js";
 import { compressPhoto } from "../lib/image.js";
+import { startRequest } from "../lib/busy.js";
 
 const BASE = (import.meta.env?.VITE_API_URL || "").replace(/\/$/, "");
 const TOKEN_KEY = "lastpick-token";
@@ -14,7 +15,11 @@ function setToken(t) {
   listeners.forEach((cb) => cb());
 }
 
-async function call(method, path, body, { anonymous = false } = {}) {
+async function call(method, path, body, { anonymous = false, quiet = false } = {}) {
+  const finish = startRequest({ quiet });
+  try { return await send(method, path, body, anonymous); } finally { finish(); }
+}
+async function send(method, path, body, anonymous) {
   let res;
   try {
     res = await fetch(BASE + path, {
@@ -107,7 +112,7 @@ export const api = {
   // is this login still valid? false = it was ended (e.g. logged in on another device), and the app is now logged out
   async checkSession() {
     if (!token) return true;
-    try { await get("/api/me"); return true; } catch (e) { return e.status !== 401; }
+    try { await call("GET", "/api/me", undefined, { quiet: true }); return true; } catch (e) { return e.status !== 401; }
   },
   async updateProfile({ name, phone }) { await call("PATCH", "/api/me", { name, phone }); },
 
@@ -152,7 +157,7 @@ export const api = {
     const load = async () => {
       for (const pause of [0, 1500, 4000]) {
         if (pause) await wait(pause);
-        try { return await get("/api/config"); } catch (e) { if (e.status && e.status < 500) return { freeMode: false }; }
+        try { return await call("GET", "/api/config", undefined, { quiet: true }); } catch (e) { if (e.status && e.status < 500) return { freeMode: false }; }
       }
       return { freeMode: false, unreachable: true };
     };
@@ -175,7 +180,8 @@ export const api = {
   async addView(id) { try { await post(`/api/offers/${enc(id)}/view`); } catch { /* not critical */ } },
   // a small thumbnail (for lists) and a full photo (opened on the offer page)
   // partner KYC: the owner's profile photo, made small before it is sent
-  async profilePhotoFrom(file) { return compressPhoto(file, 480, 120000); },
+  // shop photo: shrunk on the phone to about 1000 px / under 250 KB (always well under 1 MB) before upload
+  async profilePhotoFrom(file) { return compressPhoto(file, 1000, 250000); },
   async myPhoto() { try { return (await get("/api/me/photo")).photo; } catch { return null; } },
   async setMyPhoto(photo) { await call("PUT", "/api/me/photo", { photo }); },
   async uploadPhoto(file) {
@@ -221,6 +227,7 @@ export const api = {
   async adminSetConfig(cfg) { clearCache(); return post("/api/admin/config", cfg); },
   async adminSettings() { return get("/api/admin/settings"); },
   async setAdminSettings(v) { const r = await post("/api/admin/settings", v); memo.clear(); return r; },
+  async adminChangeCategory(businessId, category, reason) { return post(`/api/admin/businesses/${enc(businessId)}/category`, { category, reason }); },
   async adminBusinessPlan(businessId, action, extra = {}) { await post(`/api/admin/businesses/${enc(businessId)}/plan`, { action, ...extra }); },
   async adminGrievances(status) { return get(`/api/admin/grievances?status=${enc(status || "open")}`); },
   async adminUpdateGrievance(ticket, status, reply) { await post(`/api/admin/grievances/${enc(ticket)}`, { status, reply }); },

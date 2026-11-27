@@ -203,6 +203,10 @@ jobs:
             echo "$s API: $ok"; [ "$ok" = yes ] || echo "::warning::$s API isn't answering yet"
             curl -fsS -o /dev/null "https://$s.lastpick.in/" && echo "$s site: yes" || echo "::warning::$s.lastpick.in isn't live yet (DNS can take a few minutes)"
           done
+          # photos and files: save, read back and delete a tiny file in Cloudflare R2
+          sc=$(curl -fsS -H "x-cron-secret: $CRON_SECRET" "$API/admin/storage-check" 2>/dev/null || echo '{"error":"no answer"}')
+          echo "File storage: $sc"
+          echo "$sc" | grep -q '"readBack":true' || echo "::warning::File storage check failed: $sc"
           {
             echo "### LastPick is deployed"
             echo "- Customer: https://customer.lastpick.in"

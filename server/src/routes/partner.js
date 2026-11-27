@@ -13,7 +13,7 @@ import {
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
 // registered (a bakery posts only bakery offers). Job openings ("jobs") are no longer allowed.
 // Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
-const CATEGORY_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "ads", "other"];
+export const CATEGORY_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "ads", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
@@ -59,6 +59,8 @@ export function partnerRoutes(r) {
       isNew = !prev;
       if (prev) {
         const changed = [...prev.categories].sort().join() !== [...categories].sort().join();
+        // the category is fixed after registration; only the LastPick team can change it (admin panel)
+        if (changed) throw precondition("Your category can't be changed here. To change it, contact LastPick support.");
         await c.query(`UPDATE businesses SET name = $2, category = $3, categories = $4, about = $5, address = $6, area = $7, city = $8, state = $9,
                        city_key = $10, pincode = $11, lat = $12, lng = $13, updated_at = now()${changed ? ", categories_changed_at = now()" : ""} WHERE id = $1`, [u.id, ...fields]);
       } else {

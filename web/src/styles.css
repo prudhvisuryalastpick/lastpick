@@ -1026,3 +1026,16 @@ button.maint-back { cursor: pointer; }
 .conn-strip { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 12px; font-size: 13px; font-weight: 700; background: #FFF4D6; color: #6B4E00; border-bottom: 1px solid rgba(107,78,0,.15); }
 button.maint-back { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 button.maint-back:disabled { opacity: .85; }
+
+/* Loading feedback (lib/busy.js): a top progress bar while the server is working, and a spinner on the
+   button that was tapped (it can't be tapped again until the answer comes back). */
+#lp-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity .2s; overflow: hidden; }
+#lp-progress.on { opacity: 1; }
+#lp-progress::before { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -40%; background: var(--accent, #0E6B66); border-radius: 3px; animation: lpbar 1.1s ease-in-out infinite; }
+@keyframes lpbar { 0% { left: -40%; } 100% { left: 100%; } }
+.is-busy { pointer-events: none; }
+.is-busy::after { content: ""; display: inline-block; flex: none; width: 15px; height: 15px; margin-left: 6px; vertical-align: -3px; border-radius: 50%; border: 2.2px solid currentColor; border-right-color: transparent; animation: lpspin .8s linear infinite; }
+.btn.is-busy::after { margin-left: 0; }
+.is-busy { opacity: .8; }
+@media (prefers-reduced-motion: reduce) { #lp-progress::before, .is-busy::after { animation-duration: 2.5s; } }
+.locked-field { min-height: 48px; border-radius: 14px; border: 1px solid var(--line, #E6D3C4); background: var(--soft, #F4ECE5); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-weight: 700; color: var(--muted, #6B4E3D); }

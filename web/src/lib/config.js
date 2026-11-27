@@ -123,7 +123,8 @@ export const ITEM_OPTIONS = {
   makeup: { units: ["bookings", "slots"], example: "Party makeup" },
   gym: { units: ["passes", "slots"], example: "Day pass" },
   farm: { units: ["bags", "kg", "dozen", "bunches"], example: "Sona masoori rice, 25 kg bag" },
-  fashion: { label: "Size", options: ["S", "M", "L", "XL"], units: ["pieces", "sets"], example: "Cotton kurta" },
+  // clothes: who it's for, then every size the shop has (several can be picked)
+  fashion: { label: "For", options: ["Men", "Women", "Kids", "Unisex"], sizesLabel: "Sizes", sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free size"], units: ["pieces", "sets"], example: "Cotton kurta" },
   appliances: { label: "Condition", options: ["New", "Open box"], units: ["units"], example: "1.5 ton split AC, 3 star" },
   ads: { units: ["seats", "slots"], example: "Spoken English classes, 1 month" },
   other: { units: ["pieces", "units", "slots"], example: "Bike service" },
