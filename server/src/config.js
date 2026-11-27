@@ -75,3 +75,10 @@ export const RAZORPAY_KEY_SECRET = env.RAZORPAY_KEY_SECRET || "";
 export const RAZORPAY_API_BASE = env.RAZORPAY_API_BASE || "https://api.razorpay.com"; // tests point this at a fake server
 // Replies to LastPick e-mails go here.
 export const MAIL_REPLY_TO = env.MAIL_REPLY_TO || "support@lastpick.in";
+
+// Cloudflare R2 (photos, videos, files). Without these, files are kept in the database (tests, local runs).
+export const R2_ACCOUNT_ID = env.R2_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID || "";
+export const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID || "";
+export const R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY || "";
+export const R2_BUCKET = env.R2_BUCKET || "lastpick-photos";
+export const R2_ENDPOINT = env.R2_ENDPOINT || (R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : "");

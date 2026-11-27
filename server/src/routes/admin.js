@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 // Admin panel API. "admin" (super admin) sees all of India. A "moderator" (area agent) sees only their area:
 // the states in users.regions, narrowed to users.area_cities and/or users.area_pincodes when those are set.
 import { setSetting, singleDeviceOn } from "../settings.js";
@@ -8,6 +9,7 @@ import { many, one, q, rmany, rone } from "../db.js";
 import { customerPassOn, freeMode, setFreeMode, subActive } from "../plans.js";
 import { maintenanceSetting, setMaintenance } from "../maintenance.js";
 import { addPlanDays, audit } from "../shared.js";
+import { R2_ON, deleteFile, fileUrl, saveFile } from "../storage.js";
 import { platformImpact } from "./insights.js";
 import { PAY_PACKS, planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
@@ -130,6 +132,21 @@ export function adminRoutes(r) {
     const rows = await many(`${userSel} WHERE ${kindWhere(kind)} ORDER BY u.created_at DESC LIMIT 20000`);
     audit("admin_export_users", me.id, { kind, count: rows.length });
     return rows.map((u) => userRow(u, true));
+  });
+
+  // Checks file storage end to end: save a tiny file, read it back through its link, delete it.
+  r.get("/api/admin/storage-check", async (ctx) => {
+    superAdmin(ctx);
+    const text = "lastpick-check-" + Date.now();
+    const ref = await saveFile(`health/${text}.txt`, "data:text/plain;base64," + Buffer.from(text).toString("base64"));
+    let readBack = false, error = null;
+    try {
+      const url = await fileUrl(ref, 120);
+      if (url?.startsWith("data:")) readBack = Buffer.from(url.split(",")[1], "base64").toString() === text;
+      else if (url) readBack = (await (await fetch(url)).text()) === text;
+    } catch (e) { error = e.message; }
+    await deleteFile(ref);
+    return { store: R2_ON ? "r2" : "database", saved: true, readBack, error };
   });
 
   // A user's Terms acceptances with the exact text they accepted (for disputes). Logged.

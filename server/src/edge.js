@@ -1,6 +1,6 @@
 // LastPick API on Supabase Edge Functions (Deno). Three functions from the same code: customer, partner, admin
 // (supabase/functions/<name>/index.ts sets SERVICE and calls createEdgeHandler). The web apps are on Cloudflare.
-// Uses the same routes, SQL, security headers and rate limits as the Node server; one small database pool per request.
+// Uses the same routes, SQL, security headers and rate limits as the Node server; one small database pool per running function, shared by its requests.
 import { buildRouter } from "./app.js";
 import { ADMIN_ALLOWED_IPS, CRON_SECRET, SERVICE } from "./config.js";
 import { requestContext } from "./context.js";
@@ -17,13 +17,16 @@ export function createEdgeHandler({ dbUrl, dbSsl = false }) {
     ? (req, ip) => (ADMIN_ALLOWED_IPS.includes(ip) ? null : "Not allowed from this network")
     : null;
 
+  // One small pool per running copy of the function, shared by all its requests (opening a connection is the
+  // slow, limited part). Idle connections close after 10 s, so a quiet function holds none.
+  let shared = null;
+  const pool = () => (shared ||= requestPool(dbUrl, { ssl: dbSsl, max: 3, idleMs: 10000 }));
   async function withDb(waitUntil, fn) {
-    const pool = await requestPool(dbUrl, { ssl: dbSsl });
-    const store = { pool, pending: [] };
+    const store = { pool: await pool(), pending: [] };
     try {
       return await requestContext.run(store, fn);
     } finally {
-      waitUntil((async () => { await Promise.allSettled(store.pending); await pool.end(); })());
+      waitUntil(Promise.allSettled(store.pending));
     }
   }
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });

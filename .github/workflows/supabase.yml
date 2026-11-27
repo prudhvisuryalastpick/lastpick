@@ -12,6 +12,7 @@ name: Deploy (Supabase + Cloudflare pages)
 #   DATABASE_URL + SEED_PASSWORD  optional, only for "test accounts"
 #   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET  Razorpay online payments (keys saved Nov 2026, updated) (Customer Pass ₹99 / Business Pro ₹499, 30 days per payment).
 #                             Razorpay Dashboard → Account & Settings → API Keys. Test keys (rzp_test_…) take no real money.
+#   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY  Cloudflare R2 (photos/videos), with CLOUDFLARE_ACCOUNT_ID; bucket lastpick-photos.
 #   BREVO_API_KEY             Brevo: sends sign-up / reset codes, receipts and account e-mails (the e-mail provider).
 #   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN  WhatsApp Cloud API (Meta). Mobile check at sign-up by WhatsApp code is switched off for now (see the WA_VERIFY line below); WhatsApp login only when WA_LOGIN = on.
 #                             Phone number ID from Meta → WhatsApp → API Setup; a permanent System User token.
@@ -124,6 +125,12 @@ jobs:
             $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >/dev/null
           else
             $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET >/dev/null 2>&1 || true
+          fi
+          # Cloudflare R2 for photos, videos and files (bucket lastpick-photos), only when both keys are saved in GitHub
+          if [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.R2_SECRET_ACCESS_KEY }}" ] && [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            $S set --yes --project-ref "$SUPABASE_PROJECT_ID" "R2_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" "R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}" "R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" "R2_BUCKET=${{ vars.R2_BUCKET || 'lastpick-photos' }}" >/dev/null
+          else
+            echo "::warning::R2 keys not saved in GitHub: files are kept in the database"
           fi
           # Amazon SES is not used: its keys are removed from the functions
           $S unset --yes --project-ref "$SUPABASE_PROJECT_ID" AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SES_REGION >/dev/null 2>&1 || true

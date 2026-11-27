@@ -985,3 +985,13 @@ test("admin: Customer Pass switch, Business Pro counts per pincode", async () =>
   const pins = (await a.get("/api/admin/pincodes")).data.pincodes;
   assert.ok(pins.length && pins.every((x) => Number.isInteger(x.subs) && Number.isInteger(x.ending)));
 });
+
+test("file storage: save, read back and delete (database store when R2 keys are absent)", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const r = await a.get("/api/admin/storage-check");
+  assert.equal(r.status, 200);
+  assert.equal(r.data.saved, true);
+  assert.equal(r.data.readBack, true);
+  assert.equal(r.data.store, "database");
+  assert.equal((await client("customer").get("/api/admin/storage-check")).status >= 400, true);
+});

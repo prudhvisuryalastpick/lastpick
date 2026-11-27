@@ -49,10 +49,13 @@ async function sharedPool() {
 }
 
 // Cloudflare Workers: one small pool per request (through Hyperdrive), closed when the request is done.
-export async function requestPool(connectionString, { ssl = false } = {}) {
+export async function requestPool(connectionString, { ssl = false, max = 3, idleMs } = {}) {
   const Pool = await pgPool();
   // 3: a transaction may run alongside a fire-and-forget write
-  return new Pool({ connectionString, max: 3, ssl: ssl ? { rejectUnauthorized: false } : false });
+  const pool = new Pool({ connectionString, max, ssl: ssl ? { rejectUnauthorized: false } : false,
+    ...(idleMs ? { idleTimeoutMillis: idleMs, connectionTimeoutMillis: 5000 } : {}) });
+  pool.on?.("error", () => {}); // a dropped idle connection is replaced on the next query
+  return pool;
 }
 
 async function poolNow() {
