@@ -184,18 +184,20 @@ export function adminRoutes(r) {
   r.post("/api/admin/role", async (ctx) => {
     const me = superAdmin(ctx);
     const role = ctx.body.role;
-    if (!["user", "moderator", "admin", "support"].includes(role)) throw bad("Unknown role");
+    if (!["user", "moderator", "admin"].includes(role)) throw bad("Unknown role"); // Support Desk in-charges are separate accounts: /api/desk/incharges
+    const existing = ctx.body.userId ? null : await one("SELECT role FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
+    if (existing?.role === "support") throw precondition("This is a Support Desk account. Manage it in the Support Desk → Area in-charges");
     const target = ctx.body.userId
       ? await one("SELECT id FROM users WHERE id = $1", [needUuid(ctx.body.userId, "user")])
       : await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
     if (!target) throw notFound("No such user");
     if (target.id === me.id && role !== "admin") throw precondition("You can't remove your own admin access");
     const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []);
-    const agent = role === "moderator" || role === "support"; // support = area in-charge (Support Desk only)
+    const agent = role === "moderator";
     const regions = agent ? list(ctx.body.regions).map((x) => str(x, 60)).filter(Boolean) : [];
     const cities = agent ? [...new Set(list(ctx.body.cities).map((x) => cityKey(str(x, 60))).filter(Boolean))].slice(0, 50) : [];
     const pincodes = agent ? [...new Set(list(ctx.body.pincodes).map((x) => String(x).replace(/\D/g, "")))].filter((x) => /^[1-9]\d{5}$/.test(x)).slice(0, 200) : [];
-    if (agent && !regions.length) throw bad(role === "support" ? "Pick at least one state for the in-charge" : "Pick at least one state for the area agent");
+    if (agent && !regions.length) throw bad("Pick at least one state for the area agent");
     // changing a role signs that person out everywhere, so the new role applies at once
     await q("UPDATE users SET role = $2, regions = $3, area_cities = $4, area_pincodes = $5, token_version = token_version + 1 WHERE id = $1",
       [target.id, role, regions, cities, pincodes]);
@@ -403,6 +405,8 @@ export function adminRoutes(r) {
     const plan = ctx.body.plan;
     const months = Math.max(0, Math.min(24, Number(ctx.body.months) || 0));
     if (!PLANS.includes(plan)) throw bad("Unknown plan");
+    const existing = ctx.body.userId ? null : await one("SELECT role FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
+    if (existing?.role === "support") throw precondition("This is a Support Desk account. Manage it in the Support Desk → Area in-charges");
     const target = ctx.body.userId
       ? await one("SELECT id FROM users WHERE id = $1", [needUuid(ctx.body.userId, "user")])
       : await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);

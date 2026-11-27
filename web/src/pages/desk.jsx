@@ -171,50 +171,93 @@ function Callbacks({ toast }) {
   );
 }
 
-// Super admins: add area in-charges (state, optionally narrowed to cities and/or pincodes) and see their workload
+// Super admins: create Support Desk accounts (separate from app accounts, password set here) and see their workload
+const newPassword = () => {
+  const abc = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const r = crypto.getRandomValues(new Uint32Array(10));
+  return [...r].map((n) => abc[n % abc.length]).join("");
+};
+const EMPTY = { id: null, name: "", email: "", phone: "", password: "", states: [], cities: "", pincodes: "" };
+
 function Incharges({ toast }) {
   const [list, setList] = useState(null);
-  const [form, setForm] = useState({ email: "", states: [], cities: "", pincodes: "" });
+  const [form, setForm] = useState(EMPTY);
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [created, setCreated] = useState(null); // login details to hand over, shown once
+  const [pwFor, setPwFor] = useState(null);
   const load = () => api.deskIncharges().then(setList).catch((e) => setErr(errText(e)));
   useEffect(() => { load(); }, []);
+  const area = () => ({ states: form.states, cities: form.cities.split(",").map((x) => x.trim()).filter(Boolean), pincodes: form.pincodes.split(/[\s,]+/).filter(Boolean) });
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setErr("");
     try {
-      await api.adminSetRole(form.email.trim(), "support", form.states, form.cities.split(",").map((x) => x.trim()).filter(Boolean), form.pincodes.split(/[\s,]+/).filter(Boolean));
-      toast("In-charge saved. They log in at support.lastpick.in with this e-mail."); setForm({ email: "", states: [], cities: "", pincodes: "" }); await load();
+      if (form.id) { await api.deskEditIncharge(form.id, { name: form.name, phone: form.phone, ...area() }); toast("In-charge updated"); }
+      else {
+        await api.deskCreateIncharge({ name: form.name, email: form.email.trim(), phone: form.phone, password: form.password, ...area() });
+        setCreated({ name: form.name, email: form.email.trim(), password: form.password });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      setForm(EMPTY); setShow(false); await load();
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
   const remove = async (p) => {
-    if (!window.confirm(`Remove ${p.name || p.email} from the support team?`)) return;
-    try { await api.adminSetRole(p.email, "user", []); toast("Removed"); await load(); } catch (x) { toast(errText(x)); }
+    if (!window.confirm(`Remove ${p.name}? Their Support Desk login stops working at once. Tickets they answered keep their name.`)) return;
+    try { await api.deskRemoveIncharge(p.id); toast("Removed"); await load(); } catch (x) { toast(errText(x)); }
   };
-  const edit = (p) => setForm({ email: p.email, states: p.states, cities: p.cities.join(", "), pincodes: p.pincodes.join(", ") });
+  const edit = (p) => { setCreated(null); setErr(""); setForm({ ...EMPTY, id: p.id, name: p.name, email: p.email, phone: (p.phone || "").replace(/^\+91/, ""), states: p.states, cities: p.cities.join(", "), pincodes: p.pincodes.join(", ") }); };
   return (
     <>
       <h1 className="adm-h1">Area in-charges</h1>
-      <p className="muted small">An in-charge can only open the Support Desk, and only sees tickets and call backs from their area. They can't open the admin panel.</p>
-      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🧑‍💼" title="No in-charges yet">Add the first one below.</Empty> :
+      <p className="muted small">In-charge accounts are separate from the LastPick apps: you create them here with a login e-mail and password. They work only at support.lastpick.in, see only tickets and call backs from their area, and can't open the admin panel.</p>
+      {created && <div className="panel" style={{ borderLeft: "4px solid var(--ok)" }}>
+        <b>✅ {created.name} can now log in</b>
+        <p className="small" style={{ margin: "6px 0" }}>Share these details with them privately (in person or a direct message). This is the only time the password is shown.</p>
+        <div className="small" style={{ fontFamily: "monospace", background: "#f4f6f8", padding: 10, borderRadius: 8 }}>Site: https://support.lastpick.in<br />E-mail: {created.email}<br />Password: {created.password}</div>
+        <div className="gap" style={{ marginTop: 8 }}>
+          <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(`LastPick Support Desk\nhttps://support.lastpick.in\nE-mail: ${created.email}\nPassword: ${created.password}`); toast("Copied"); }}>Copy details</button>
+          <button className="btn ghost" onClick={() => setCreated(null)}>Done</button>
+        </div>
+      </div>}
+      {!list ? <Spinner /> : list.length === 0 ? <Empty icon="🧑‍💼" title="No in-charges yet">Create the first one below.</Empty> :
         <div className="desk-list">{list.map((p) => (
           <div key={p.id} className="desk-row" style={{ cursor: "default" }}>
-            <span style={{ flex: 1, minWidth: 0 }}><span className="desk-title"><b>{p.name || p.email}</b> <span className="muted small">· {p.role === "moderator" ? "area agent" : "in-charge"}</span></span>
-              <span className="small muted" style={{ display: "block" }}>{[p.states.join(", "), p.cities.join(", "), p.pincodes.join(", ")].filter(Boolean).join(" · ")}</span>
-              <span className="small muted">{p.email}{p.phone ? ` · ${prettyPhone(p.phone)}` : ""}</span></span>
+            <span style={{ flex: 1, minWidth: 0 }}><span className="desk-title"><b>{p.name || p.email}</b> <span className="muted small">· {p.role === "moderator" ? "area agent (admin panel)" : "in-charge"}</span></span>
+              <span className="small muted" style={{ display: "block" }}>📍 {[p.states.join(", "), p.cities.join(", "), p.pincodes.join(", ")].filter(Boolean).join(" · ")}</span>
+              <span className="small muted">{p.email}{p.phone ? ` · ${prettyPhone(p.phone)}` : ""}</span>
+              {pwFor?.id === p.id && <span className="gap" style={{ marginTop: 6, flexWrap: "wrap" }}>
+                <input style={{ padding: "6px 9px", border: "1px solid var(--line)", borderRadius: 8, fontFamily: "monospace" }} value={pwFor.pw} onChange={(e) => setPwFor({ ...pwFor, pw: e.target.value })} aria-label="New password" />
+                <button className="btn main" style={{ padding: "6px 12px", fontSize: 13 }} disabled={pwFor.pw.length < 8} onClick={async () => {
+                  try { await api.deskInchargePassword(p.id, pwFor.pw); setCreated({ name: p.name, email: p.email, password: pwFor.pw }); setPwFor(null); window.scrollTo({ top: 0, behavior: "smooth" }); toast("Password changed; they were logged out"); } catch (x) { toast(errText(x)); } }}>Save password</button>
+                <button className="link small" onClick={() => setPwFor(null)}>Cancel</button></span>}
+            </span>
             <span className="small" style={{ textAlign: "right" }}><b>{p.open}</b> open{p.overdue ? <b style={{ color: "var(--bad, #c0392b)", display: "block" }}>{p.overdue} overdue</b> : null}
               <span className="muted" style={{ display: "block" }}>{p.avgReplyDays == null ? "no replies yet" : p.avgReplyDays < 1 ? "replies within a day" : `first reply ~${p.avgReplyDays} days`}</span></span>
-            {p.role === "support" && <span className="gap" style={{ flexDirection: "column", gap: 4 }}><button className="link small" onClick={() => edit(p)}>Edit</button><button className="link small" onClick={() => remove(p)}>Remove</button></span>}
+            {p.role === "support" && <span className="gap" style={{ flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+              <button className="link small" onClick={() => edit(p)}>Edit area</button>
+              <button className="link small" onClick={() => setPwFor({ id: p.id, pw: newPassword() })}>Reset password</button>
+              <button className="link small" onClick={() => remove(p)}>Remove</button></span>}
           </div>))}</div>}
       <form className="panel form" onSubmit={save}>
-        <b>{list?.some((p) => p.email === form.email) ? "Edit in-charge" : "Add an in-charge"}</b>
-        <p className="muted small">The person first signs up in the LastPick customer or partner app with this e-mail. Saving signs them out once so the new access applies.</p>
-        <div className="fld"><label htmlFor="ic-email">E-mail of their LastPick account</label><input id="ic-email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-        <div className="fld"><label>States</label><div className="chips" style={{ padding: 0 }}>{INDIAN_STATES.map((s) => <button type="button" key={s} className={"chip" + (form.states.includes(s) ? " on" : "")} onClick={() => setForm({ ...form, states: form.states.includes(s) ? form.states.filter((x) => x !== s) : [...form.states, s] })}>{s}</button>)}</div></div>
+        <b>{form.id ? `Edit ${form.name}` : "Create an in-charge"}</b>
+        {!form.id && <p className="muted small">Use an e-mail that isn't already used in the LastPick apps, for example ravi.support@lastpick.in or their personal e-mail.</p>}
+        <div className="fld"><label htmlFor="ic-name">Name</label><input id="ic-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ravi Kumar" /></div>
+        <div className="fld"><label htmlFor="ic-email">Login e-mail</label><input id="ic-email" type="email" required disabled={!!form.id} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        {!form.id && <div className="fld"><label htmlFor="ic-pw">Password (at least 8 characters)</label>
+          <div className="gap"><input id="ic-pw" type={show ? "text" : "password"} required minLength={8} style={{ flex: 1 }} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" />
+            <button type="button" className="btn ghost" onClick={() => setShow(!show)}>{show ? "Hide" : "Show"}</button>
+            <button type="button" className="btn ghost" onClick={() => { setForm({ ...form, password: newPassword() }); setShow(true); }}>Make one</button></div></div>}
+        <div className="fld"><label htmlFor="ic-phone">Mobile (optional)</label><input id="ic-phone" inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="10-digit number" /></div>
+        <div className="fld"><label>States they handle</label><div className="chips" style={{ padding: 0 }}>{INDIAN_STATES.map((s) => <button type="button" key={s} className={"chip" + (form.states.includes(s) ? " on" : "")} onClick={() => setForm({ ...form, states: form.states.includes(s) ? form.states.filter((x) => x !== s) : [...form.states, s] })}>{s}</button>)}</div></div>
         <div className="fld"><label htmlFor="ic-cities">Only these cities (optional, comma separated)</label><input id="ic-cities" value={form.cities} onChange={(e) => setForm({ ...form, cities: e.target.value })} placeholder="e.g. Hyderabad, Nandyal" /></div>
         <div className="fld"><label htmlFor="ic-pins">Only these pincodes (optional)</label><input id="ic-pins" value={form.pincodes} onChange={(e) => setForm({ ...form, pincodes: e.target.value })} placeholder="e.g. 500090, 518112" /></div>
         {err && <div className="error">{err}</div>}
-        <button className={"btn main" + (busy ? " is-busy" : "")} disabled={busy || !form.email || !form.states.length}>{busy ? "Saving…" : "Save in-charge"}</button>
+        <div className="gap">
+          <button className={"btn main" + (busy ? " is-busy" : "")} disabled={busy || !form.name.trim() || !form.email || !form.states.length || (!form.id && form.password.length < 8)}>{busy ? "Saving…" : form.id ? "Save changes" : "Create in-charge"}</button>
+          {form.id && <button type="button" className="btn ghost" onClick={() => setForm(EMPTY)}>Cancel</button>}
+        </div>
       </form>
     </>
   );

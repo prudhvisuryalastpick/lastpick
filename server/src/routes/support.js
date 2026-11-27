@@ -1,13 +1,13 @@
 // Customer and partner support: ask for help in the app, the LastPick team answers in the same conversation.
 // (Formal complaints with legal deadlines stay in /api/grievances.)
-import { needUser } from "../auth.js";
+import { hashPassword, needUser } from "../auth.js";
 import { MAIL_REPLY_TO, SERVICE } from "../config.js";
 import { mailProvider, sendEmail } from "../mail.js";
 import { log } from "../log.js";
 import { many, one, q, tx } from "../db.js";
 import { limit } from "../ratelimit.js";
 import { audit } from "../shared.js";
-import { bad, cityKey, denied, isDataImage, ms, needUuid, notFound, precondition, str } from "../util.js";
+import { bad, cityKey, denied, isDataImage, ms, needUuid, normEmail, notFound, precondition, str } from "../util.js";
 import { deleteFile, fileUrl, newKey, saveFile } from "../storage.js";
 
 // Help topics (each has an instant answer in the app, web/src/lib/helptopics.js). Older topic names stay valid.
@@ -326,5 +326,71 @@ export function supportRoutes(r, { admin }) {
         open: mineOpen.length, overdue: mineOpen.filter((t) => businessDays(t.last_customer_at || t.created_at) >= OVERDUE_DAYS).length,
         avgReplyDays: mineReplied.length ? Math.round((mineReplied.reduce((a, t) => a + Number(t.days), 0) / mineReplied.length) * 10) / 10 : null };
     });
+  });
+
+  // ---------- super admins create and manage Support Desk accounts (separate from app accounts) ----------
+  const superDesk = (ctx) => { const me = desk(ctx); if (me.role !== "admin") throw denied("Super admins only"); return me; };
+  const areaFrom = (b) => {
+    const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []);
+    const states = [...new Set(list(b.states).map((x) => str(x, 60)).filter(Boolean))];
+    const cities = [...new Set(list(b.cities).map((x) => cityKey(str(x, 60))).filter(Boolean))].slice(0, 50);
+    const pincodes = [...new Set(list(b.pincodes).map((x) => String(x).replace(/\D/g, "")))].filter((x) => /^[1-9]\d{5}$/.test(x)).slice(0, 200);
+    if (!states.length) throw bad("Pick at least one state for the in-charge");
+    return { states, cities, pincodes };
+  };
+  const goodPassword = (pw) => { if (typeof pw !== "string" || pw.length < 8) throw bad("Password must be at least 8 characters"); return pw; };
+  const phoneOf = (v) => { const d = String(v || "").replace(/\D/g, "").replace(/^91(?=\d{10}$)/, ""); if (!d) return ""; if (!/^[6-9]\d{9}$/.test(d)) throw bad("Enter a valid 10-digit mobile number, or leave it empty"); return "+91" + d; };
+
+  r.post("/api/desk/incharges", async (ctx) => {
+    const me = superDesk(ctx);
+    const b = ctx.body || {};
+    const name = str(b.name, 80);
+    if (name.length < 2) throw bad("Enter the in-charge's name");
+    const email = normEmail(b.email);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad("Enter a valid login e-mail");
+    const password = goodPassword(b.password);
+    const phone = phoneOf(b.phone);
+    const { states, cities, pincodes } = areaFrom(b);
+    if (await one("SELECT 1 FROM users WHERE lower(email) = $1", [email])) throw precondition("This e-mail already has a LastPick account. Use a different e-mail for the in-charge (for example name.support@lastpick.in).");
+    if (phone && await one("SELECT 1 FROM users WHERE phone = $1", [phone])) throw precondition("This mobile number already has a LastPick account. Leave it empty or use another number.");
+    const u = await one(`INSERT INTO users (email, password_hash, name, phone, role, regions, area_cities, area_pincodes)
+                         VALUES ($1, $2, $3, $4, 'support', $5, $6, $7) RETURNING id`, [email, await hashPassword(password), name, phone, states, cities, pincodes]);
+    audit("desk_incharge_create", me.id, { target: u.id, states, cities, pincodes });
+    return { id: u.id };
+  }, { limit: "write" });
+
+  const incharge = async (ctx) => {
+    const me = superDesk(ctx);
+    const u = await one("SELECT id, role FROM users WHERE id = $1", [needUuid(ctx.params.id, "in-charge")]);
+    if (!u || u.role !== "support") throw notFound("In-charge not found");
+    return { me, u };
+  };
+  // change name, mobile or area (signs them out so the new area applies at once)
+  r.post("/api/desk/incharges/:id", async (ctx) => {
+    const { me, u } = await incharge(ctx);
+    const b = ctx.body || {};
+    const name = str(b.name, 80);
+    if (name.length < 2) throw bad("Enter the in-charge's name");
+    const phone = phoneOf(b.phone);
+    if (phone && await one("SELECT 1 FROM users WHERE phone = $1 AND id <> $2", [phone, u.id])) throw precondition("This mobile number already has a LastPick account");
+    const { states, cities, pincodes } = areaFrom(b);
+    await q("UPDATE users SET name = $2, phone = $3, regions = $4, area_cities = $5, area_pincodes = $6, token_version = token_version + 1, updated_at = now() WHERE id = $1",
+      [u.id, name, phone, states, cities, pincodes]);
+    audit("desk_incharge_edit", me.id, { target: u.id, states, cities, pincodes });
+    return { ok: true };
+  });
+  r.post("/api/desk/incharges/:id/password", async (ctx) => {
+    const { me, u } = await incharge(ctx);
+    await q("UPDATE users SET password_hash = $2, token_version = token_version + 1, updated_at = now() WHERE id = $1", [u.id, await hashPassword(goodPassword(ctx.body?.password))]);
+    audit("desk_incharge_password", me.id, { target: u.id });
+    return { ok: true };
+  });
+  // remove: the account can't log in any more (kept for the record of who answered which ticket)
+  r.post("/api/desk/incharges/:id/remove", async (ctx) => {
+    const { me, u } = await incharge(ctx);
+    await q(`UPDATE users SET role = 'user', password_hash = NULL, email = NULL, phone = '', regions = '{}', area_cities = '{}', area_pincodes = '{}',
+             token_version = token_version + 1, updated_at = now() WHERE id = $1`, [u.id]);
+    audit("desk_incharge_remove", me.id, { target: u.id });
+    return { ok: true };
   });
 }

@@ -68,6 +68,8 @@ async function recordConsent(client, uid, body, userAgent, ip = "") {
 // A new login. One device at a time: this login signs out every other device.
 // Admins can let customers stay logged in on several devices (partner and admin logins stay one device).
 async function startSession(u, userAgent, how) {
+  // Support Desk accounts (created by a super admin) work only at support.lastpick.in, never in the customer or partner apps
+  if (u.role === "support" && SERVICE !== "admin") throw denied("This is a Support Desk account. Log in at support.lastpick.in");
   const oneDevice = SERVICE !== "customer" || await singleDeviceOn();
   const device = deviceName(userAgent);
   const fresh = await one(`UPDATE users SET token_version = token_version + $3, last_login_at = now(), last_login_device = $2

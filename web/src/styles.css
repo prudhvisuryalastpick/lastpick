@@ -1113,3 +1113,4 @@ button.maint-back:disabled { opacity: .85; }
 .desk-filter .btn { flex: 0 0 auto; width: auto; padding: 9px 18px; }
 .desk-row .desk-title { display: block; }
 .adm-main .panel.form .chips { flex-wrap: wrap; overflow: visible; }
+.adm-main .panel.form .gap > .btn.ghost { flex: 0 0 auto; width: auto; padding: 9px 16px; }

@@ -1081,8 +1081,14 @@ test("support desk: ticket numbers, photos, area in-charges see only their area,
   const c = client("customer"); await c.post("/api/auth/login", { email: "freecust@test.lastpick.in", password: "longpassword" }).then((r) => { c.token = r.data.token; });
   const ct = (await c.post("/api/support", { topic: "Shop not answering calls", message: "Nobody picks up", place: { state: "Far State", city: "Elsewhere", pincode: "999999" } })).data;
   // an in-charge for the partner's state only
-  assert.equal((await a.post("/api/admin/role", { email: "moderator@test.lastpick.in", role: "support", regions: [biz.state] })).status, 200);
-  const d = client("admin"); await d.login("moderator@test.lastpick.in");
+  // super admin creates a separate Support Desk account with a password
+  assert.equal((await a.post("/api/desk/incharges", { name: "Ravi", email: "owner@test.lastpick.in", password: "deskpass123", states: [biz.state] })).status, 409, "app e-mails can't be reused");
+  assert.equal((await a.post("/api/desk/incharges", { name: "Ravi", email: "ravi.desk@test.lastpick.in", password: "short", states: [biz.state] })).status, 400);
+  const made = await a.post("/api/desk/incharges", { name: "Ravi", email: "ravi.desk@test.lastpick.in", password: "deskpass123", states: [biz.state] });
+  assert.equal(made.status, 200, JSON.stringify(made.data));
+  assert.equal((await client("customer").post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "deskpass123" })).status, 403, "desk accounts can't use the apps");
+  const d = client("admin");
+  let li = await d.post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "deskpass123" }); d.token = li.data.token;
   assert.equal((await d.get("/api/desk/me")).data.role, "support");
   assert.equal((await d.get("/api/admin/stats")).status, 403, "in-charges can't open the admin panel");
   const list = (await d.get("/api/desk/tickets?view=open")).data;
@@ -1102,6 +1108,13 @@ test("support desk: ticket numbers, photos, area in-charges see only their area,
   const rs = await c.post(`/api/support/${ct.id}/resolve`); assert.equal(rs.data?.resolved, true, JSON.stringify([ct, rs]));
   assert.equal((await a.get(`/api/desk/tickets/${ct.id}`)).data.resolvedBy, "customer");
   const ics = (await a.get("/api/desk/incharges")).data;
-  assert.ok(ics.some((x) => x.role === "support"), JSON.stringify(ics));
+  assert.ok(ics.some((x) => x.email === "ravi.desk@test.lastpick.in"), JSON.stringify(ics));
   assert.equal((await d.get("/api/desk/incharges")).status, 403);
+  assert.equal((await d.post("/api/desk/incharges", { name: "X", email: "x2@test.lastpick.in", password: "deskpass123", states: [biz.state] })).status, 403, "in-charges can't add in-charges");
+  // reset password, then remove
+  assert.equal((await a.post(`/api/desk/incharges/${made.data.id}/password`, { password: "newdesk1234" })).status, 200);
+  assert.equal((await d.get("/api/desk/me")).status, 401, "old login ends after a password change");
+  li = await d.post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "newdesk1234" }); assert.equal(li.status, 200);
+  assert.equal((await a.post(`/api/desk/incharges/${made.data.id}/remove`)).status, 200);
+  assert.equal((await d.post("/api/auth/login", { email: "ravi.desk@test.lastpick.in", password: "newdesk1234" })).status, 400);
 });
