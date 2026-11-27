@@ -109,6 +109,7 @@ export const CATEGORIES = [
   { id: "farm", label: "Farm fresh", icon: "🥬" },
   { id: "fashion", label: "Fashion", icon: "👗" },
   { id: "appliances", label: "Home appliances", icon: "📺" },
+  { id: "rentals", label: "Rentals (homes and workspaces)", icon: "🏠" },
   { id: "ads", label: "Local ads", icon: "📣" },
   { id: "other", label: "Other", icon: "📦" },
 ];
@@ -127,6 +128,7 @@ export const ITEM_OPTIONS = {
   fashion: { label: "For", options: ["Men", "Women", "Kids", "Unisex"], sizesLabel: "Sizes", sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free size"], units: ["pieces", "sets"], example: "Cotton kurta" },
   appliances: { label: "Condition", options: ["New", "Open box"], units: ["units"], example: "1.5 ton split AC, 3 star" },
   ads: { units: ["seats", "slots"], example: "Spoken English classes, 1 month" },
+  rentals: { units: ["seats", "desks", "rooms"], example: "Coworking day pass" },
   other: { units: ["pieces", "units", "slots"], example: "Bike service" },
 };
 export const itemOptions = (category) => ITEM_OPTIONS[category] || ITEM_OPTIONS.other;
@@ -236,3 +238,21 @@ export const cityKey = (name) => String(name || "").trim().toLowerCase().replace
 // Data retention (days). The nightly cleanup job in functions/index.js uses the same numbers.
 // Logs of number exchanges are kept 1 year (DPDP Rules 2025, rule 8(3)). Keep in sync with functions/index.js.
 export const RETENTION = { endedOfferVisibleDays: 0, archiveDays: 365, leadsDays: 365, contactsDays: 30, reportsDays: 365, auditDays: 365, closedGrievanceDays: 730 };
+
+// Rentals (homes and workspaces): listing types, amenities and prices. Keep in sync with server/src/routes/rentals.js.
+export const RENTALS = {
+  packs: [{ days: 15, price: 249 }, { days: 30, price: 499 }],
+  types: {
+    home: ["1RK", "1BHK", "2BHK", "3BHK", "4BHK+", "Independent house", "Villa", "PG / Hostel"],
+    work: ["Office space", "Coworking desk", "Private cabin", "Library / study hall", "Shop / showroom", "Godown", "Event hall"],
+  },
+  amenities: {
+    home: ["Wi-Fi", "Parking", "Power backup", "Lift", "Water 24x7", "Security", "Gated", "Pets OK"],
+    work: ["Wi-Fi", "AC", "Power backup", "Parking", "Washroom", "Pantry", "CCTV", "Meeting room", "Lockers", "24x7 access"],
+  },
+  furnishing: [["semi", "Semi-furnished"], ["furnished", "Furnished"], ["unfurnished", "Unfurnished"]],
+  tenant: [["family", "Family"], ["bachelors", "Bachelors"], ["anyone", "Anyone"]],
+  maxPhotos: 5, photoBytes: 1_000_000, videoBytes: 20_000_000, videoSeconds: 60,
+};
+// how a workspace is priced: per seat for desks and study halls, per day for event halls, else per month
+export const rentUnit = (type) => (/desk|library/i.test(type || "") ? "/seat/mo" : /event/i.test(type || "") ? "/day" : "/mo");

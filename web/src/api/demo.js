@@ -299,6 +299,24 @@ export const api = {
     save(db);
   },
 
+  // rentals: the demo keeps listings in memory only
+  async myRentals() { return (this._rentals || []).map((l) => ({ ...l, cover: l.photos?.[0]?.url || null })); },
+  async myRental(id) { return (this._rentals || []).find((x) => x.id === id) || null; },
+  async createRental(f) { const l = { ...f, id: "r" + Date.now(), status: "draft", photos: [], video: null, views: 0, calls: 0, createdAt: Date.now() }; (this._rentals ||= []).unshift(l); return l; },
+  async updateRental(id, f) { const l = (this._rentals || []).find((x) => x.id === id); Object.assign(l, f); return l; },
+  async addRentalMedia(id, file, kind) {
+    const l = (this._rentals || []).find((x) => x.id === id); const url = URL.createObjectURL(file);
+    if (kind === "video") l.video = { id: "v" + Date.now(), url }; else l.photos.push({ id: "p" + Date.now(), url });
+    return { photos: l.photos, video: l.video };
+  },
+  async removeRentalMedia(id, mid) { const l = (this._rentals || []).find((x) => x.id === id); l.photos = l.photos.filter((p) => p.id !== mid); if (l.video?.id === mid) l.video = null; return { photos: l.photos, video: l.video }; },
+  async publishRental(id, days) { const l = (this._rentals || []).find((x) => x.id === id); Object.assign(l, { status: "live", days, startsAt: Date.now(), endsAt: Date.now() + days * 86400000 }); return { live: true }; },
+  async closeRental(id) { const l = (this._rentals || []).find((x) => x.id === id); Object.assign(l, { status: "closed", closedReason: l.kind === "work" ? "leased" : "rented", closedAt: Date.now() }); return l; },
+  async reopenRental(id) { const l = (this._rentals || []).find((x) => x.id === id); Object.assign(l, { status: "live", closedReason: null }); return l; },
+  async removeRental(id) { this._rentals = (this._rentals || []).filter((x) => x.id !== id); return { removed: true }; },
+  async rentalsNear() { return []; },
+  async rental() { return null; },
+  async rentalContact() { return { phone: "9000000000", whatsapp: true }; },
   async myBusiness() {
     const db = load(); const u = me(db);
     const b = db.businesses.find((x) => x.ownerId === u.id);

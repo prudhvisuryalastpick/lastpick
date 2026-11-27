@@ -97,6 +97,7 @@ export const CAT_STYLE = {
   gym: { icon: "dumbbell", tint: "#E6F1FB", ink: "#0C447C", short: "Gym" },
   farm: { icon: "leaf", tint: "#EAF3DE", ink: "#3B6D11", short: "Farm fresh" },
   appliances: { icon: "tv", tint: "#EEF0F6", ink: "#3B4654", short: "Appliances" },
+  rentals: { icon: "venue", tint: "#E0F2F1", ink: "#0F5E58", short: "Rentals" },
   ads: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Local ads" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
   other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Other" },
@@ -107,7 +108,7 @@ export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 // Category tiles on the customer home (Food, Hotels first), with small tags.
 export const HOME_TILES = [
   { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "beauty" }, { id: "makeup" },
-  { id: "gym" }, { id: "farm" }, { id: "fashion" }, { id: "appliances" }, { id: "ads" },
+  { id: "gym" }, { id: "farm" }, { id: "fashion" }, { id: "appliances" }, { id: "rentals" }, { id: "ads" },
   { id: "other" },
 ];
 

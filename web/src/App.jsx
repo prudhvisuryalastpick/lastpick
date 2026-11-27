@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, isLive } from "./api/index.js";
 import { Empty, QuoteStrip, Spinner } from "./components.jsx";
 import { Account, Contacts, Home, MapPage, OfferPage, CategoryPage } from "./pages/customer.jsx";
+import { OwnerRentals, RentalDetail, RentalForm, RentalsPage } from "./pages/rentals.jsx";
+import { CompressHelp } from "./pages/compresshelp.jsx";
 import { BusinessPage, MyItems, OwnerDashboard, OwnerGate, OwnerLeads, OwnerOffers, PostOffer } from "./pages/owner.jsx";
 import { Help, Login, Plans, Refund, Subscribe } from "./pages/account.jsx";
 import { Admin } from "./pages/adminpanel.jsx";
@@ -36,7 +38,7 @@ const Icon = ({ d }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const CUSTOMER_NAV = [["/", "home", "Home"], ["/map", "map", "Map"], ["/contacts", "phone", "History"], ["/account", "user", "Account"], ["/guide", "M5 4l14 8-14 8z", "Guide"], ["/about", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01", "About"]];
 const OWNER_NAV = [["/owner", I.home, "Home"], ["/owner/post", I.post, "Post"], ["/owner/leads", I.leads, "Leads"], ["/owner/offers", I.myoffers, "Offers"], ["/account", I.account, "Account"], ["/guide", "M5 4l14 8-14 8z", "Guide"], ["/about", I.about, "About"]];
 // pages anyone can open without accepting the privacy notice first
-const OPEN_PAGES = ["/about", "/guide", "/get-help", "/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
+const OPEN_PAGES = ["/rentals", "/help/compress", "/about", "/guide", "/get-help", "/privacy", "/terms", "/contact", "/help", "/refund", "/grievance", "/delete-account", "/account/privacy", "/login", "/plans", "/rules", "/support"];
 
 function Page({ path, query }) {
   const { session } = useApp();
@@ -46,7 +48,10 @@ function Page({ path, query }) {
   if (path === "/") return IS_ADMIN_APP ? <Admin /> : IS_OWNER_APP ? <OwnerGate><OwnerDashboard /></OwnerGate> : <Home />;
   if (path === "/map") return <MapPage />;
   if ((m = match("/offer/:id", path))) return <OfferPage id={m.id} />;
-  if ((m = match("/c/:id", path))) return <CategoryPage id={m.id} />;
+  if ((m = match("/c/:id", path))) return m.id === "rentals" ? <RentalsPage /> : <CategoryPage id={m.id} />;
+  if (path === "/rentals") return <RentalsPage />;
+  if ((m = match("/rental/:id", path))) return <RentalDetail id={m.id} />;
+  if (path === "/help/compress") return <CompressHelp />;
   if (path === "/contacts") return <Contacts />;
   if (path === "/account") return <Account />;
   if ((m = match("/subscribe/:plan", path))) return <Subscribe plan={m.plan} />;
@@ -56,6 +61,9 @@ function Page({ path, query }) {
   if (path === "/owner") return IS_OWNER_APP && !session ? <PartnerLanding /> : <OwnerGate><OwnerDashboard /></OwnerGate>;
   if (path === "/owner/post") return <OwnerGate><PostOffer /></OwnerGate>;
   if (path === "/owner/items") return <OwnerGate><MyItems /></OwnerGate>;
+  if (path === "/owner/rentals") return <OwnerGate allowWithoutPlan><OwnerRentals /></OwnerGate>;
+  if (path === "/owner/rentals/new") return <OwnerGate allowWithoutPlan><RentalForm /></OwnerGate>;
+  if ((m = match("/owner/rentals/:id", path))) return <OwnerGate allowWithoutPlan><RentalForm key={m.id} id={m.id} /></OwnerGate>;
   if (path === "/owner/leads") return <OwnerGate><OwnerLeads /></OwnerGate>;
   if (path === "/owner/offers") return <OwnerGate allowWithoutPlan><OwnerOffers /></OwnerGate>;
   if (path === "/owner/business") return <BusinessPage />;

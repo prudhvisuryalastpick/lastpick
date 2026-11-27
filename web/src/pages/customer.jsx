@@ -87,7 +87,7 @@ export function Home() {
   const ending = useMemo(() => live.filter((o) => o.endsAt - now <= 3600000).sort((a, b) => a.endsAt - b.endsAt).slice(0, 8), [live, now]);
   const featured = useMemo(() => live.filter((o) => o.featured).slice(0, 4), [live]);
   const results = useMemo(() => { const n = q.trim().toLowerCase(); return n ? live.filter((o) => `${o.title} ${o.description} ${o.business?.name} ${categoryOf(o.category)?.label || ""}`.toLowerCase().includes(n)) : []; }, [live, q]);
-  const open = (id) => navigate("/c/" + id);
+  const open = (id) => navigate(id === "rentals" ? "/rentals" : "/c/" + id);
   const noLocation = needGps && locationStatus !== "asking";
   const hours = config?.hours || { open: 4, close: 23 };
   // always the live location (GPS): pincode + town, e.g. "Nandyal - 518501"

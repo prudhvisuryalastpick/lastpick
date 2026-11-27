@@ -34,11 +34,15 @@ async function r2(method, key, body, contentType) {
     method, body: body || undefined,
     headers: { ...headers, authorization: `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY_ID}/${scope}, SignedHeaders=${names.join(";")}, Signature=${sig}` },
   });
+  if (method === "HEAD") return res.ok ? Number(res.headers.get("content-length") || 0) : null;
   if (!res.ok && !(method === "DELETE" && res.status === 404)) throw new Error(`R2 ${method} failed (${res.status})`);
 }
 
+// size in bytes of a stored file, or null if it isn't there (used to confirm a phone's direct upload)
+export async function objectSize(key) { return R2_ON ? r2("HEAD", key) : null; }
+
 // A short-lived link anyone holding it can open (photos stay private: links expire).
-export function signedUrl(key, seconds = 3600, at = new Date()) {
+export function signedUrl(key, seconds = 3600, at = new Date(), method = "GET") {
   const url = new URL(R2_ENDPOINT);
   const path = keyPath(key);
   const amz = stamp(at), day = amz.slice(0, 8), scope = `${day}/${REGION}/${SVC}/aws4_request`;
@@ -47,11 +51,15 @@ export function signedUrl(key, seconds = 3600, at = new Date()) {
     "X-Amz-Expires": String(seconds), "X-Amz-SignedHeaders": "host",
   });
   const query = [...qs.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${enc(k)}=${enc(v)}`).join("&");
-  const canonical = ["GET", path, query, `host:${url.host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
+  const canonical = [method, path, query, `host:${url.host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
   const toSign = ["AWS4-HMAC-SHA256", amz, scope, hash(canonical)].join("\n");
   const sig = crypto.createHmac("sha256", signingKey(day)).update(toSign).digest("hex");
   return `${url.origin}${path}?${query}&X-Amz-Signature=${sig}`;
 }
+
+// A short-lived link the phone uses to upload a file straight to R2 (big photos and videos never pass through
+// the server). The server checks the size afterwards with objectSize().
+export const uploadUrl = (key, seconds = 900) => signedUrl(key, seconds, new Date(), "PUT");
 
 const DATA_URL = /^data:([a-z]+\/[a-z0-9.+-]+);base64,(.+)$/i;
 

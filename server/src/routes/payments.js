@@ -15,7 +15,9 @@ import { log } from "../log.js";
 import { notify, PLAN_NAMES } from "../notify.js";
 import { limit } from "../ratelimit.js";
 import { addPlanDays, audit, mapSub } from "../shared.js";
-import { bad, denied, notFound, precondition, str } from "../util.js";
+import { bad, denied, needUuid, notFound, precondition, str } from "../util.js";
+import { RENTAL_PACKS, activateListing } from "./rentals.js";
+import { clearCache } from "../cache.js";
 import { PAY_PACKS } from "./revenue.js";
 
 export const paymentsOn = () => !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
@@ -38,6 +40,7 @@ async function razorpay(method, path, body) {
 // The plan this app sells: customers buy the Customer Pass, partners buy Business Pro.
 async function planFor(ctx) {
   const plan = ctx.body.plan;
+  if (plan === "rental") { if (SERVICE !== "all" && SERVICE !== "partner") throw denied("This can't be bought in this app"); return plan; }
   if (plan !== "customer" && plan !== "owner") throw bad("Unknown plan");
   if (plan === "customer" && (await customersFree())) throw bad("LastPick is free for customers. There's nothing to pay.");
   if (SERVICE !== "all" && plan !== (SERVICE === "partner" ? "owner" : "customer")) throw denied("This plan can't be bought in this app");
@@ -57,9 +60,11 @@ async function fulfil(order, paymentId) {
     if (!r.rows.length) return false; // already counted
     const p = r.rows[0];
     await c.query("INSERT INTO plan_sales (user_id, plan, months, amount, source) VALUES ($1, $2, $3, $4, 'gateway')", [p.user_id, p.plan, p.months, p.amount]);
-    await addPlanDays((sql, params) => c.query(sql, params), { userId: p.user_id, plan: p.plan, days: p.days, provider: "razorpay", paymentId, months: p.months });
+    if (p.plan === "rental") await activateListing((sql, params) => c.query(sql, params), p.listing_id, p.days);
+    else await addPlanDays((sql, params) => c.query(sql, params), { userId: p.user_id, plan: p.plan, days: p.days, provider: "razorpay", paymentId, months: p.months });
     return p;
   });
+  if (done && done.plan === "rental") { audit("rental_paid", done.user_id, { listingId: done.listing_id, amount: done.amount, orderId: done.order_id, paymentId }); clearCache("rentals:"); return true; }
   if (done) {
     audit("plan_paid", done.user_id, { plan: done.plan, amount: done.amount, orderId: done.order_id, paymentId });
     const s = await one("SELECT current_period_end FROM subscriptions WHERE user_id = $1 AND plan = $2", [done.user_id, done.plan]);
@@ -80,12 +85,35 @@ async function myOrder(ctx) {
   return { u, order };
 }
 
+// a 15- or 30-day rental listing (paid per listing; the listing goes live when the payment is confirmed)
+async function rentalOrder(ctx, u) {
+  const listingId = needUuid(ctx.body.listingId, "listing");
+  const l = await one("SELECT id, owner_id, kind, type, status, media_deleted_at FROM rental_listings WHERE id = $1", [listingId]);
+  if (!l || l.owner_id !== u.id) throw notFound("Listing not found");
+  if (l.media_deleted_at || l.status === "removed") throw precondition("Post this listing again.");
+  const pack = RENTAL_PACKS.find((x) => x.days === Number(ctx.body.days));
+  if (!pack) throw bad("Pick 15 or 30 days");
+  await limit(u.id, "payOrder", 20, 3600);
+  const ord = await razorpay("POST", "/orders", {
+    amount: pack.price * 100, currency: "INR", receipt: `rental-${pack.days}d-${Date.now()}`.slice(0, 40),
+    notes: { user_id: u.id, plan: "rental", listing_id: l.id, days: String(pack.days), app: "lastpick" },
+  });
+  await q("INSERT INTO payments (user_id, plan, months, days, amount, order_id, listing_id) VALUES ($1, 'rental', 1, $2, $3, $4, $5)", [u.id, pack.days, pack.price, ord.id, l.id]);
+  const me = await one("SELECT name, email, phone FROM users WHERE id = $1", [u.id]);
+  return {
+    keyId: RAZORPAY_KEY_ID, orderId: ord.id, amount: pack.price * 100, currency: "INR",
+    name: "LastPick", description: `${l.type} listing · ${pack.days} days`, days: pack.days,
+    prefill: { name: me?.name || "", email: me?.email || "", contact: me?.phone || "" },
+  };
+}
+
 export function paymentRoutes(r) {
   // 1. create a Razorpay order for a pack of days (body: plan, days; days defaults to 30)
   r.post("/api/payments/order", async (ctx) => {
     const u = needUser(ctx);
     if (!paymentsOn()) throw precondition("Online payment is not set up yet. Please contact support.");
     const plan = await planFor(ctx);
+    if (plan === "rental") return rentalOrder(ctx, u);
     if (plan === "owner") {
       const b = await one("SELECT status FROM businesses WHERE id = $1", [u.id]);
       if (!b) throw precondition("Register your business first.");
@@ -121,17 +149,17 @@ export function paymentRoutes(r) {
       throw bad("We couldn't confirm this payment. If money was taken, it will be checked automatically; or contact support.");
     }
     await fulfil(order, paymentId);
-    return { paid: true, subscription: await mySub(u.id, order.plan) };
+    return { paid: true, subscription: order.plan === "rental" ? null : await mySub(u.id, order.plan) };
   });
 
   // 3. no reply from the app (tab closed etc.): ask Razorpay whether the order was paid
   r.post("/api/payments/check", async (ctx) => {
     const { u, order } = await myOrder(ctx);
-    if (order.status === "paid") return { paid: true, subscription: await mySub(u.id, order.plan) };
+    if (order.status === "paid") return { paid: true, subscription: order.plan === "rental" ? null : await mySub(u.id, order.plan) };
     const list = await razorpay("GET", `/orders/${encodeURIComponent(order.order_id)}/payments`);
     const ok = (list.items || []).find((p) => p.status === "captured" || p.status === "authorized");
     if (!ok) return { paid: false };
     await fulfil(order, ok.id);
-    return { paid: true, subscription: await mySub(u.id, order.plan) };
+    return { paid: true, subscription: order.plan === "rental" ? null : await mySub(u.id, order.plan) };
   });
 }

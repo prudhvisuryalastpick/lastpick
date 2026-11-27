@@ -4,6 +4,7 @@ import { accountRoutes } from "./routes/account.js";
 import { adminRoutes } from "./routes/admin.js";
 import { offerRoutes, offerViewRoutes } from "./routes/offers.js";
 import { partnerRoutes } from "./routes/partner.js";
+import { rentalCustomerRoutes, rentalOwnerRoutes } from "./routes/rentals.js";
 import { paymentRoutes } from "./routes/payments.js";
 import { statRoutes } from "./routes/stats.js";
 import { reviewReadRoutes, reviewRoutes } from "./routes/reviews.js";
@@ -19,8 +20,8 @@ export function buildRouter(service) {
   statRoutes(router); // public counts (partners by pincode and in total, customers, newly joined partners)
   offerViewRoutes(router);
   reviewReadRoutes(router);
-  if (has("customer")) { offerRoutes(router); reviewRoutes(router); bannerRoutes(router); }
-  if (has("partner")) { partnerRoutes(router); boostPartnerRoutes(router); }
+  if (has("customer")) { offerRoutes(router); reviewRoutes(router); bannerRoutes(router); rentalCustomerRoutes(router); }
+  if (has("partner")) { partnerRoutes(router); boostPartnerRoutes(router); rentalOwnerRoutes(router); }
   if (has("admin")) { adminRoutes(router); revenueAdminRoutes(router); }
   if (has("customer") || has("partner")) paymentRoutes(router); // Razorpay: Customer Pass / Business Pro
   insightRoutes(router, { customer: has("customer"), partner: has("partner") });

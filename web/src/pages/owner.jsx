@@ -4,6 +4,7 @@ import { TermsBox } from "./privacy.jsx";
 import { POSTING_RULES, POSTING_RULES_VERSION, partnerTermsSections, partnerTermsText, partnerTermsTitle } from "../lib/terms.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
+import { OwnerRentals } from "./rentals.jsx";
 import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanBar, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
 import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, categoryOf, itemOptions } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
@@ -21,7 +22,8 @@ function Gate({ children, allowWithoutPlan }) {
   const { business, isOwner, loading } = useApp();
   if (loading) return <Spinner />;
   if (!business) return <BusinessForm first />;
-  if (!isOwner && !allowWithoutPlan) return <OwnerPaywall />;
+  // rentals owners pay per listing (₹249 / ₹499), not for Business Pro
+  if (!isOwner && !allowWithoutPlan && business.category !== "rentals") return <OwnerPaywall />;
   return children;
 }
 
@@ -100,6 +102,12 @@ function StatusBanner() {
 
 // ------------------------------------------------------------------ Dashboard
 export function OwnerDashboard() {
+  const { business } = useApp();
+  // house and workspace owners: their listings are their home screen
+  if (business?.category === "rentals") return <><StatusBanner /><OwnerRentals /></>;
+  return <OfferDashboard />;
+}
+function OfferDashboard() {
   const { business, subs, setMode, trial, freeMode: freeLaunch } = useApp();
   const [offers, setOffers] = useState(null);
   const [leads, setLeads] = useState(null);

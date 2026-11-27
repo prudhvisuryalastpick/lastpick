@@ -1,8 +1,8 @@
 // Live backend: the LastPick API on Supabase. Each app talks to its own function
 // (customer site -> customer server, partner site -> partner server, admin panel -> admin server).
 // Same-origin by default; the Android apps set VITE_API_URL to their server's address.
-import { CONSENT_VERSION, IS_ADMIN_APP, IS_CUSTOMER_APP } from "../lib/config.js";
-import { compressPhoto } from "../lib/image.js";
+import { CONSENT_VERSION, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, RENTALS } from "../lib/config.js";
+import { compressPhoto, dataUrlToBlob, putWithProgress, videoSeconds } from "../lib/image.js";
 import { startRequest } from "../lib/busy.js";
 
 const BASE = (import.meta.env?.VITE_API_URL || "").replace(/\/$/, "");
@@ -118,8 +118,8 @@ export const api = {
 
   // ---------- plans: pay once with Razorpay, get 30 days (no auto-renewal) ----------
   async mySubscriptions() { return get("/api/me/subscriptions"); },
-  async subscribe(plan, _profile, days = 30) {
-    const o = await post("/api/payments/order", { plan, days });
+  async subscribe(plan, _profile, days = 30, extra = {}) {
+    const o = await post("/api/payments/order", { plan, days, ...extra });
     await razorpayScript();
     const check = () => post("/api/payments/check", { orderId: o.orderId });
     return new Promise((resolve, reject) => {
@@ -135,6 +135,49 @@ export const api = {
       rz.open();
     });
   },
+  // ---------- rentals (homes and workspaces) ----------
+  async myRentals() { return get("/api/owner/rentals"); },
+  async myRental(id) { return get(`/api/owner/rentals/${enc(id)}`); },
+  async createRental(f) { return post("/api/owner/rentals", f); },
+  async updateRental(id, f) { return call("PUT", `/api/owner/rentals/${enc(id)}`, f); },
+  async removeRentalMedia(id, mid) { return post(`/api/owner/rentals/${enc(id)}/media/${enc(mid)}/remove`); },
+  // photo (shrunk on the phone to under 1 MB) or video (checked: up to 1 minute, 20 MB), sent straight to R2
+  async addRentalMedia(id, file, kind, onProgress = () => {}) {
+    let blob = file, type = file.type || "";
+    if (kind === "photo") {
+      const dataUrl = await compressPhoto(file, 1600, 900000);
+      blob = dataUrlToBlob(dataUrl); type = "image/jpeg";
+    } else {
+      if (!/^video\//.test(type)) throw new Error("Choose a video file");
+      if (file.size > RENTALS.videoBytes) throw new Error("This video is over 20 MB. Please shorten it to 1 minute or compress it first.");
+      const secs = await videoSeconds(file);
+      if (secs > RENTALS.videoSeconds + 1) throw new Error(`This video is ${Math.round(secs)} seconds. Please keep it to 1 minute.`);
+      if (!/^video\/(mp4|webm|quicktime|3gpp)$/.test(type)) type = "video/mp4";
+    }
+    const start = await post(`/api/owner/rentals/${enc(id)}/media`, { kind, type, bytes: blob.size });
+    if (!start.uploadUrl) {
+      // no R2 (local test runs): send the photo through the server
+      const dataUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+      return post(`/api/owner/rentals/${enc(id)}/media/${enc(start.mediaId)}/data`, { data: dataUrl });
+    }
+    await putWithProgress(start.uploadUrl, blob, type, onProgress);
+    return post(`/api/owner/rentals/${enc(id)}/media/${enc(start.mediaId)}/done`);
+  },
+  // live for 15 or 30 days: free in free launch mode, else paid with Razorpay (website only)
+  async publishRental(id, days) {
+    const r = await post(`/api/owner/rentals/${enc(id)}/publish`, { days });
+    if (r.live) return r;
+    if (IS_NATIVE) { const e = new Error("Please pay for listings on partner.lastpick.in. After payment your listing goes live here too."); e.code = "pay-on-web"; throw e; }
+    await this.subscribe("rental", null, days, { listingId: id });
+    return { live: true };
+  },
+  async closeRental(id) { return post(`/api/owner/rentals/${enc(id)}/close`); },
+  async reopenRental(id) { return post(`/api/owner/rentals/${enc(id)}/reopen`); },
+  async removeRental(id) { return post(`/api/owner/rentals/${enc(id)}/remove`); },
+  async rentalsNear(lat, lng, kind) { return publicGet(`/api/rentals?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}&kind=${kind}`); },
+  async rental(id) { return publicGet(`/api/rentals/${enc(id)}`); },
+  async rentalContact(id) { return post(`/api/rentals/${enc(id)}/contact`); },
+
   async cancelPlan(plan) { await post("/api/billing", { action: "cancel", plan }); },
 
   // ---------- business (partner server) ----------

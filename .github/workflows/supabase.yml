@@ -96,6 +96,18 @@ jobs:
         working-directory: server
         run: node scripts/supabase/migrate.mjs
 
+      - name: Let the apps upload photos and videos straight to R2 (CORS)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BUCKET: ${{ vars.R2_BUCKET || 'lastpick-photos' }}
+        run: |
+          [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ] || { echo "::warning::Cloudflare token not set: R2 upload rules not changed"; exit 0; }
+          body='{"rules":[{"allowed":{"origins":["https://customer.lastpick.in","https://partner.lastpick.in","https://admin.lastpick.in","https://support.lastpick.in","https://localhost","capacitor://localhost"],"methods":["GET","PUT","HEAD"],"headers":["content-type"]},"exposeHeaders":["etag"],"maxAgeSeconds":3600}]}'
+          out=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/r2/buckets/$BUCKET/cors" \
+            -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "$body")
+          echo "$out" | grep -q '"success":true' && echo "R2 upload rules (CORS) set" || echo "::warning::Couldn't set R2 upload rules: $out"
+
       - name: Category photos to Cloudflare R2
         working-directory: server
         env:

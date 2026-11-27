@@ -3,6 +3,7 @@ import { many, q, tx } from "./db.js";
 import { onJob, schedule } from "./queue.js";
 import { recomputeRating } from "./routes/reviews.js";
 import { ALWAYS_OPEN, RETENTION, isNight } from "./util.js";
+import { expireRentals } from "./routes/rentals.js";
 
 // Ended offers leave the live offers table at once: they are copied to offer_archive (the partner's History, with
 // views and lead counts) and deleted. Customers never see old offers; leads keep their own copy of the offer title.
@@ -46,6 +47,9 @@ export function registerJobs() {
   });
 
   // Every 10 minutes: full photos of offers that just ended are deleted (thumbnails stay until the offer is archived).
+  // rentals: end listings whose days ran out; delete their photos and video 7 days after they ended
+  schedule("expire-rentals", { every: 600000 }, async () => { await expireRentals(); });
+
   schedule("drop-ended-photos", { every: 600000 }, async () => {
     const r = await q(`WITH ended AS (UPDATE offers SET has_photo = false WHERE has_photo AND (ends_at < now() OR status <> 'live') RETURNING id)
                        DELETE FROM offer_photos p USING ended WHERE p.offer_id = ended.id`);

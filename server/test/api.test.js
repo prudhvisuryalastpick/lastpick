@@ -1019,3 +1019,54 @@ test("partners can't change their category; admins can (live offers end, reason 
   assert.equal((await o.post(`/api/admin/businesses/${id}/category`, { category: "food", reason: "try" })).status >= 400, true);
   await a.post(`/api/admin/businesses/${id}/category`, { category: biz.category, reason: "back for the next tests" });
 });
+
+test("rentals: draft, photo, publish 15/30 days, near me, contact, rented out, reopen", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  const biz = (await o.get("/api/business")).data;
+  const id = (await o.get("/api/me")).data.id;
+  // only partners registered for Rentals can post
+  assert.equal((await o.post("/api/owner/rentals", { kind: "home", type: "2BHK", rent: 14000 })).status, 409);
+  await a.post(`/api/admin/businesses/${id}/category`, { category: "rentals", reason: "test: house owner" });
+  assert.equal((await o.post("/api/owner/rentals", { kind: "home", type: "Castle", rent: 14000 })).status, 400);
+  const l = (await o.post("/api/owner/rentals", { kind: "home", type: "2BHK", rent: 14000, deposit: 50000, size: 1100, furnishing: "semi", tenant: "family", amenities: ["Wi-Fi", "Parking", "Moat"] })).data;
+  assert.equal(l.status, "draft");
+  assert.deepEqual(l.amenities, ["Wi-Fi", "Parking"]);
+  // publish needs a photo
+  assert.equal((await o.post(`/api/owner/rentals/${l.id}/publish`, { days: 15 })).status, 409);
+  // photo limits: size and type are checked before upload
+  assert.equal((await o.post(`/api/owner/rentals/${l.id}/media`, { kind: "photo", type: "image/jpeg", bytes: 2_000_000 })).status, 400);
+  assert.equal((await o.post(`/api/owner/rentals/${l.id}/media`, { kind: "video", type: "video/mp4", bytes: 30_000_000 })).status, 400);
+  const up = (await o.post(`/api/owner/rentals/${l.id}/media`, { kind: "photo", type: "image/jpeg", bytes: 120 })).data;
+  assert.equal(up.uploadUrl, null); // no R2 in tests: the photo goes through the server
+  const px = "data:image/jpeg;base64," + Buffer.from("fake-jpeg").toString("base64");
+  const med = (await o.post(`/api/owner/rentals/${l.id}/media/${up.mediaId}/data`, { data: px })).data;
+  assert.equal(med.photos.length, 1);
+  // without free mode and without payment keys: publishing asks to pay
+  await a.post("/api/admin/settings", { freeMode: false });
+  const pay = (await o.post(`/api/owner/rentals/${l.id}/publish`, { days: 30 })).data;
+  assert.deepEqual([pay.live, pay.pay.price, pay.pay.days], [false, 499, 30]);
+  // free launch mode: live at once, Day 1 = today
+  await a.post("/api/admin/settings", { freeMode: true });
+  assert.equal((await o.post(`/api/owner/rentals/${l.id}/publish`, { days: 7 })).status, 400);
+  const pub = (await o.post(`/api/owner/rentals/${l.id}/publish`, { days: 15 })).data;
+  assert.equal(pub.live, true);
+  assert.ok(pub.listing.endsAt > Date.now() + 13 * 86400000 && pub.listing.endsAt < Date.now() + 16 * 86400000);
+  // customers near the owner see it (homes, not workspaces)
+  const cust = client("customer");
+  const near = (await cust.get(`/api/rentals?lat=${biz.lat}&lng=${biz.lng}&kind=home`)).data;
+  assert.ok(near.some((x) => x.id === l.id && x.cover));
+  assert.equal((await cust.get(`/api/rentals?lat=${biz.lat}&lng=${biz.lng}&kind=work`)).data.some((x) => x.id === l.id), false);
+  assert.equal((await cust.get(`/api/rentals/${l.id}`)).data.photos.length, 1);
+  assert.equal((await cust.post(`/api/rentals/${l.id}/contact`)).status, 401);
+  // rented out: hidden at once; reopen within 7 days
+  const closed = (await o.post(`/api/owner/rentals/${l.id}/close`)).data;
+  assert.deepEqual([closed.status, closed.closedReason], ["closed", "rented"]);
+  assert.equal((await cust.get(`/api/rentals?lat=${biz.lat}&lng=${biz.lng}&kind=home`)).data.some((x) => x.id === l.id), false);
+  assert.equal((await o.post(`/api/owner/rentals/${l.id}/reopen`)).data.status, "live");
+  const mine = (await o.get("/api/owner/rentals")).data;
+  assert.ok(mine.some((x) => x.id === l.id && x.views >= 1));
+  await o.post(`/api/owner/rentals/${l.id}/remove`);
+  await a.post("/api/admin/settings", { freeMode: false });
+  await a.post(`/api/admin/businesses/${id}/category`, { category: biz.category, reason: "back for the next tests" });
+});

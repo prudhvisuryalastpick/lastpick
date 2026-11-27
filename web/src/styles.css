@@ -1046,3 +1046,39 @@ button.maint-back:disabled { opacity: .85; }
 @media (prefers-reduced-motion: reduce) { .istk.pstk img { transition: none; } }
 .catphoto { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); }
 .catphoto img { width: 96px; height: 96px; object-fit: cover; border-radius: 16px; border: 2px solid #fff; box-shadow: var(--shadow); }
+
+/* ---------- Rentals (homes and workspaces) ---------- */
+.seg2, .seg3 { display: grid; gap: 6px; background: color-mix(in srgb, var(--brand) 12%, #fff); border-radius: 14px; padding: 5px; }
+.seg2 { grid-template-columns: 1fr 1fr; } .seg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); background: transparent; padding: 0; }
+.seg2 button { min-height: 42px; border: 0; border-radius: 10px; background: transparent; font-weight: 800; color: var(--muted); }
+.seg2 button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.seg3 button { min-height: 44px; border-radius: 12px; border: 1px solid var(--line, #D9C4B4); background: #fff; font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.seg3 button.on { border: 2px solid var(--brand); background: color-mix(in srgb, var(--brand) 12%, #fff); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rphotos { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.rthumb { position: relative; aspect-ratio: 1; border-radius: 12px; background: var(--soft) center / cover no-repeat; overflow: hidden; }
+.rthumb > span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; font-size: 10px; font-weight: 800; border-radius: 6px; padding: 2px 5px; }
+.rthumb > button { position: absolute; right: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 16px; line-height: 1; }
+.rthumb.add { display: grid; place-items: center; border: 2px dashed color-mix(in srgb, var(--brand) 45%, #fff); background: color-mix(in srgb, var(--brand) 6%, #fff); color: var(--brand); font-size: 26px; font-weight: 700; cursor: pointer; }
+.rvideo { display: flex; flex-direction: column; gap: 8px; } .rvideo video, .rvid { width: 100%; max-height: 260px; border-radius: 14px; background: #000; }
+.upbar { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; background: color-mix(in srgb, var(--brand) 10%, #fff); border-radius: 12px; padding: 10px 12px; }
+.packbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line, #D9C4B4); background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.packbtn b { font-size: 15px; } .packbtn span { font-size: 20px; font-weight: 800; }
+.packbtn.on { border: 2px solid var(--brand); background: color-mix(in srgb, var(--brand) 10%, #fff); }
+.rlist { display: flex; flex-direction: column; gap: 12px; }
+.rcard { display: flex; flex-direction: column; background: #fff; border-radius: 18px; overflow: hidden; border: 1px solid var(--soft); color: var(--ink); text-decoration: none; box-shadow: var(--shadow); }
+.rphoto { height: 170px; background: color-mix(in srgb, var(--brand) 14%, #fff) center / cover no-repeat; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px; box-sizing: border-box; }
+.rbadge { background: rgba(11,40,38,.78); color: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 800; }
+.rbadge.light { background: rgba(255,255,255,.92); color: var(--ink); }
+.rbadge.live { background: #1E7B3E; } .rbadge.draft { background: #8A5A00; }
+.rbody { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.rprice { color: var(--brand-deep, var(--brand)); white-space: nowrap; }
+.rgallery { position: relative; height: 280px; background: var(--soft); }
+.rgallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rgallery-empty { height: 100%; display: grid; place-items: center; color: var(--muted); }
+.rdots { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 6px; }
+.rdots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 99px; background: rgba(255,255,255,.6); }
+.rdots button.on { width: 22px; background: #fff; }
+.rfacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rfacts span { background: var(--soft); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; }
+.chipsel { min-height: 36px; border-radius: 999px; border: 1px solid var(--line, #B9D6D0); background: #fff; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 700; }

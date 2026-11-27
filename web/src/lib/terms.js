@@ -176,6 +176,12 @@ export const PARTNER_RULES = {
     `I will not sell above MRP, and I follow the Legal Metrology rules for packaged goods.`,
     `Refurbished or open-box items are clearly labelled as such.`,
   ]],
+  rentals: ["Rentals: homes and workspaces", [
+    `I own the place or have the owner's written permission to rent or lease it out, and I will show proof when asked.`,
+    `Photos, video, rent, deposit and details are true and of the actual place; I will not post a place that is already rented or that I can't rent out.`,
+    `I will not refuse tenants on the basis of religion, caste, community or gender, and I follow local rent laws (rent agreement, police verification of tenants where required).`,
+    `I will mark the listing "Rented out" or "Leased out" as soon as it is taken. LastPick takes no brokerage and is not a party to my rent agreement.`,
+  ]],
   gym: ["Gyms and fitness centres", [
     `My gym has the licences required locally, safe and maintained equipment, and trainers qualified for what they teach.`,
     `The offer states exactly what is included (day pass, session, duration, trainer or not) and the final price.`,
@@ -234,6 +240,7 @@ export const POSTING_RULES = {
     farm: "Farm fresh: no spoiled produce, banned pesticides or short weights.",
     fashion: "Fashion: no fake branded goods or copied labels.",
     appliances: "Home appliances: no stolen, smuggled or fake-warranty goods, and nothing sold above MRP.",
+    rentals: "Rentals: only places you own or may rent out, true photos and rent, no discrimination against tenants, and \"Rented out\" as soon as it's taken.",
     ads: "Local ads: no political, religious, adult, betting or gambling ads, and no ads for anyone else's business.",
     other: "Nothing that needs a licence you don't have.",
   },

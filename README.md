@@ -40,6 +40,11 @@ Test accounts (password = `SEED_PASSWORD`): `admin@test.lastpick.in`, `moderator
 
 ## Product rules built in
 
+- **Rentals (homes and workspaces):** owners registered as Rentals post a listing (1RK to villas and PG; office space, coworking desks, cabins, study halls, shops, godowns, event halls) for 15 days ₹249 or 30 days ₹499, paid per listing on the website (free in free launch mode). Up to 5 photos (shrunk under 1 MB on the phone) and one video (up to 1 minute, 20 MB), uploaded straight to Cloudflare R2. Day 1 is today; it ends at 11:59 PM on the last day. "Rented out" / "Leased out" hides it at once; photos and video are deleted 7 days later (it can be reopened until then); a small record stays. Customers see Homes | Workspaces within 30 km and call or WhatsApp the owner after logging in.
+- **Category locked:** a partner's category can't be changed after registration; only a super admin can change it (with a logged reason), and the partner's live offers end.
+- **Shop photo:** partners upload a photo of the shop (not a selfie) for KYC; stored in R2, seen only by the partner and admins.
+- **Home category photos:** each category tile fades through 5 photos (160 px WebP from R2); admins replace them in Settings.
+
 - **Offers are item lists:** every partner adds items (name, actual price, offer price) with Add item / remove, up to 10 per offer, and picks the end time from the dropdown. No description, no photo. The best item sets the offer's price and "Up to X% off"; customers see every item with its old price, offer price and % off.
 - **Today only, 3 posts a day:** nothing carries over to the next day; partners post again every day (up to 3). "Post again" in My offers → History copies a past offer into today's form.
 - **Storage kept small:** at midnight a finished offer becomes a one-line record (date, shop, category, offer name, items "Kaju katli 400>200; Samosa 60>40", views, leads), kept 1 year for partners and admin reports, then deleted. Customer History (who contacted which shop) is kept 30 days. Both apps and the privacy page say so.
