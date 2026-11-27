@@ -296,10 +296,21 @@ export const api = {
   async ownerInsights() { return get("/api/owner/insights"); },
 
   // ---------- help & support ----------
-  async createSupport({ topic, message, role }) { return post("/api/support", { topic, message, role }); },
+  async createSupport({ topic, message, role, photos, place }) { return post("/api/support", { topic, message, role, photos, place }); },
   async mySupport() { return get("/api/support"); },
   async supportThread(id) { return get(`/api/support/${enc(id)}`); },
-  async supportReply(id, message) { await post(`/api/support/${enc(id)}/messages`, { message }); },
+  async supportReply(id, message, photos) { await post(`/api/support/${enc(id)}/messages`, { message, photos }); },
+  async supportResolve(id) { return post(`/api/support/${enc(id)}/resolve`, {}); },
+  // ---------- Support Desk (support.lastpick.in) ----------
+  async deskMe() { return get("/api/desk/me"); },
+  async deskTickets({ view = "open", area = "", topic = "", q = "" } = {}, quiet = false) { return call("GET", `/api/desk/tickets?view=${enc(view)}&area=${enc(area)}&topic=${enc(topic)}&q=${enc(q)}`, undefined, { quiet }); },
+  async deskTicket(id) { return get(`/api/desk/tickets/${enc(id)}`); },
+  async deskReply(id, message, photos) { return post(`/api/desk/tickets/${enc(id)}/reply`, { message, photos }); },
+  async deskResolve(id, { call = false, note = "" } = {}) { return post(`/api/desk/tickets/${enc(id)}/resolve`, { call, note }); },
+  async deskEscalate(id) { return post(`/api/desk/tickets/${enc(id)}/escalate`, {}); },
+  async deskCallbacks(status = "new") { return get(`/api/desk/callbacks?status=${enc(status)}`); },
+  async deskCallbackDone(id) { return post(`/api/desk/callbacks/${enc(id)}/done`, {}); },
+  async deskIncharges() { return get("/api/desk/incharges"); },
   async requestCallback({ topic, bestTime, note, role }) { return post("/api/callbacks", { topic, bestTime, note, role }); },
   async myCallback() { return get("/api/callbacks/mine"); },
   async adminCallbacks(status) { return get(`/api/admin/callbacks?status=${enc(status || "new")}`); },

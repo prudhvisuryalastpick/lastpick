@@ -47,6 +47,12 @@ export function registerJobs() {
   });
 
   // Every 10 minutes: full photos of offers that just ended are deleted (thumbnails stay until the offer is archived).
+  // tickets answered by the team with no reply for 3 days close themselves (the customer can still reply to reopen)
+  schedule("close-quiet-tickets", { every: 3600000 }, async () => {
+    await q(`UPDATE support_tickets SET status = 'closed', resolved_by = 'auto', resolved_at = now()
+             WHERE status = 'answered' AND updated_at < now() - interval '3 days'`);
+  });
+
   // rentals: end listings whose days ran out; delete their photos and video 7 days after they ended
   schedule("expire-rentals", { every: 600000 }, async () => { await expireRentals(); });
 

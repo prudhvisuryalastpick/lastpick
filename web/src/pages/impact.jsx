@@ -8,6 +8,8 @@ import {
   APP_NAME, IS_OWNER_APP, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, SUPPORT_WHATSAPP, categoryOf,
 } from "../lib/config.js";
 import { ago, errText, prettyPhone, rupee, telLink, waLink } from "../lib/format.js";
+import { compressPhoto } from "../lib/image.js";
+import { RESPONSE_PROMISE, topicsFor } from "../lib/helptopics.js";
 import { navigate, useApp } from "../state.jsx";
 
 const Back = () => <div style={{ position: "relative", height: 62 }}><BackButton /></div>;
@@ -150,124 +152,152 @@ const FAQ = {
     ["A customer misbehaved", "Open Leads, or contact us below. Customers who break the rules can be blocked."],
   ],
 };
-export const SUPPORT_TOPICS = ["Using the app", "Login or account", "An offer or business", "A customer or lead", "Posting offers", "Business verification", "Plans and payments", "Safety concern", "Something else"];
+
+const STATUS_LABEL = (t) => t.status === "answered" ? ["Replied", "var(--ok)"] : t.status === "closed" ? ["Solved", "var(--muted)"] : ["Waiting for us", "var(--warn, #b26b00)"];
+const RESOLVED_TEXT = { customer: "You marked this as solved", call: "Resolved on a call with our team", staff: "Resolved by our team", auto: "Closed after 3 days with no reply" };
+
+// Photos picked by the person: shrunk to ~250 KB each, at most 3
+function PhotoPicker({ photos, setPhotos, max = 3 }) {
+  const [busy, setBusy] = useState(false);
+  const pick = async (e) => {
+    const files = [...(e.target.files || [])].slice(0, max - photos.length);
+    e.target.value = "";
+    if (!files.length) return;
+    setBusy(true);
+    const out = [];
+    for (const f of files) { try { out.push(await compressPhoto(f, 1280, 340000)); } catch { /* skip unreadable */ } }
+    setPhotos([...photos, ...out].slice(0, max)); setBusy(false);
+  };
+  return (
+    <div className="tk-photos">
+      {photos.map((p, i) => <span key={i} className="tk-thumb"><img src={p} alt={`Photo ${i + 1}`} /><button type="button" aria-label="Remove photo" onClick={() => setPhotos(photos.filter((_, j) => j !== i))}>×</button></span>)}
+      {photos.length < max && <label className={"tk-add" + (busy ? " is-busy" : "")}><input type="file" accept="image/*" multiple hidden onChange={pick} />{busy ? "Adding…" : "+ Photo"}</label>}
+      <span className="muted small" style={{ alignSelf: "center" }}>Up to {max} photos (screenshots, bills, the shop)</span>
+    </div>
+  );
+}
 
 export function Support() {
-  const { session } = useApp();
+  const { session, place } = useApp();
   const role = IS_OWNER_APP ? "partner" : "customer";
+  const topics = topicsFor(role);
+  const [topic, setTopic] = useState(null);
+  const [asking, setAsking] = useState(false);
   const [mine, setMine] = useState(null);
-  const [form, setForm] = useState({ topic: SUPPORT_TOPICS[0], message: "" });
+  const [message, setMessage] = useState("");
+  const [photos, setPhotos] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const load = () => api.mySupport().then(setMine).catch(() => setMine([]));
   useEffect(() => { if (session) load(); }, [session]);
+  const choose = (t) => { setTopic(t); setAsking(!t.answers.length); setErr(""); };
   const send = async (e) => {
     e.preventDefault(); setErr(""); setBusy(true);
-    try { const r = await api.createSupport({ ...form, role }); navigate("/support/" + r.id); }
-    catch (x) { setErr(errText(x)); }
+    try {
+      const r = await api.createSupport({ topic: topic.topic, message, role, photos, place: place ? { state: place.state, city: place.city, pincode: place.pincode } : undefined });
+      setMessage(""); setPhotos([]); navigate("/support/" + r.id);
+    } catch (x) { setErr(errText(x)); }
     setBusy(false);
   };
+  const open = (mine || []).filter((t) => t.status !== "closed");
   return (
     <>
-      <PageHead title={<>Help & support</>} sub={<>We're here {SUPPORT_HOURS}</>} />
+      <PageHead title={<>Help & support</>} sub={<>Pick what it's about. Most answers are right here.</>} />
+      {open.length > 0 && <><div className="sect"><h3>Your open tickets</h3></div>{open.map((t) => <TicketRow key={t.id} t={t} />)}</>}
+      {!topic ? <>
+        <div className="sect"><h3>What do you need help with?</h3></div>
+        <div className="tk-topics">{topics.map((t) => <button key={t.topic} className="tk-topic" onClick={() => choose(t)}><span aria-hidden="true">{t.icon}</span>{t.topic}</button>)}</div>
+      </> : <>
+        <div className="pad" style={{ paddingBottom: 0 }}><button className="link" onClick={() => { setTopic(null); setAsking(false); }}>‹ All topics</button></div>
+        <div className="sect"><h3>{topic.icon} {topic.topic}</h3></div>
+        {topic.answers.length > 0 && <div className="panel">{topic.answers.map(([q, a], i) => <details key={q} open={i === 0} style={{ padding: "10px 0", borderTop: i ? "1px solid var(--line)" : 0 }}><summary style={{ fontWeight: 600, cursor: "pointer" }}>{q}</summary><p className="muted small" style={{ margin: "8px 0 0" }}>{a}</p></details>)}</div>}
+        {!asking ? <div className="pad gap" style={{ flexWrap: "wrap" }}>
+          <button className="btn main" onClick={() => setTopic(null)}>👍 That solved it</button>
+          <button className="btn ghost" onClick={() => setAsking(true)}>Still need help</button>
+        </div> : !session ? <div className="panel small">Please <a className="link" href="#/login?next=/support">log in</a> to raise a ticket, or e-mail {SUPPORT_EMAIL}.</div> :
+        <form className="form" style={{ paddingTop: 0 }} onSubmit={send}>
+          <div className="fld"><label htmlFor="sup-msg">Tell us what happened</label><textarea id="sup-msg" rows="4" maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Which shop or offer, when, and what went wrong" /></div>
+          <PhotoPicker photos={photos} setPhotos={setPhotos} />
+          <div className="note small">⏱️ {RESPONSE_PROMISE} You'll see our reply here in Help.</div>
+          {err && <div className="error">{err}</div>}
+          <button className="btn main" disabled={busy || message.trim().length < 5}>{busy ? "Sending…" : "Raise a ticket"}</button>
+        </form>}
+      </>}
+      <div className="sect"><h3>Other ways to reach us</h3></div>
       <div className="kpis">
-        <a className="kpi" href="#support-chat" style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="chat" size={22} stroke={2} /></div><div className="l">Chat with us in the app</div></a>
         {SUPPORT_WHATSAPP && <a className="kpi" href={waLink(SUPPORT_WHATSAPP, `Hi ${APP_NAME} support,`)} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}><div className="n kic" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}><Icon d="whatsapp" size={22} stroke={2} /></div><div className="l">WhatsApp {SUPPORT_WHATSAPP}</div></a>}
-        {SUPPORT_PHONE && <a className="kpi" href={telLink(SUPPORT_PHONE)} style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="phone" size={22} stroke={2} /></div><div className="l">Call {SUPPORT_PHONE}</div></a>}
+        {SUPPORT_PHONE && <a className="kpi" href={telLink(SUPPORT_PHONE)} style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="phone" size={22} stroke={2} /></div><div className="l">Call {SUPPORT_PHONE} ({SUPPORT_HOURS})</div></a>}
         <a className="kpi" href={"mailto:" + SUPPORT_EMAIL} style={{ textDecoration: "none", color: "inherit" }}><div className="n kic"><Icon d="mail" size={22} stroke={2} /></div><div className="l">{SUPPORT_EMAIL}</div></a>
       </div>
-      <div className="sect"><h3>Common questions</h3></div>
-      <div className="panel">{FAQ[role].map(([q, a], i) => <details key={q} style={{ padding: "10px 0", borderTop: i ? "1px solid var(--line)" : 0 }}><summary style={{ fontWeight: 600, cursor: "pointer" }}>{q}</summary><p className="muted small" style={{ margin: "8px 0 0" }}>{a}</p></details>)}</div>
-      <div className="sect" id="support-chat"><h3>Ask us</h3></div>
-      {!session ? <div className="panel small">Please <a className="link" href="#/login?next=/support">log in</a> to chat with us, or e-mail {SUPPORT_EMAIL}.</div> : <>
-        <form className="form" style={{ paddingTop: 0 }} onSubmit={send}>
-          <div className="fld"><label htmlFor="sup-topic">Topic</label><select id="sup-topic" value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })}>{SUPPORT_TOPICS.map((t) => <option key={t}>{t}</option>)}</select></div>
-          <div className="fld"><label htmlFor="sup-msg">Your question</label><textarea id="sup-msg" rows="3" maxLength={2000} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Tell us what happened or what you need" /></div>
-          {err && <div className="error">{err}</div>}
-          <button className="btn main" disabled={busy || form.message.trim().length < 5}>{busy ? "Sending…" : "Send to support"}</button>
-        </form>
-        {mine && mine.length > 0 && <><div className="sect"><h3>Your conversations</h3></div>
-          {mine.map((t) => <a key={t.id} className="menu-item" href={"#/support/" + t.id}>
-            <span style={{ flex: 1 }}><b>{t.topic}</b><span className="muted small" style={{ display: "block" }}>{t.lastFromStaff ? "Support: " : "You: "}{t.lastMessage.slice(0, 60)}</span></span>
-            <span className="small" style={{ fontWeight: 700, color: t.status === "answered" ? "var(--ok)" : "var(--muted)" }}>{t.status === "answered" ? "Replied" : t.status === "closed" ? "Closed" : "Waiting"}</span><span className="chev">›</span></a>)}</>}
-      </>}
-      <div className="note pad">For a formal complaint with a ticket number, use <a className="link" href="#/grievance">Complaints</a>. See also <a className="link" href="#/rules">How {APP_NAME} works & rules</a>.</div>
+      {mine && mine.some((t) => t.status === "closed") && <><div className="sect"><h3>Solved tickets</h3></div>{mine.filter((t) => t.status === "closed").slice(0, 10).map((t) => <TicketRow key={t.id} t={t} />)}</>}
+      <div className="note pad">For a formal complaint under the law, use <a className="link" href="#/grievance">Complaints</a>. See also <a className="link" href="#/rules">How {APP_NAME} works & rules</a>.</div>
     </>
   );
 }
 
-export function SupportThread({ id }) {
-  return <NeedLogin why="Log in to see this conversation"><Thread id={id} load={() => api.supportThread(id)} reply={(m) => api.supportReply(id, m)} /></NeedLogin>;
+function TicketRow({ t }) {
+  const [label, color] = STATUS_LABEL(t);
+  return <a className="menu-item" href={"#/support/" + t.id}>
+    <span style={{ flex: 1 }}><b>{t.topic}</b> <span className="muted small">{t.number ? `#${t.number}` : ""}</span><span className="muted small" style={{ display: "block" }}>{t.lastFromStaff ? "Support: " : "You: "}{t.lastMessage.slice(0, 60)}</span></span>
+    <span className="small" style={{ fontWeight: 700, color }}>{label}</span><span className="chev">›</span></a>;
 }
-function Thread({ id, load, reply, staff = false, onClose }) {
+
+export function SupportThread({ id }) {
+  return <NeedLogin why="Log in to see this ticket"><Thread id={id} load={() => api.supportThread(id)} reply={(m, photos) => api.supportReply(id, m, photos)} resolve={() => api.supportResolve(id)} /></NeedLogin>;
+}
+
+export function Bubbles({ messages, staff }) {
+  return <div className="pad" style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
+    {messages.map((m, i) => {
+      const mineSide = staff ? m.fromStaff : !m.fromStaff;
+      return <div key={i} style={{ alignSelf: mineSide ? "flex-end" : "flex-start", maxWidth: "82%", background: mineSide ? "var(--deep)" : "#fff", color: mineSide ? "#fff" : "var(--ink)", borderRadius: 16, padding: "10px 12px", boxShadow: "var(--shadow)" }}>
+        <div style={{ fontSize: 11, opacity: .75, fontWeight: 700 }}>{m.fromStaff ? `${m.by || APP_NAME} · support` : staff ? "Customer" : "You"} · {ago(m.at)}</div>
+        <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>{m.body}</div>
+        {m.photos?.length > 0 && <div className="tk-photos" style={{ marginTop: 6 }}>{m.photos.map((u, j) => <a key={j} className="tk-thumb" href={u} target="_blank" rel="noreferrer"><img src={u} alt={`Photo ${j + 1}`} loading="lazy" /></a>)}</div>}
+      </div>;
+    })}
+  </div>;
+}
+
+function Thread({ id, load, reply, resolve }) {
   const [t, setT] = useState(null);
   const [msg, setMsg] = useState("");
+  const [photos, setPhotos] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const refresh = () => load().then(setT).catch((e) => setErr(errText(e)));
   useEffect(() => { refresh(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const send = async (e) => { e.preventDefault(); setBusy(true); try { await reply(msg); setMsg(""); await refresh(); } catch (x) { setErr(errText(x)); } setBusy(false); };
-  if (err && !t) return <Empty icon="💬" title="Conversation not found">{err}</Empty>;
+  const send = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { await reply(msg, photos); setMsg(""); setPhotos([]); await refresh(); } catch (x) { setErr(errText(x)); } setBusy(false); };
+  const solved = async () => { setBusy(true); try { await resolve(); await refresh(); } catch (x) { setErr(errText(x)); } setBusy(false); };
+  if (err && !t) return <Empty icon="💬" title="Ticket not found">{err}</Empty>;
   if (!t) return <Spinner />;
+  const [label, color] = STATUS_LABEL(t);
   return (
     <>
-      {!staff && <Back />}
+      <Back />
       <div className="page-h" style={{ paddingTop: 0 }}><h1 className="title">{t.topic}</h1>
-        <div className="muted small">{t.user ? `${t.user.name} · ${t.user.email} · ${t.role}` : t.status === "answered" ? "Support replied" : t.status === "closed" ? "Closed" : "We'll reply soon"}</div></div>
-      <div className="pad" style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
-        {t.messages.map((m, i) => {
-          const mineSide = staff ? m.fromStaff : !m.fromStaff;
-          return <div key={i} style={{ alignSelf: mineSide ? "flex-end" : "flex-start", maxWidth: "82%", background: mineSide ? "var(--deep)" : "#fff", color: mineSide ? "#fff" : "var(--ink)", borderRadius: 16, padding: "10px 12px", boxShadow: "var(--shadow)" }}>
-            <div style={{ fontSize: 11, opacity: .75, fontWeight: 700 }}>{m.fromStaff ? `${APP_NAME} support` : staff ? "Customer" : "You"} · {ago(m.at)}</div>
-            <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>{m.body}</div></div>;
-        })}
-      </div>
+        <div className="small">{t.number && <span className="muted">Ticket #{t.number} · </span>}<b style={{ color }}>{label}</b></div></div>
+      {t.status === "open" && <div className="note pad small">⏱️ {RESPONSE_PROMISE}</div>}
+      <Bubbles messages={t.messages} />
+      {t.status === "closed" ? <div className="panel small" style={{ textAlign: "center" }}>✅ {RESOLVED_TEXT[t.resolvedBy] || "Solved"}{t.resolvedNote && t.resolvedBy !== "customer" ? <div className="muted">{t.resolvedNote}</div> : null}
+        <div className="muted" style={{ marginTop: 4 }}>Not solved? Send a message below to reopen it.</div></div>
+        : t.status === "answered" && <div className="pad"><button className="btn main" style={{ width: "100%" }} disabled={busy} onClick={solved}>{busy ? "Saving…" : "✅ My problem is solved"}</button></div>}
       <form className="form" style={{ paddingTop: 0 }} onSubmit={send}>
-        <div className="fld"><label htmlFor="reply">{staff ? "Reply" : "Message"}</label><textarea id="reply" rows="2" maxLength={2000} value={msg} onChange={(e) => setMsg(e.target.value)} /></div>
+        <div className="fld"><label htmlFor="reply">Message</label><textarea id="reply" rows="2" maxLength={2000} value={msg} onChange={(e) => setMsg(e.target.value)} /></div>
+        <PhotoPicker photos={photos} setPhotos={setPhotos} />
         {err && <div className="error">{err}</div>}
-        <div className="gap"><button className="btn main" disabled={busy || !msg.trim()}>{busy ? "Sending…" : "Send"}</button>
-          {staff && <button type="button" className="btn ghost" disabled={busy} onClick={onClose}>Close conversation</button>}</div>
+        <button className="btn main" disabled={busy || !msg.trim()}>{busy ? "Sending…" : "Send"}</button>
       </form>
     </>
   );
 }
 
-// Admin panel tab: support inbox
-export function AdminSupport({ toast }) {
-  const [status, setStatus] = useState("callbacks");
-  const [list, setList] = useState(null);
-  const [open, setOpen] = useState(null);
-  const cb = status === "callbacks" || status === "callbacks-done";
-  const load = (first = false) => { if (first) setList(null); return (cb ? api.adminCallbacks(status === "callbacks" ? "new" : "done") : api.adminSupport(status)).then(setList).catch((e) => { if (first) { toast(errText(e)); setList([]); } }); };
-  const done = async (id) => { try { await api.adminCallbackDone(id); toast("Marked as called"); load(); } catch (e) { toast(errText(e)); } };
-  useLive(load, [status]);
-  if (open) return <>
-    <div className="pad" style={{ paddingBottom: 0 }}><button className="link" onClick={() => { setOpen(null); load(); }}>‹ All conversations</button></div>
-    <Thread id={open} staff load={() => api.adminSupportThread(open)} reply={(m) => api.adminSupportReply(open, m)}
-      onClose={async () => { await api.adminSupportReply(open, "", true); toast("Closed"); setOpen(null); load(); }} />
-  </>;
-  return (
-    <>
-      <div className="chips" style={{ paddingTop: 4 }}>{[["callbacks", "Call backs"], ["callbacks-done", "Called"], ["open", "Waiting for us"], ["answered", "Answered"], ["closed", "Closed"]].map(([s, l]) => <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>{l}</button>)}</div>
-      {cb && (!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here">{status === "callbacks" ? "No one is waiting for a call." : "No calls yet."}</Empty> : list.map((c) => (
-        <div key={c.id} className="menu-item" style={{ alignItems: "flex-start" }}>
-          <span style={{ flex: 1, textAlign: "left" }}>
-            <b>{c.role === "partner" ? (c.user?.business || c.user?.name || "Partner") : (c.user?.name || "Customer")}</b> <span className="muted small">· {c.role}{c.user?.area ? ` · ${c.user.area}` : ""}</span>
-            <span className="small" style={{ display: "block" }}>{c.topic} · {c.bestTime}{c.note ? ` · "${c.note}"` : ""}</span>
-            <span className="muted small" style={{ display: "block" }}>{c.user?.phone ? prettyPhone(c.user.phone) : "no number"} · {c.user?.email} · asked {ago(c.createdAt)}</span>
-          </span>
-          {status === "callbacks" && <span className="gap" style={{ flexDirection: "column", gap: 6 }}>
-            {c.user?.phone && <a className="btn main" style={{ padding: "7px 12px", fontSize: 13 }} href={telLink(c.user.phone)}>Call</a>}
-            <button className="btn ghost" style={{ padding: "7px 12px", fontSize: 13 }} onClick={() => done(c.id)}>Mark done</button>
-          </span>}
-        </div>)))}
-      {!cb && (!list ? <Spinner /> : list.length === 0 ? <Empty icon="✅" title="Nothing here">No conversations.</Empty> : list.map((t) => (
-        <button key={t.id} className="menu-item" onClick={() => setOpen(t.id)}>
-          <span style={{ flex: 1, textAlign: "left" }}><b>{t.topic}</b> <span className="muted small">· {t.role} · {t.user?.name || t.user?.email}</span>
-            <span className="muted small" style={{ display: "block" }}>{t.lastMessage.slice(0, 90)}</span></span>
-          <span className="muted small">{ago(t.updatedAt)}</span><span className="chev">›</span></button>)))}
-    </>
-  );
+// Admin panel tab: support moved to its own site
+export const SUPPORT_DESK_URL = "https://support.lastpick.in";
+export function AdminSupport() {
+  return <div className="panel"><b>Tickets and call backs have moved to the Support Desk</b>
+    <p className="muted small">Area in-charges and the team now answer tickets at {SUPPORT_DESK_URL.replace("https://", "")}. Log in there with the same account.</p>
+    <a className="btn main" href={SUPPORT_DESK_URL} target="_blank" rel="noreferrer">Open the Support Desk</a></div>;
 }
 
 // ------------------------------------------------------------------ how LastPick works & rules (plain-language summary of the Terms)
@@ -284,6 +314,7 @@ export function Rules() {
       <R icon="🙋" title="Rules for customers">Check the offer and the provider before paying. Never pay an advance to someone you haven't verified. Write honest reviews about your own experience.</R>
       <R icon="🔐" title="Your consent and your data">We ask for your consent before using your details, and before sharing your number with any business. Accounts can be limited to one device at a time, to keep them safe. Download or delete your data anytime.</R>
       <R icon="🚫" title="Not allowed">Alcohol, tobacco, drugs, prescription medicines, weapons, gambling, adult content, counterfeit or stolen goods, fake reviews, spam, or anything illegal or unsafe.</R>
+      <R icon="🎫" title="Help and tickets">Most answers are in Help & support. If they don't solve it, raise a ticket with up to 3 photos. We reply within 1–5 business days, in the app. You can mark it solved, or we may resolve it on a call with you.</R>
       <div className="pad"><a className="btn ghost" href="#/support">Need help? Contact support</a></div>
     </>
   );

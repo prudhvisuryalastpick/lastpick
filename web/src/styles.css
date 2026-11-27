@@ -1082,3 +1082,34 @@ button.maint-back:disabled { opacity: .85; }
 .rfacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .rfacts span { background: var(--soft); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; }
 .chipsel { min-height: 36px; border-radius: 999px; border: 1px solid var(--line, #B9D6D0); background: #fff; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 700; }
+
+/* ---------- Help topics and tickets ---------- */
+.tk-topics { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 0 16px; }
+.tk-topic { display: flex; align-items: center; gap: 10px; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: var(--shadow); color: var(--ink); }
+.tk-topic span { font-size: 22px; }
+.tk-topic:active { transform: scale(.98); }
+.tk-photos { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.tk-thumb { position: relative; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; background: #eee; display: block; }
+.tk-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.tk-thumb button { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
+.tk-add { width: 64px; height: 64px; border-radius: 10px; border: 2px dashed var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; text-align: center; }
+
+/* ---------- Support Desk ---------- */
+.desk-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.desk-filter input, .desk-filter select { flex: 1 1 180px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: #fff; }
+.desk-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.desk-row { display: flex; align-items: flex-start; gap: 12px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 12px; padding: 12px; font: inherit; color: var(--ink); cursor: pointer; width: 100%; }
+.desk-row.overdue { border-left-color: var(--bad, #c0392b); background: #fff7f6; }
+.desk-row > span { display: flex; flex-direction: column; gap: 2px; }
+.desk-no { font-weight: 800; font-size: 12px; color: var(--muted); min-width: 74px; }
+.desk-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.desk-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin: 8px 0 10px; }
+.desk-badge { font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 999px; background: #eef2f7; color: #334155; }
+.desk-badge.open { background: #fff4e0; color: #8a5a00; }
+.desk-badge.late { background: #fde8e6; color: #a5281b; }
+.desk-badge.answered { background: #e6f4ff; color: #0b5cad; }
+.desk-badge.done { background: #e7f6ec; color: #1d7a3e; }
+.desk-who { margin-bottom: 4px; }
+.desk-filter .btn { flex: 0 0 auto; width: auto; padding: 9px 18px; }
+.desk-row .desk-title { display: block; }
+.adm-main .panel.form .chips { flex-wrap: wrap; overflow: visible; }

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, isLive } from "../api/index.js";
 import { DEMO_ACCOUNTS } from "../api/index.js";
 import { Sheet, SocialLinks, Spinner } from "../components.jsx";
-import { CATEGORIES, APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
+import { CATEGORIES, APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, IS_SUPPORT_APP, OTP_LOGIN, PLANS } from "../lib/config.js";
 import { errText, indianPhone, mobileProblem, prettyPhone, rupee, typePhone, validPhone } from "../lib/format.js";
 import { navigate, useApp } from "../state.jsx";
 import { ConsentBoxes, NOTICE_ITEMS, consentPayload } from "./privacy.jsx";
@@ -366,8 +366,8 @@ export function Login({ next = "/", start }) {
         </Sheet>}
       </>}
       {(step === "password" || step === "reset") && <>
-        <h1>{step === "reset" ? "Reset password" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
-        <p className="lead">{step === "reset" ? (resetSent ? `Enter the 6-digit code we e-mailed to ${sentTo || email.trim()} and choose a new password.` : "Enter your e-mail or mobile number. We'll e-mail a 6-digit code to the address on your account.") : IS_ADMIN_APP ? "For admins and moderators only." : OTP_LOGIN ? "For accounts made with an e-mail and password." : "Log in with your e-mail or mobile number and password."}</p>
+        <h1>{step === "reset" ? "Reset password" : IS_SUPPORT_APP ? "Support Desk" : IS_ADMIN_APP ? "LastPick Admin" : OTP_LOGIN ? "Log in with password" : IS_OWNER_APP ? "LastPick Partner" : `Welcome to ${APP_NAME}`}</h1>
+        <p className="lead">{step === "reset" ? (resetSent ? `Enter the 6-digit code we e-mailed to ${sentTo || email.trim()} and choose a new password.` : "Enter your e-mail or mobile number. We'll e-mail a 6-digit code to the address on your account.") : IS_SUPPORT_APP ? "For the LastPick support team and area in-charges." : IS_ADMIN_APP ? "For admins and moderators only." : OTP_LOGIN ? "For accounts made with an e-mail and password." : "Log in with your e-mail or mobile number and password."}</p>
         <form className="form" style={{ padding: "20px 0 0" }} onSubmit={passwordLogin}>
           <div className="fld"><label htmlFor="pw-email">E-mail or mobile number</label><input id="pw-email" type="text" inputMode="email" autoComplete="username" placeholder="you@example.com or 98765 43210" value={email} disabled={step === "reset" && resetSent} onChange={(e) => setEmail(e.target.value)} /></div>
           {step === "password" && <div className="fld"><label htmlFor="pw-pass">Password</label><input id="pw-pass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>}

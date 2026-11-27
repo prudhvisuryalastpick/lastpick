@@ -209,7 +209,7 @@ export function Contact() {
         <h2>Who runs {APP_NAME}</h2>
         <p>{operator}{LEGAL.address ? <><br />{LEGAL.address}</> : null}<br />Website: {WEBSITE_URL}</p>
         <h2>Support</h2>
-        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem, <a className="link" href="#/grievance">raise a ticket</a> or e-mail the details (for payments, a clear screenshot of the payment). We resolve it in 1–5 working days.</p>
+        <p>E-mail <a className="link" href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a>. For any problem, open <a className="link" href="#/support">Help & support</a> in the app: pick a topic, and if the instant answers don't help, raise a ticket (you can add up to 3 photos, e.g. a screenshot of the payment). We reply within 1–5 business days (Monday to Friday), in the app; we don't send e-mails about tickets. A ticket closes when you mark it solved, when our team resolves it on a call with you (we note what was agreed), or 3 days after our reply if you don't answer; writing again reopens it. Ticket messages and photos are seen only by our support team for your area and are kept as described in this policy.</p>
         <h2>Complaints (Grievance Officer)</h2>
         <GrievanceOfficer />
         <p style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/grievance">Raise a complaint ticket</a></p>

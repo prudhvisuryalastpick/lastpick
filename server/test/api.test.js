@@ -1070,3 +1070,38 @@ test("rentals: draft, photo, publish 15/30 days, near me, contact, rented out, r
   await a.post("/api/admin/settings", { freeMode: false });
   await a.post(`/api/admin/businesses/${id}/category`, { category: biz.category, reason: "back for the next tests" });
 });
+
+test("support desk: ticket numbers, photos, area in-charges see only their area, solved / resolved on call", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const p = client("partner"); await p.login("owner@test.lastpick.in");
+  const biz = (await p.get("/api/business")).data;
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  const t = (await p.post("/api/support", { topic: "Payment or plan", message: "Paid but plan not showing", photos: [png] })).data;
+  assert.match(t.number, /^LP-\d+$/);
+  const c = client("customer"); await c.post("/api/auth/login", { email: "freecust@test.lastpick.in", password: "longpassword" }).then((r) => { c.token = r.data.token; });
+  const ct = (await c.post("/api/support", { topic: "Shop not answering calls", message: "Nobody picks up", place: { state: "Far State", city: "Elsewhere", pincode: "999999" } })).data;
+  // an in-charge for the partner's state only
+  assert.equal((await a.post("/api/admin/role", { email: "moderator@test.lastpick.in", role: "support", regions: [biz.state] })).status, 200);
+  const d = client("admin"); await d.login("moderator@test.lastpick.in");
+  assert.equal((await d.get("/api/desk/me")).data.role, "support");
+  assert.equal((await d.get("/api/admin/stats")).status, 403, "in-charges can't open the admin panel");
+  const list = (await d.get("/api/desk/tickets?view=open")).data;
+  assert.ok(list.tickets.some((x) => x.id === t.id));
+  assert.ok(!list.tickets.some((x) => x.id === ct.id), "other areas are hidden");
+  assert.equal((await d.get(`/api/desk/tickets/${ct.id}`)).status, 404);
+  const full = (await d.get(`/api/desk/tickets/${t.id}`)).data;
+  assert.equal(full.messages[0].photos.length, 1);
+  assert.equal((await d.post(`/api/desk/tickets/${t.id}/reply`, { message: "We're checking with the bank." })).status, 200);
+  assert.equal((await p.get(`/api/support/${t.id}`)).data.status, "answered");
+  // resolved on a call needs a note
+  assert.equal((await d.post(`/api/desk/tickets/${t.id}/resolve`, { call: true })).status, 400);
+  assert.equal((await d.post(`/api/desk/tickets/${t.id}/resolve`, { call: true, note: "Called, plan fixed" })).status, 200);
+  const done = (await p.get(`/api/support/${t.id}`)).data;
+  assert.equal(done.status, "closed"); assert.equal(done.resolvedBy, "call");
+  // the customer says solved; super admin sees all and the in-charge workload
+  const rs = await c.post(`/api/support/${ct.id}/resolve`); assert.equal(rs.data?.resolved, true, JSON.stringify([ct, rs]));
+  assert.equal((await a.get(`/api/desk/tickets/${ct.id}`)).data.resolvedBy, "customer");
+  const ics = (await a.get("/api/desk/incharges")).data;
+  assert.ok(ics.some((x) => x.role === "support"), JSON.stringify(ics));
+  assert.equal((await d.get("/api/desk/incharges")).status, 403);
+});

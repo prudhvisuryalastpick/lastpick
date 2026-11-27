@@ -259,6 +259,7 @@ export function AppProvider({ children }) {
     isOwner: !!state.session && ((!!config?.freeMode && state.business?.status === "verified") || !!state.subs.owner?.active || state.business?.status === "pending" || (state.business?.trialEndsAt || 0) > Date.now()),
     isAdmin: state.profile?.role === "admin", // super admin: all of India
     isStaff: ["admin", "moderator"].includes(state.profile?.role), // admin or city/state moderator
+    isDesk: ["admin", "moderator", "support"].includes(state.profile?.role), // can use the Support Desk
   };
   return (
     <Ctx.Provider value={value}>

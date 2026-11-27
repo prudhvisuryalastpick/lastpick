@@ -19,7 +19,8 @@ import { OwnerReviews } from "./pages/reviews.jsx";
 import { BusinessInsights, Rules, Savings, Support, SupportThread } from "./pages/impact.jsx";
 import { APP_NAME, CONSENT_VERSION } from "./lib/config.js";
 import { match, navigate, useApp, useRoute } from "./state.jsx";
-import { IS_ADMIN_APP, IS_OWNER_APP } from "./lib/config.js";
+import { IS_ADMIN_APP, IS_OWNER_APP, IS_SUPPORT_APP } from "./lib/config.js";
+import { Desk } from "./pages/desk.jsx";
 import { Icon as LineIcon } from "./lib/icons.jsx";
 
 const I = {
@@ -45,7 +46,7 @@ function Page({ path, query }) {
   let m;
   // the admin server serves only the admin panel, its login and the legal pages
   if (IS_ADMIN_APP && !["/", "/admin", "/login", "/privacy", "/terms", "/contact", "/help", "/rules"].includes(path) && !match("/offer/:id", path)) return <Empty icon="🔒" title="Admin panel" action={<a className="btn main" href="#/">Go to admin</a>}>This site is only for the LastPick team.</Empty>;
-  if (path === "/") return IS_ADMIN_APP ? <Admin /> : IS_OWNER_APP ? <OwnerGate><OwnerDashboard /></OwnerGate> : <Home />;
+  if (path === "/") return IS_SUPPORT_APP ? <Desk /> : IS_ADMIN_APP ? <Admin /> : IS_OWNER_APP ? <OwnerGate><OwnerDashboard /></OwnerGate> : <Home />;
   if (path === "/map") return <MapPage />;
   if ((m = match("/offer/:id", path))) return <OfferPage id={m.id} />;
   if ((m = match("/c/:id", path))) return m.id === "rentals" ? <RentalsPage /> : <CategoryPage id={m.id} />;

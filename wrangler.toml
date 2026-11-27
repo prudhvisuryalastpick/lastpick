@@ -18,3 +18,8 @@ assets = { directory = "web/dist-partner", not_found_handling = "single-page-app
 name = "lastpick-web-admin"
 routes = [{ pattern = "admin.lastpick.in", custom_domain = true }]
 assets = { directory = "web/dist-admin", not_found_handling = "single-page-application" }
+
+[env.support]
+name = "lastpick-web-support"
+routes = [{ pattern = "support.lastpick.in", custom_domain = true }]
+assets = { directory = "web/dist-support", not_found_handling = "single-page-application" }

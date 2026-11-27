@@ -176,7 +176,7 @@ export function adminRoutes(r) {
   // Admins and area agents, with their areas (full e-mail: they are the LastPick team, not customers).
   r.get("/api/admin/team", async (ctx) => {
     superAdmin(ctx);
-    const rows = await many("SELECT id, name, email, role, regions, area_cities, area_pincodes FROM users WHERE role IN ('admin', 'moderator') ORDER BY role, name");
+    const rows = await many("SELECT id, name, email, role, regions, area_cities, area_pincodes FROM users WHERE role IN ('admin', 'moderator', 'support') ORDER BY role, name");
     return rows.map((u) => ({ id: u.id, name: u.name, email: u.email || "", role: u.role, regions: u.regions || [], areaCities: u.area_cities || [], areaPincodes: u.area_pincodes || [] }));
   });
 
@@ -184,18 +184,18 @@ export function adminRoutes(r) {
   r.post("/api/admin/role", async (ctx) => {
     const me = superAdmin(ctx);
     const role = ctx.body.role;
-    if (!["user", "moderator", "admin"].includes(role)) throw bad("Unknown role");
+    if (!["user", "moderator", "admin", "support"].includes(role)) throw bad("Unknown role");
     const target = ctx.body.userId
       ? await one("SELECT id FROM users WHERE id = $1", [needUuid(ctx.body.userId, "user")])
       : await one("SELECT id FROM users WHERE lower(email) = $1", [normEmail(ctx.body.email)]);
     if (!target) throw notFound("No such user");
     if (target.id === me.id && role !== "admin") throw precondition("You can't remove your own admin access");
     const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []);
-    const agent = role === "moderator";
+    const agent = role === "moderator" || role === "support"; // support = area in-charge (Support Desk only)
     const regions = agent ? list(ctx.body.regions).map((x) => str(x, 60)).filter(Boolean) : [];
     const cities = agent ? [...new Set(list(ctx.body.cities).map((x) => cityKey(str(x, 60))).filter(Boolean))].slice(0, 50) : [];
     const pincodes = agent ? [...new Set(list(ctx.body.pincodes).map((x) => String(x).replace(/\D/g, "")))].filter((x) => /^[1-9]\d{5}$/.test(x)).slice(0, 200) : [];
-    if (agent && !regions.length) throw bad("Pick at least one state for the area agent");
+    if (agent && !regions.length) throw bad(role === "support" ? "Pick at least one state for the in-charge" : "Pick at least one state for the area agent");
     // changing a role signs that person out everywhere, so the new role applies at once
     await q("UPDATE users SET role = $2, regions = $3, area_cities = $4, area_pincodes = $5, token_version = token_version + 1 WHERE id = $1",
       [target.id, role, regions, cities, pincodes]);

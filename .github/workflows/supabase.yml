@@ -180,7 +180,7 @@ jobs:
           done
           npx --yes supabase@latest secrets set --yes --project-ref "$SUPABASE_PROJECT_ID" \
             "CRON_SECRET=$CRON_SECRET" "NODE_ENV=production" \
-            "ALLOWED_ORIGINS=https://lastpick.in,https://www.lastpick.in,https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
+            "ALLOWED_ORIGINS=https://lastpick.in,https://www.lastpick.in,https://customer.lastpick.in,https://partner.lastpick.in,https://admin.lastpick.in,https://support.lastpick.in,https://localhost,capacitor://localhost" >/dev/null
           npx --yes supabase@latest functions deploy customer partner admin --yes --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --use-api
 
       - name: Background jobs every 5 minutes (pg_cron)
@@ -198,7 +198,8 @@ jobs:
           VITE_APP_VARIANT=customer VITE_API_URL=$API/customer npx vite build --outDir dist-customer
           VITE_APP_VARIANT=owner VITE_API_URL=$API/partner npx vite build --outDir dist-partner
           VITE_APP_VARIANT=admin VITE_API_URL=$API/admin npx vite build --outDir dist-admin
-          node ../server/scripts/cloudflare/headers.mjs dist-customer dist-partner dist-admin
+          VITE_APP_VARIANT=support VITE_API_URL=$API/admin npx vite build --outDir dist-support
+          node ../server/scripts/cloudflare/headers.mjs dist-customer dist-partner dist-admin dist-support
 
       - name: Check Cloudflare access
         run: node server/scripts/cloudflare/check.mjs
@@ -208,7 +209,7 @@ jobs:
 
       - name: Publish the web apps on Cloudflare (free)
         run: |
-          for e in customer partner admin; do npx --yes wrangler@4 deploy --env $e; done
+          for e in customer partner admin support; do npx --yes wrangler@4 deploy --env $e; done
           npx --yes wrangler@4 delete --name lastpick-redirect --force >/dev/null 2>&1 || true
           npx --yes wrangler@4 deploy --config wrangler.home.toml || echo "::warning::Home page on lastpick.in / www not live yet: delete the old DNS records for lastpick.in and www in Cloudflare (DNS → Records), then re-run"
 
@@ -224,6 +225,7 @@ jobs:
             echo "$s API: $ok"; [ "$ok" = yes ] || echo "::warning::$s API isn't answering yet"
             curl -fsS -o /dev/null "https://$s.lastpick.in/" && echo "$s site: yes" || echo "::warning::$s.lastpick.in isn't live yet (DNS can take a few minutes)"
           done
+          curl -fsS -o /dev/null "https://support.lastpick.in/" && echo "support desk site: yes" || echo "::warning::support.lastpick.in isn't live yet (DNS can take a few minutes)"
           # photos and files: save, read back and delete a tiny file in Cloudflare R2
           sc=$(curl -fsS -H "x-cron-secret: $CRON_SECRET" "$API/admin/storage-check" 2>/dev/null || echo '{"error":"no answer"}')
           echo "File storage: $sc"
@@ -233,4 +235,5 @@ jobs:
             echo "- Customer: https://customer.lastpick.in"
             echo "- Partner: https://partner.lastpick.in"
             echo "- Admin: https://admin.lastpick.in"
+            echo "- Support Desk: https://support.lastpick.in"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -22,7 +22,8 @@ export const PARTNER_URL = import.meta.env?.VITE_PARTNER_URL || WEBSITE_URL;
 export const APP_VARIANT = import.meta.env?.VITE_APP_VARIANT || "web";
 export const IS_OWNER_APP = APP_VARIANT === "owner";
 export const IS_CUSTOMER_APP = APP_VARIANT === "customer";
-export const IS_ADMIN_APP = APP_VARIANT === "admin";
+export const IS_SUPPORT_APP = APP_VARIANT === "support"; // support.lastpick.in: the Support Desk (uses the admin API)
+export const IS_ADMIN_APP = APP_VARIANT === "admin" || IS_SUPPORT_APP; // team-only apps: no customer bottom bar, consent or maintenance pages
 // One-time-code login (SMS / e-mail) comes later. Until then: e-mail + password (test accounts).
 // The one-time-code login screen (mobile / e-mail tabs) is switched off: the login screen is e-mail + password,
 // with sign-up (e-mail code) and forgot password (e-mail code). Set VITE_OTP_LOGIN=1 to bring the code screen back.

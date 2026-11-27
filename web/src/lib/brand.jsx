@@ -1,7 +1,7 @@
 // The "LP" monogram logo: L and P in white, with a price-tag hole in the P (partner adds a PARTNER label).
 // Same mark in each app's own colour, so the apps never look the same:
 //   customer: teal tile, lime dot · partner: gold tile, cream dot · admin: slate tile, blue dot
-import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP } from "./config.js";
+import { APP_NAME, IS_ADMIN_APP, IS_OWNER_APP, IS_SUPPORT_APP } from "./config.js";
 import { logoSvg as rawLogoSvg } from "./brand-svg.js";
 
 const VARIANT = IS_ADMIN_APP ? "admin" : IS_OWNER_APP ? "partner" : "customer";
@@ -17,6 +17,7 @@ const MARKS = {
     bg: ["#475569", "#0F172A"], label: `${APP_NAME} Admin`, sub: "Team only", theme: "#0F172A",
   },
 };
+if (IS_SUPPORT_APP) MARKS.admin = { ...MARKS.admin, label: `${APP_NAME} Support Desk`, sub: "Support team only" };
 export const BRAND = MARKS[VARIANT];
 
 export function logoSvg(v = VARIANT) {

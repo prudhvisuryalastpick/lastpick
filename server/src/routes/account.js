@@ -26,7 +26,7 @@ import {
   ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail, isDataImage,
 } from "../util.js";
 
-const isStaff = (u) => u && ["admin", "moderator"].includes(u.role);
+const isStaff = (u) => u && ["admin", "moderator", "support"].includes(u.role);
 // "Android phone", "iPhone", "Windows computer"… shown to the user, never the full user-agent
 function deviceName(ua = "") {
   const os = /Android/i.test(ua) ? "Android phone" : /iPhone|iPad/i.test(ua) ? "iPhone" : /Windows/i.test(ua) ? "Windows computer"
