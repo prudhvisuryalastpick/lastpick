@@ -8,12 +8,13 @@ import { many, one, q, rmany, rone, tx } from "../db.js";
 import { customerPassOn, freeMode, setFreeMode, subActive } from "../plans.js";
 import { maintenanceSetting, setMaintenance } from "../maintenance.js";
 import { addPlanDays, audit } from "../shared.js";
-import { fileUrl, storageCheck } from "../storage.js";
+import { CATEGORY_PHOTO_IDS, R2_ON, deleteFile, fileUrl, newKey, saveFile, storageCheck } from "../storage.js";
+import { getSetting } from "../settings.js";
 import { platformImpact } from "./insights.js";
 import { CATEGORY_IDS } from "./partner.js";
 import { PAY_PACKS, planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
-import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str } from "../util.js";
+import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str, isDataImage } from "../util.js";
 
 function staff(ctx, { superOnly = false } = {}) {
   const u = needUser(ctx);
@@ -302,6 +303,26 @@ export function adminRoutes(r) {
       const after = await one("SELECT trial_ends_at FROM businesses WHERE id = $1", [id]);
       await notify(id, "business_" + status, { business: b.name, note, trialEnds: after?.trial_ends_at });
     }
+  });
+
+  // Super admins: replace one of a category's 5 Home photos (stored in R2 under a new key, so phones fetch it).
+  r.post("/api/admin/category-photo", async (ctx) => {
+    const me = superAdmin(ctx);
+    const { category, slot, photo } = ctx.body || {};
+    if (!CATEGORY_PHOTO_IDS.includes(category)) throw bad("Pick a category");
+    const n = Number(slot);
+    if (!(n >= 1 && n <= 5)) throw bad("Pick photo 1 to 5");
+    if (!isDataImage(photo, 400_000)) throw bad("Choose a JPEG, PNG or WebP photo");
+    if (!R2_ON) throw precondition("Photo storage (R2) isn't set up");
+    const ext = /^data:image\/webp/.test(photo) ? "webp" : /^data:image\/png/.test(photo) ? "png" : "jpg";
+    const ref = await saveFile(`categories/${category}-${n}-${newKey("v", ext)}`, photo);
+    const map = { ...(await getSetting("category_photos", {})) };
+    const old = map[`${category}-${n}`];
+    map[`${category}-${n}`] = ref.slice(3);
+    await setSetting("category_photos", map, me.id);
+    if (old) await deleteFile("r2:" + old).catch(() => {});
+    audit("admin_category_photo", me.id, { category, slot: n });
+    return { ok: true };
   });
 
   // Super admins: change a partner's category (partners can't). Their live offers end; the reason is logged.

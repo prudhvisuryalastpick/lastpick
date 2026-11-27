@@ -3,7 +3,7 @@
 import { BIZ_TYPE_KEY } from "./auth.jsx";
 import { ContactCard } from "./contactus.jsx";
 import { SectionHead, WhereChip, useWhere } from "./customer.jsx";
-import { IconSticker, StickerHero } from "./hero.jsx";
+import { IconSticker, PhotoSticker, StickerHero } from "./hero.jsx";
 import { InstallTopButton, JoinedTicker, QuoteStrip, SocialLinks, useStats } from "../components.jsx";
 import { PLANS, packCompare, perDay } from "../lib/config.js";
 import { rupee } from "../lib/format.js";
@@ -39,7 +39,7 @@ const SLIDES = [
 
 
 export function PartnerLanding() {
-  const { place } = useApp();
+  const { place, config } = useApp();
   const stats = useStats(place?.pincode || "");
   const where = useWhere();
   const top = (
@@ -67,7 +67,7 @@ export function PartnerLanding() {
       <div className="catgrid">
         {HOME_TILES.map((t, k) => { const st = catStyle(t.id); return (
           <button key={t.id} className="cattile" onClick={() => signup(t.id)}>
-            <IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={50} rot={[-6, 4, -3, 6][k % 4]} />
+            <PhotoSticker photos={config?.categoryPhotos?.[t.id]} icon={st.icon} bg={st.tint} fg={st.ink} size={54} rot={[-6, 4, -3, 6][k % 4]} offset={k} />
             <b>{st.short}</b><span>Join free</span>
           </button>); })}
       </div>

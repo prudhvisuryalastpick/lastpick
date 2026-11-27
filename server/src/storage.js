@@ -18,6 +18,7 @@ function signingKey(day) {
 }
 
 // A signed request to R2 (PUT / DELETE).
+export async function putObject(key, bytes, contentType) { await r2("PUT", key, bytes, contentType); }
 async function r2(method, key, body, contentType) {
   const url = new URL(R2_ENDPOINT);
   const path = keyPath(key);
@@ -37,10 +38,10 @@ async function r2(method, key, body, contentType) {
 }
 
 // A short-lived link anyone holding it can open (photos stay private: links expire).
-export function signedUrl(key, seconds = 3600) {
+export function signedUrl(key, seconds = 3600, at = new Date()) {
   const url = new URL(R2_ENDPOINT);
   const path = keyPath(key);
-  const amz = stamp(), day = amz.slice(0, 8), scope = `${day}/${REGION}/${SVC}/aws4_request`;
+  const amz = stamp(at), day = amz.slice(0, 8), scope = `${day}/${REGION}/${SVC}/aws4_request`;
   const qs = new URLSearchParams({
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": `${R2_ACCESS_KEY_ID}/${scope}`, "X-Amz-Date": amz,
     "X-Amz-Expires": String(seconds), "X-Amz-SignedHeaders": "host",
@@ -96,4 +97,19 @@ export async function storageCheck() {
   } catch (e) { error = e.message; }
   if (ref) await deleteFile(ref).catch(() => {});
   return { store: R2_ON ? "r2" : "database", saved: !!ref, readBack, error };
+}
+
+// Category photos on Home: 5 per category, at fixed keys categories/<id>-<n>.webp (uploaded at deploy; admins
+// can replace one: the new file gets its own key, kept in the "category_photos" setting, so phones load the new
+// photo instead of a cached old one). Links are signed for the whole day (same link all day, kept cached).
+export const CATEGORY_PHOTO_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "rentals", "ads", "other"];
+export function categoryPhotoUrls(overrides = {}) {
+  if (!R2_ON) return null;
+  const now = new Date();
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const out = {};
+  for (const id of CATEGORY_PHOTO_IDS) {
+    out[id] = [1, 2, 3, 4, 5].map((n) => signedUrl(overrides[`${id}-${n}`] || `categories/${id}-${n}.webp`, 2 * 86400, dayStart));
+  }
+  return out;
 }

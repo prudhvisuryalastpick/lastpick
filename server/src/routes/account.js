@@ -20,7 +20,8 @@ import { paymentsOn } from "./payments.js";
 import { enqueue } from "../queue.js";
 import { limit, overLimit } from "../ratelimit.js";
 import { audit, mapSub } from "../shared.js";
-import { deleteFile, fileUrl, newKey, saveFile } from "../storage.js";
+import { getSetting } from "../settings.js";
+import { categoryPhotoUrls, deleteFile, fileUrl, newKey, saveFile } from "../storage.js";
 import {
   ALWAYS_OPEN, BUSINESS_HOURS, CONSENT_VERSION, GRIEVANCE_TYPES, TRIAL_DAYS, bad, isNight, tooMany, denied, indianPhone, maskEmail, maskPhone, mobileProblem, ms, normEmail, notFound, precondition, str, validEmail, isDataImage,
 } from "../util.js";
@@ -425,7 +426,8 @@ export function accountRoutes(r) {
     throw precondition("Please update the app to pay online.");
   });
   r.get("/api/config", async () => ({
-    freeMode: await freeMode(), customersFree: await customersFree(), maintenance: await maintenanceNow(), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
+    freeMode: await freeMode(), customersFree: await customersFree(), maintenance: await maintenanceNow(),
+    categoryPhotos: categoryPhotoUrls(await getSetting("category_photos", {})), night: isNight(), hours: BUSINESS_HOURS, alwaysOpen: ALWAYS_OPEN, emailCodes: !!(MAIL_FROM && mailProvider()), phoneCodes: !!phoneChannel(), phoneChannel: phoneChannel(), whatsappLogin: waLogin(), payments: paymentsOn(),
   }), { cache: "public, max-age=5" }); // short: a maintenance switch must reach the apps quickly
 
   // ---------- consent ----------

@@ -227,6 +227,8 @@ export const api = {
   async adminSetConfig(cfg) { clearCache(); return post("/api/admin/config", cfg); },
   async adminSettings() { return get("/api/admin/settings"); },
   async setAdminSettings(v) { const r = await post("/api/admin/settings", v); memo.clear(); return r; },
+  async adminCategoryPhoto(category, slot, photo) { await post("/api/admin/category-photo", { category, slot, photo }); },
+  async categoryPhotoFrom(file) { return compressPhoto(file, 160, 30000); },
   async adminChangeCategory(businessId, category, reason) { return post(`/api/admin/businesses/${enc(businessId)}/category`, { category, reason }); },
   async adminBusinessPlan(businessId, action, extra = {}) { await post(`/api/admin/businesses/${enc(businessId)}/plan`, { action, ...extra }); },
   async adminGrievances(status) { return get(`/api/admin/grievances?status=${enc(status || "open")}`); },

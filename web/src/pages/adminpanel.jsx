@@ -284,7 +284,39 @@ function Settings({ toast }) {
           </>}
         </div>))}</div>
       {sched && <MaintenanceSchedule m={m} busy={busy} save={save} />}
+      <CategoryPhotos toast={toast} />
     </>
+  );
+}
+
+// Home category photos: 5 per category, from R2. Tap one to replace it (shrunk to 160 px on this device first).
+const PHOTO_CATS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "rentals", "ads", "other"];
+function CategoryPhotos({ toast }) {
+  const { config } = useApp();
+  const [cat, setCat] = useState("food");
+  const [busy, setBusy] = useState(0);
+  const photos = config?.categoryPhotos?.[cat] || [];
+  const replace = async (slot, file) => {
+    if (!file) return;
+    setBusy(slot);
+    try { await api.adminCategoryPhoto(cat, slot, await api.categoryPhotoFrom(file)); toast(`Photo ${slot} replaced`); window.dispatchEvent(new Event("lastpick-recheck")); }
+    catch (e) { toast(errText(e)); }
+    setBusy(0);
+  };
+  return (
+    <div className="adm-card" style={{ marginTop: 16 }}>
+      <div className="row" style={{ flexWrap: "wrap", gap: 10 }}><b>Category photos on Home</b>
+        <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Category" style={{ maxWidth: 220 }}>
+          {PHOTO_CATS.map((id) => <option key={id} value={id}>{id === "rentals" ? "Rentals" : categoryOf(id)?.label}</option>)}</select></div>
+      <div className="muted small" style={{ margin: "6px 0 10px" }}>Each tile on Home fades through these 5 photos. Tap one to replace it. Photos are shrunk to 160 px (a few KB) and stored in R2.</div>
+      {!photos.length ? <div className="muted">Photo storage isn't set up yet.</div>
+        : <div className="gap" style={{ flexWrap: "wrap" }}>{photos.map((src, k) => (
+          <label key={k} className={"catphoto" + (busy === k + 1 ? " is-busy" : "")} title={`Replace photo ${k + 1}`}>
+            <img src={src} alt={`Photo ${k + 1}`} width="96" height="96" />
+            <span>{busy === k + 1 ? "Uploading…" : `Replace ${k + 1}`}</span>
+            <input type="file" accept="image/*" style={{ display: "none" }} disabled={!!busy} onChange={(e) => replace(k + 1, e.target.files?.[0])} />
+          </label>))}</div>}
+    </div>
   );
 }
 

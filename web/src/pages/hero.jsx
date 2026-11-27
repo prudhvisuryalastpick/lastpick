@@ -35,6 +35,30 @@ export const IconSticker = ({ icon, bg, fg, size = 64, rot = -6 }) => (
   <span className="istk" style={{ width: size, height: size, background: bg, color: fg, transform: `rotate(${rot}deg)` }}><Icon d={icon} size={Math.round(size * 0.48)} stroke={2} /></span>
 );
 
+// Category tile with real photos: fades through the category's photos (each a few KB, from R2, cached by the
+// phone). Tiles change at different moments (offset). Until a photo has loaded, the icon sticker shows.
+export function PhotoSticker({ photos, icon, bg, fg, size = 64, rot = -6, offset = 0 }) {
+  const [i, setI] = useState(0);
+  const [ready, setReady] = useState({});
+  useEffect(() => {
+    if (!photos?.length) return undefined;
+    let t2;
+    const t = setTimeout(() => { setI((x) => (x + 1) % photos.length); t2 = setInterval(() => setI((x) => (x + 1) % photos.length), 4000); }, 1200 + offset * 650);
+    return () => { clearTimeout(t); clearInterval(t2); };
+  }, [photos, offset]);
+  if (!photos?.length) return <IconSticker icon={icon} bg={bg} fg={fg} size={size} rot={rot} />;
+  const next = (i + 1) % photos.length;
+  return (
+    <span className="istk pstk" style={{ width: size, height: size, background: bg, color: fg, transform: `rotate(${rot}deg)` }}>
+      {!ready[i] && <Icon d={icon} size={Math.round(size * 0.48)} stroke={2} />}
+      {photos.map((src, k) => (k === i || k === next) && (
+        <img key={src} src={src} alt="" loading="lazy" decoding="async" onLoad={() => setReady((r) => ({ ...r, [k]: true }))}
+          className={k === i && ready[k] ? "on" : ""} />
+      ))}
+    </span>
+  );
+}
+
 // Customer home: one line per kind of deal. The banner moves to the next every few seconds, in a new random
 // order for each visitor; the button opens that category.
 export const CUSTOMER_SLIDES = [

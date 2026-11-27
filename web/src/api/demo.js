@@ -796,6 +796,8 @@ export const api = {
     return { ticket };
   },
   async myGrievances() { const db = load(); const u = me(db); return db.grievances.filter((g) => g.userId === u.id); },
+  async adminCategoryPhoto() {},
+  async categoryPhotoFrom() { return ""; },
   async adminChangeCategory(businessId, category) {
     const b = this._db?.businesses?.find?.((x) => x.id === businessId); if (b) { b.category = category; b.categories = [category]; }
     return { category, endedOffers: 0 };

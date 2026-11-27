@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { SponsoredBanner } from "./revenue.jsx";
-import { StickerHero, IconSticker } from "./hero.jsx";
+import { StickerHero, IconSticker, PhotoSticker } from "./hero.jsx";
 import { ContactCard } from "./contactus.jsx";
 import { Logo } from "../lib/brand.jsx";
 import { InstallTopButton, useCanInstall, useInstall, JoinedTicker, useStats, TicketHint, BackButton, CategoryChips, Countdown, LiveTimer, Disclaimer, Empty, MapView, NeedLogin, OfferCard, OfferImage, Sheet, SocialLinks, Spinner, catLabel, OfferQuote, QuoteStrip } from "../components.jsx";
@@ -136,7 +136,7 @@ export function Home() {
         <div className="catgrid">
           {HOME_TILES.map((t, k) => { const st = catStyle(t.id); const n = live.filter((o) => o.category === t.id).length; return (
             <button key={t.id} className="cattile" onClick={() => open(t.id)}>
-              <IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={50} rot={[-6, 4, -3, 6][k % 4]} />
+              <PhotoSticker photos={config?.categoryPhotos?.[t.id]} icon={st.icon} bg={st.tint} fg={st.ink} size={54} rot={[-6, 4, -3, 6][k % 4]} offset={k} />
               <b>{st.short}</b><span>{offers ? (n ? `${n} live` : "None yet") : " "}</span>
             </button>); })}
         </div>
