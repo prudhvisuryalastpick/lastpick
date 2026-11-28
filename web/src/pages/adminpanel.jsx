@@ -184,6 +184,13 @@ function ManagePartner({ b, isAdmin, toast, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [why, setWhy] = useState("");
+  const [newName, setNewName] = useState("");
+  // edit details: every field starts with today's value; only changed ones are sent
+  const start = { name: b.name || "", area: b.area || "", address: b.address || "", city: b.city || "", state: b.state || "", pincode: b.pincode || "", about: b.about || "" };
+  const [ed, setEd] = useState(start);
+  const [edPhone, setEdPhone] = useState("");
+  const [edWhy, setEdWhy] = useState("");
+  const edChanged = Object.keys(start).filter((k) => ed[k].trim() !== start[k]);
   const run = async (fn, msg) => { setBusy(true); try { await fn(); toast(msg); onDone(); } catch (e) { toast(errText(e)); setBusy(false); } };
   const status = (st) => run(() => api.setBusinessStatus(b.id, st, st === "verified" ? "" : note.trim()), `${b.name}: ${st}`);
   const plan = (action, extra, msg) => run(() => api.adminBusinessPlan(b.id, action, extra), msg);
@@ -219,10 +226,29 @@ function ManagePartner({ b, isAdmin, toast, onClose, onDone }) {
             <option value="">New category…</option>
             {CATEGORIES.filter((c) => c.id !== b.category).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`New shop name (optional, now "${b.name}")`} aria-label="New shop name" style={{ flex: 1, minWidth: 180 }} />
           <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Reason, e.g. ticket #LP-10241" aria-label="Reason" style={{ flex: 1, minWidth: 160 }} />
           <button type="button" className="btn dark sm" disabled={busy || !newCat || why.trim().length < 3}
-            onClick={() => run(async () => { const r = await api.adminChangeCategory(b.id, newCat, why.trim()); if (r.endedOffers) toast(`${r.endedOffers} live offer(s) ended`); }, `Category changed to ${categoryOf(newCat)?.label}`)}>Change category</button>
+            onClick={() => run(async () => { const r = await api.adminChangeCategory(b.id, newCat, why.trim(), newName.trim()); if (r.endedOffers) toast(`${r.endedOffers} live offer(s) ended`); }, `Category changed to ${categoryOf(newCat)?.label}`)}>Change category</button>
         </div>
+      </>}
+      {isAdmin && <>
+        <h3 style={{ margin: "16px 0 4px" }}>Edit details</h3>
+        <div className="muted small">Correct the shop name, address or contact number. Only what you change is saved; old and new values and the reason go in the log.</div>
+        <div className="adm-edit">
+          {[["name", "Shop name"], ["area", "Area / locality"], ["address", "Address"], ["city", "City / town"], ["state", "State"], ["pincode", "Pincode"]].map(([k, l]) => (
+            <label key={k}>{l}<input value={ed[k]} maxLength={k === "pincode" ? 6 : k === "address" ? 300 : 120} inputMode={k === "pincode" ? "numeric" : undefined} onChange={(e) => setEd((x) => ({ ...x, [k]: e.target.value }))} /></label>
+          ))}
+          <label className="wide">About<textarea rows={2} value={ed.about} maxLength={1000} onChange={(e) => setEd((x) => ({ ...x, about: e.target.value }))} /></label>
+          <label>New contact number (optional)<input value={edPhone} inputMode="tel" maxLength={14} placeholder="10-digit mobile" onChange={(e) => setEdPhone(e.target.value)} /></label>
+          <label>Reason<input value={edWhy} placeholder="e.g. owner asked on call" onChange={(e) => setEdWhy(e.target.value)} /></label>
+        </div>
+        <button type="button" className="btn dark sm" style={{ marginTop: 8 }} disabled={busy || (!edChanged.length && !edPhone.trim()) || edWhy.trim().length < 3}
+          onClick={() => run(async () => {
+            const fields = Object.fromEntries(edChanged.map((k) => [k, ed[k].trim()]));
+            if (edPhone.trim()) fields.phone = edPhone.trim();
+            await api.adminEditBusiness(b.id, fields, edWhy.trim());
+          }, "Details saved")}>Save details{edChanged.length || edPhone.trim() ? ` (${edChanged.length + (edPhone.trim() ? 1 : 0)} change${edChanged.length + (edPhone.trim() ? 1 : 0) > 1 ? "s" : ""})` : ""}</button>
       </>}
       <button type="button" className="btn ghost" style={{ marginTop: 14, width: "100%" }} onClick={onClose}>Close</button>
     </Sheet>

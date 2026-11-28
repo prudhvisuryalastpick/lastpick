@@ -1217,3 +1217,22 @@ test("bus tickets: up to 6 routes, offer ends at the last departure, seats can b
   assert.equal(up.status, 200, JSON.stringify(up.data));
   assert.deepEqual(up.data.items.map((i) => i.s), [2, 0]);
 });
+
+test("admin: rename a partner when changing category, edit details, every change logged", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  const me = (await o.get("/api/me")).data;
+  const r = await a.post(`/api/admin/businesses/${me.id}/category`, { category: "food", name: "Renamed Sweets", reason: "test: new owner" });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.name, "Renamed Sweets");
+  assert.equal((await a.post(`/api/admin/businesses/${me.id}/details`, { pincode: "12" , reason: "test" })).status, 400);
+  assert.equal((await a.post(`/api/admin/businesses/${me.id}/details`, { area: "New Area" })).status, 400, "reason needed");
+  const d = await a.post(`/api/admin/businesses/${me.id}/details`, { name: "Renamed Sweets 2", area: "New Area", phone: "9876501234", reason: "test: corrected" });
+  assert.equal(d.status, 200, JSON.stringify(d.data)); assert.deepEqual(d.data.changed.sort(), ["area", "name", "phone"]);
+  const b = (await o.get("/api/business")).data;
+  assert.equal(b.name, "Renamed Sweets 2"); assert.equal(b.area, "New Area");
+  const { Pool } = process.env.LP_PG_SHIM ? await import("./pg-shim.js") : (await import("pg")).default;
+  const pool = new Pool({ connectionString: DB });
+  const log = (await pool.query("SELECT data FROM audit_log WHERE type = 'admin_details_changed' ORDER BY at DESC LIMIT 1")).rows[0];
+  await pool.end();
+  assert.equal(log.data.changes.area.to, "New Area");
+});

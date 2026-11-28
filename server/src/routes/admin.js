@@ -14,7 +14,7 @@ import { platformImpact } from "./insights.js";
 import { CATEGORY_IDS } from "./partner.js";
 import { PAY_PACKS, planPrice } from "./revenue.js";
 import { recomputeRating } from "./reviews.js";
-import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str, isDataImage } from "../util.js";
+import { DAY, PLANS, STATUSES, TRIAL_DAYS, bad, cityKey, denied, maskEmail, maskPhone, ms, needUuid, normEmail, notFound, precondition, startOfDayIST, str, isDataImage, indianPhone } from "../util.js";
 
 function staff(ctx, { superOnly = false } = {}) {
   const u = needUser(ctx);
@@ -328,6 +328,45 @@ export function adminRoutes(r) {
   });
 
   // Super admins: change a partner's category (partners can't). Their live offers end; the reason is logged.
+  // Super admins: correct a partner's details (shop name, about, address, area, city, state, pincode, contact number).
+  // Only the fields sent change; every change is logged with the old and new value and the reason.
+  r.post("/api/admin/businesses/:id/details", async (ctx) => {
+    const me = superAdmin(ctx);
+    const id = needUuid(ctx.params.id, "business");
+    const reason = str(ctx.body?.reason, 300);
+    if (reason.length < 3) throw bad("Write the reason (kept in the log)");
+    const b = await one("SELECT b.name, b.about, b.address, b.area, b.city, b.state, b.pincode, c.phone FROM businesses b LEFT JOIN business_contacts c ON c.business_id = b.id WHERE b.id = $1", [id]);
+    if (!b) throw notFound("Business not found");
+    const limits = { name: 120, about: 1000, address: 300, area: 100, city: 80, state: 60, pincode: 6 };
+    const set = {}, changes = {};
+    for (const k of Object.keys(limits)) {
+      if (ctx.body?.[k] == null) continue;
+      const v = str(ctx.body[k], limits[k]);
+      if (k === "name" && v.length < 2) throw bad("Shop name is too short");
+      if (k === "pincode" && !/^\d{6}$/.test(v)) throw bad("Pincode must be 6 digits");
+      if ((b[k] || "") !== v) { set[k] = v; changes[k] = { from: b[k] || "", to: v }; }
+    }
+    let phone = null;
+    if (ctx.body?.phone != null) {
+      phone = indianPhone(ctx.body.phone);
+      if (!phone) throw bad("Enter a valid 10-digit Indian mobile number");
+      if (phone !== b.phone) changes.phone = { from: maskPhone(b.phone || ""), to: maskPhone(phone) }; else phone = null;
+    }
+    if (!Object.keys(changes).length) return { changed: [] };
+    await tx(async (c) => {
+      const keys = Object.keys(set);
+      if (keys.length) {
+        const cols = keys.map((k, i) => `${k} = $${i + 2}`);
+        if (set.city != null) { cols.push(`city_key = $${keys.length + 2}`); }
+        await c.query(`UPDATE businesses SET ${cols.join(", ")}, updated_at = now() WHERE id = $1`, [id, ...keys.map((k) => set[k]), ...(set.city != null ? [cityKey(set.city)] : [])]);
+      }
+      if (phone) await c.query(`INSERT INTO business_contacts (business_id, phone, whatsapp) VALUES ($1, $2, true) ON CONFLICT (business_id) DO UPDATE SET phone = $2, updated_at = now()`, [id, phone]);
+    });
+    clearCache("feed:"); clearCache("cities:");
+    await audit("admin_details_changed", me.id, { businessId: id, changes, reason });
+    return { changed: Object.keys(changes) };
+  });
+
   r.post("/api/admin/businesses/:id/category", async (ctx) => {
     const me = superAdmin(ctx);
     const id = needUuid(ctx.params.id, "business");
@@ -337,15 +376,18 @@ export function adminRoutes(r) {
     if (reason.length < 3) throw bad("Write the reason (kept in the log)");
     const b = await one("SELECT name, category, categories FROM businesses WHERE id = $1", [id]);
     if (!b) throw notFound("Business not found");
-    if (b.category === category && b.categories.length === 1) return { category, endedOffers: 0 };
+    // a new category often comes with a new shop name (e.g. "Sri Sai Sweets" becomes "Sri Durga Travels")
+    const newName = str(ctx.body?.name, 120);
+    if (ctx.body?.name != null && newName.length < 2) throw bad("Shop name is too short");
+    if (b.category === category && b.categories.length === 1 && (!newName || newName === b.name)) return { category, endedOffers: 0 };
     let ended = 0;
     await tx(async (c) => {
-      await c.query("UPDATE businesses SET category = $2, categories = $3, categories_changed_at = now(), updated_at = now() WHERE id = $1", [id, category, [category]]);
+      await c.query("UPDATE businesses SET category = $2, categories = $3, name = coalesce(nullif($4, ''), name), categories_changed_at = now(), updated_at = now() WHERE id = $1", [id, category, [category], newName]);
       ended = (await c.query("UPDATE offers SET status = 'ended' WHERE owner_id = $1 AND status = 'live'", [id])).rowCount;
     });
     clearCache("feed:"); clearCache("cities:");
-    audit("admin_category_changed", me.id, { businessId: id, from: b.category, to: category, reason, endedOffers: ended });
-    return { category, endedOffers: ended };
+    audit("admin_category_changed", me.id, { businessId: id, from: b.category, to: category, ...(newName && newName !== b.name ? { nameFrom: b.name, nameTo: newName } : {}), reason, endedOffers: ended });
+    return { category, endedOffers: ended, name: newName || b.name };
   });
 
   // Super admins: app switches (one device at a time for customers).
