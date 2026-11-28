@@ -529,12 +529,12 @@ test("working hours: after 11 PM only hotels and local ads", async () => {
     assert.ok(runs24x7("stay") && !runs24x7("travel") && !runs24x7("gym") && !runs24x7("combo") && !runs24x7("food"));
   }
   const cfg = await client("customer").get("/api/config");
-  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "ads"]);
+  assert.deepEqual(cfg.data.alwaysOpen, ["stay", "ads", "bus"]);
   assert.equal(cfg.data.night, false); // test servers run with OPEN_HOUR=0, CLOSE_HOUR=24
   // the night server: hotels and travel still listed, the food offers hidden, and their numbers can't be revealed
   const n = client("night");
   const feed = (await n.get("/api/offers?lat=12.97&lng=77.60&radius=5")).data;
-  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "ads"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
+  assert.ok(feed.length > 0 && feed.every((o) => ["stay", "ads", "bus"].includes(o.category)), JSON.stringify(feed.map((o) => o.category)));
   assert.equal((await n.get("/api/config")).data.night, true);
   await n.login("customer@test.lastpick.in");
   // radius 6: a fresh (uncached) list, so no offer removed by an earlier test is picked

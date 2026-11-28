@@ -91,6 +91,11 @@ export function LiveTimer({ end }) {
 // The offer's photo, or its category icon on the category colour when there's no photo.
 export function OfferImage({ offer, className = "top", children, size }) {
   if (offer.photoUrl) return <div className={className} style={{ backgroundImage: `url("${offer.photoUrl}")` }}>{children}</div>;
+  // bus tickets: one of 5 coach pictures (served with the site from Cloudflare), the same one for the same offer
+  if (offer.category === "bus") {
+    const n = ([...String(offer.id || "")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 5) + 1;
+    return <div className={className + " busimg"} style={{ backgroundImage: `url("/bus/bus-${n}.webp")` }}>{children}</div>;
+  }
   const s = catStyle(offer.category);
   const px = size || (className.includes("hero") ? 84 : className.includes("ic") || className.includes("li") ? 22 : 40);
   return <div className={className} style={{ background: s.tint, color: s.ink }}><Icon d={s.icon} size={px} stroke={1.6} />{children}</div>;
