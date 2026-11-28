@@ -49,6 +49,9 @@ export const CONSENT_VERSION = "2026-11-22";
 export const MAX_CATEGORIES = 3;
 // Each business can post this many offers per day (India time). Keep in sync with functions/index.js.
 export const POSTS_PER_DAY = 3;
+// Bus ticket agencies: 24x7, 5 posts a day, up to 6 routes each, own prices (keep in sync with server util.js / revenue.js)
+export const BUS_POSTS_PER_DAY = 5, BUS_MAX_ROUTES = 6;
+export const BUS_PACKS = [{ days: 15, price: 549 }, { days: 30, price: 999 }];
 export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privacy)", "A review", "Payments or plans", "Something else"];
 export const REVIEW_REPORT_REASONS = ["Fake or paid review", "Abusive or hateful", "Personal information", "Not about this business", "Something else"];
 
@@ -85,8 +88,8 @@ export const PAY_UPI = import.meta.env?.VITE_PAY_UPI || "";
 // Pack maths shown on the Plans page. Rupees a day to 1 decimal (₹16.6); the strike-off price is the same days at
 // the shortest pack's daily rate (a real comparison, not an invented "regular price"), and the saving is against it.
 export const perDay = (o) => Math.round((o.price / o.days) * 10) / 10;
-export const packCompare = (plan, o) => {
-  const base = PLANS[plan].packs[0];
+export const packCompare = (plan, o, packs = PLANS[plan].packs) => {
+  const base = packs[0];
   if (o.days <= base.days) return null;
   const was = Math.round((base.price / base.days) * o.days);
   return { was, save: Math.round((1 - o.price / was) * 100) };
@@ -110,6 +113,7 @@ export const CATEGORIES = [
   { id: "farm", label: "Farm fresh", icon: "🥬" },
   { id: "fashion", label: "Fashion", icon: "👗" },
   { id: "appliances", label: "Home appliances", icon: "📺" },
+  { id: "bus", label: "Bus tickets", icon: "🚌" },
   { id: "rentals", label: "Rentals (homes and workspaces)", icon: "🏠" },
   { id: "ads", label: "Local ads", icon: "📣" },
   { id: "other", label: "Other", icon: "📦" },
@@ -151,7 +155,7 @@ export const DURATIONS = [1, 2, 3, 4, 6, 8, 12]; // plus "till closing"; nothing
 // Hotels and local ads run 24×7 (post any time, offers up to 24 hours); everything else is shown 4 AM – 11 PM
 // and ends by 11 PM. Partners can post only between 4 AM and 10:30 PM (so every offer has at least 30 minutes).
 // Everything is removed at 12 midnight.
-export const ALWAYS_OPEN = ["stay", "ads"]; // 24x7, offers up to 24 hours: hotels and local ads
+export const ALWAYS_OPEN = ["stay", "ads", "bus"]; // 24x7, offers up to 24 hours: hotels, local ads, bus tickets
 export const HOURS = { postFrom: 4, postTill: 22.5, open: 4, close: 23 };
 // Hotels and local ads run 24×7: post any time, up to 24 hours.
 export const runs24x7 = (category) => ALWAYS_OPEN.includes(category);

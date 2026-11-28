@@ -107,7 +107,7 @@ export function OfferCard({ offer, preview = false }) {
         <div className="t">{offer.featured && <span className="featpill">Featured</span>}{offer.title}</div>
         <div className="s">{offer.business?.name}{r?.count ? <> · <span className="star">★ {Number(r.avg).toFixed(1)}</span></> : null} · {offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</div>
         <div className="foot">
-          <div className="price">{offer.items?.length > 1 ? <><b>{offer.items.length} items</b><span className="pct">Up to {discount(offer)}% off</span></> : isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{offer.price == null ? "₹ –" : offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.price != null && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pct">{discount(offer)}% off</span></>}</>}</div>
+          <div className="price">{offer.category === "bus" && offer.items?.length ? <><b>{offer.items.length} route{offer.items.length > 1 ? "s" : ""} · from {rupee(Math.min(...offer.items.map((x) => x.p)))}</b><span className="pct">Up to {discount(offer)}% off</span></> : offer.items?.length > 1 ? <><b>{offer.items.length} items</b><span className="pct">Up to {discount(offer)}% off</span></> : isJob(offer) ? <b>Pay {rupee(offer.price)}</b> : <><b>{offer.price == null ? "₹ –" : offer.price === 0 ? "Free" : rupee(offer.price)}</b>{offer.price != null && offer.origPrice > offer.price && <><s>{rupee(offer.origPrice)}</s><span className="pct">{discount(offer)}% off</span></>}</>}</div>
           <Countdown end={offer.endsAt} />
         </div>
         <OfferQuote offer={offer} />

@@ -190,6 +190,11 @@ export const PARTNER_RULES = {
     `I sell my own fresh produce (vegetables, fruit, milk, eggs, flowers), weighed honestly and priced per kg, litre or piece as stated.`,
     `Produce is fresh and safe to eat; I hold FSSAI registration where the law needs it for what I sell.`,
   ]],
+  bus: ["Bus tickets (licensed bus operators and ticket agents)", [
+    `I am a bus operator or a ticket agent holding a valid licence or permit from the transport authority for the routes I post, and I will show it to ${APP_NAME} on request.`,
+    `I sell only real seats on real buses, at the price and departure time I post. I update or end an offer as soon as seats are sold out or a trip is cancelled.`,
+    `I handle booking, payment, cancellation and refunds with the customer myself. ${APP_NAME} only shows my offer and does not sell tickets.`,
+  ]],
   ads: ["Local ads", [
     `My ad is for my own legal business, product or service, with the real price and conditions stated.`,
     `No misleading claims, no political, adult or illegal content, and no ads for other people's businesses.`,
@@ -242,6 +247,7 @@ export const POSTING_RULES = {
     appliances: "Home appliances: no stolen, smuggled or fake-warranty goods, and nothing sold above MRP.",
     rentals: "Rentals: only places you own or may rent out, true photos and rent, no discrimination against tenants, and \"Rented out\" as soon as it's taken.",
     ads: "Local ads: no political, religious, adult, betting or gambling ads, and no ads for anyone else's business.",
+    bus: "Bus tickets: only real seats on buses you are licensed to sell, with the real departure time and price; update seats left and end the offer if the trip is cancelled.",
     other: "Nothing that needs a licence you don't have.",
   },
 };

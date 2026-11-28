@@ -267,6 +267,7 @@ export const api = {
   async addMyItem(name) { return post("/api/owner/items", { name }); },
   async removeMyItem(id) { return post(`/api/owner/items/${id}/remove`, {}); },
   async createOffer(o) { const r = await post("/api/owner/offers", o); clearCache(); return r; },
+  async updateSeats(id, seats) { const r = await post(`/api/owner/offers/${enc(id)}/seats`, { seats }); clearCache(); return r; },
   async endOffer(id) { await post(`/api/owner/offers/${enc(id)}/end`); clearCache(); },
   async addView(id) { try { await post(`/api/offers/${enc(id)}/view`); } catch { /* not critical */ } },
   // a small thumbnail (for lists) and a full photo (opened on the offer page)

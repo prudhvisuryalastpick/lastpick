@@ -17,6 +17,9 @@ export const BOOST_PRICES = { 6: 49, 12: 79, 24: 99 };
 export const PLAN_PRICES = { customer: { 1: 99 }, owner: { 1: 499 } };
 // What can be bought online (Razorpay), as packs of days. Any pack, any number of times.
 // Keep in sync with "packs" in web/src/lib/config.js.
+// Bus ticket agencies (24x7, 5 posts a day): their own Business Pro prices
+export const BUS_PACKS = [{ days: 15, price: 549 }, { days: 30, price: 999 }];
+export const packsFor = (plan, category) => (plan === "owner" && category === "bus" ? BUS_PACKS : PAY_PACKS[plan]);
 export const PAY_PACKS = {
   customer: [{ days: 5, price: 29 }, { days: 15, price: 59 }, { days: 30, price: 99 }],
   owner: [{ days: 5, price: 119 }, { days: 15, price: 299 }, { days: 30, price: 499 }],

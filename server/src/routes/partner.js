@@ -7,13 +7,13 @@ import { freeMode, planActive } from "../plans.js";
 import { limit } from "../ratelimit.js";
 import { audit, mapBusiness, mapOffer, mapReview, needConsent, offerSelect } from "../shared.js";
 import {
-  POSTING_HOURS, closingTimeIST, fixTitlePercent, postingOpen, runs24x7, MAX_OFFER_MS, POSTS_PER_DAY, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
+  POSTING_HOURS, closingTimeIST, fixTitlePercent, postingOpen, runs24x7, MAX_OFFER_MS, POSTS_PER_DAY, BUS_MAX_ROUTES, postsPerDay, bad, cityKey, denied, hasContactInfo, indianPhone, isDataImage, ms, needUuid, notFound, precondition, startOfDayIST, str,
 } from "../util.js";
 
 // Keep in sync with CATEGORIES in web/src/lib/config.js. A business posts offers ONLY in the categories it
 // registered (a bakery posts only bakery offers). Job openings ("jobs") are no longer allowed.
 // Keep in sync with CATEGORIES in web/src/lib/config.js (and migration 010).
-export const CATEGORY_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "rentals", "ads", "other"];
+export const CATEGORY_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "bus", "rentals", "ads", "other"];
 const DAY = 86400000; // everything posted ends the same day (before midnight, India time)
 export const normCategory = (c) => (CATEGORY_IDS.includes(c) ? c : "other");
 const MAX_CATEGORIES = 3;
@@ -109,6 +109,24 @@ export function partnerRoutes(r) {
       if (qty) it.q = qty;
       return it;
     }) : [];
+    // Bus tickets: routes instead of items (up to 6): from, to, departure (today or within 24 hours), seats left, prices.
+    // Each is kept as an item too ("Hyderabad to Vijayawada 10:30 PM", actual, offer) so the one-line History works the same.
+    let busEnds = 0;
+    if (Array.isArray(d.routes) && d.routes.length) {
+      if (d.routes.length > BUS_MAX_ROUTES) throw bad(`Add up to ${BUS_MAX_ROUTES} routes`);
+      items.length = 0;
+      for (const x of d.routes) {
+        const f = cleanItemName(x?.from ?? x?.f, 40), t = cleanItemName(x?.to ?? x?.t, 40), dep = Number(x?.departs ?? x?.d), seats = Math.round(Number(x?.seats ?? x?.s));
+        const a = Number(x?.a ?? x?.actual), pr = Number(x?.p ?? x?.price);
+        if (f.length < 2 || t.length < 2) throw bad("Give every route a From and To");
+        if (!(dep > Date.now() + 5 * 60000) || dep > Date.now() + MAX_OFFER_MS + 60000) throw bad(`${f} to ${t}: the bus must leave within the next 24 hours`);
+        if (!(seats >= 1 && seats <= 99)) throw bad(`${f} to ${t}: enter seats left (1 to 99)`);
+        const when = new Date(dep).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).toUpperCase();
+        items.push({ n: cleanItemName(`${f} to ${t} ${when}`, 60), a, p: pr, f, t, d: dep, s: seats });
+        busEnds = Math.max(busEnds, dep);
+      }
+      d.endsAt = busEnds; // the offer lasts until its last bus leaves
+    }
     // an older app may still send one price pair without items: it becomes a single item named after the offer
     if (!items.length && Number(d.origPrice) > 0) items.push({ n: title.replace(/[;>]+/g, " ").slice(0, 60), a: Number(d.origPrice), p: Number(d.price) });
     if (items.length > 10) throw bad("Add up to 10 items");
@@ -126,6 +144,8 @@ export function partnerRoutes(r) {
     const hiring = false;
     // a business posts only in its registered category
     if (!allowed.includes(category)) throw denied("Your business can post only in its registered category.");
+    if (category === "bus" && !busEnds) throw bad("Add at least one route: from, to, departure time, seats and prices");
+    if (category !== "bus" && busEnds) throw bad("Routes are only for bus ticket offers");
     // Hotels and local ads run 24×7: post any time, offer runs up to 24 hours.
     // Everything else: post 4 AM to 10:30 PM, ends by 11 PM the same day.
     const allDay = runs24x7(category);
@@ -152,14 +172,15 @@ export function partnerRoutes(r) {
       const today = (await c.query(
         `SELECT (SELECT count(*) FROM offers WHERE owner_id = $1 AND created_at >= $2)
               + (SELECT count(*) FROM offer_archive WHERE owner_id = $1 AND created_at >= $2) AS n`, [u.id, new Date(startOfDayIST())])).rows[0].n;
-      if (today >= POSTS_PER_DAY) throw precondition(`You can post ${POSTS_PER_DAY} offers a day. You can post again tomorrow from 4 AM.`);
+      const perDay = postsPerDay(category);
+      if (today >= perDay) throw precondition(`You can post ${perDay} offers a day. You can post again tomorrow${category === "bus" || runs24x7(category) ? " (from midnight)" : " from 4 AM"}.`);
       const { rows } = await c.query(
         `INSERT INTO offers (owner_id, title, description, category, emoji, photo_thumb, has_photo, orig_price, price, quantity, ends_at, flags, items)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [u.id, title, str(d.description, 1000), category, str(d.emoji, 8) || "📦", photoThumb, !!photo, hiring ? price : origPrice, price, str(d.quantity, 60),
           new Date(endsAt), !hiring && 1 - price / origPrice >= 0.9 ? ["very-high-discount"] : [], JSON.stringify(items)]);
       if (photo) await c.query("INSERT INTO offer_photos (offer_id, data) VALUES ($1, $2)", [rows[0].id, photo]);
-      return { id: rows[0].id, postsLeftToday: POSTS_PER_DAY - today - 1 };
+      return { id: rows[0].id, postsLeftToday: perDay - today - 1 };
     });
     clearCache("feed:"); clearCache("cities:");
     // every item name posted goes into My items (names only), up to MY_ITEMS_MAX
@@ -167,6 +188,21 @@ export function partnerRoutes(r) {
     // the posting rules pop-up (unlawful posts: partnership cancelled, legal action) was shown and accepted
     audit("offer_created", u.id, { offerId: result.id, category, rulesAccepted: d.rulesAccepted === true, rulesVersion: str(d.rulesVersion, 20) || null });
     return { ...result, visible: b.status === "verified" };
+  });
+
+  // Bus tickets: update seats left on a live offer as tickets sell (0 = sold out). Free: doesn't use a post.
+  r.post("/api/owner/offers/:id/seats", async (ctx) => {
+    const u = needUser(ctx);
+    needUuid(ctx.params.id, "offer");
+    const id = ctx.params.id;
+    const o = await one("SELECT items FROM offers WHERE id = $1 AND owner_id = $2 AND category = 'bus' AND status = 'live'", [id, u.id]);
+    if (!o) throw notFound("Live bus offer not found");
+    const seats = Array.isArray(ctx.body.seats) ? ctx.body.seats.map((x) => Math.round(Number(x))) : [];
+    if (seats.length !== o.items.length || seats.some((x) => !(x >= 0 && x <= 99))) throw bad("Send seats left (0 to 99) for every route");
+    const items = o.items.map((it, i) => ({ ...it, s: seats[i] }));
+    await q("UPDATE offers SET items = $2 WHERE id = $1", [id, JSON.stringify(items)]);
+    clearCache("feed:");
+    return { ok: true, items };
   });
 
   r.post("/api/owner/offers/:id/end", async (ctx) => {

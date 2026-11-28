@@ -18,7 +18,7 @@ import { addPlanDays, audit, mapSub } from "../shared.js";
 import { bad, denied, needUuid, notFound, precondition, str } from "../util.js";
 import { RENTAL_PACKS, activateListing } from "./rentals.js";
 import { clearCache } from "../cache.js";
-import { PAY_PACKS } from "./revenue.js";
+import { PAY_PACKS, packsFor } from "./revenue.js";
 import { GOOGLE_PRODUCTS, accountTag, consumePurchase, getPurchase, googlePlayOn, productFor } from "../googleplay.js";
 
 export const paymentsOn = () => !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
@@ -122,16 +122,19 @@ async function checkPack(ctx, u) {
     if (!pack) throw bad("Pick 15 or 30 days");
     return { plan, days, price: pack.price, listingId };
   }
+  let category = null;
   if (plan === "owner") {
-    const b = await one("SELECT status FROM businesses WHERE id = $1", [u.id]);
+    const b = await one("SELECT status, category FROM businesses WHERE id = $1", [u.id]);
     if (!b) throw precondition("Register your business first.");
     if (b.status !== "verified") throw precondition("You can buy Business Pro once we verify your business.");
+    category = b.category;
   }
-  const pack = PAY_PACKS[plan].find((x) => x.days === days);
-  if (!pack) throw bad(`Pick one of: ${PAY_PACKS[plan].map((x) => `${x.days} days`).join(", ")}`);
+  const packs = packsFor(plan, category);
+  const pack = packs.find((x) => x.days === days);
+  if (!pack) throw bad(`Pick one of: ${packs.map((x) => `${x.days} days`).join(", ")}`);
   const run = await one("SELECT pack_days FROM subscriptions WHERE user_id = $1 AND plan = $2 AND status IN ('active', 'cancelled') AND current_period_end > now()", [u.id, plan]);
   if (run?.pack_days && run.pack_days !== days) throw precondition(`Your ${run.pack_days}-day plan is running. Top up with ${run.pack_days} more days, or pick another pack after it ends.`);
-  return { plan, days, price: pack.price, listingId: null };
+  return { plan, days, price: pack.price, listingId: null, bus: category === "bus" };
 }
 const result = async (u, plan) => ({ paid: true, subscription: plan === "rental" ? null : await mySub(u.id, plan) });
 
@@ -142,7 +145,7 @@ export function paymentRoutes(r) {
     const u = needUser(ctx);
     if (!googlePlayOn()) throw precondition("Payments in the app aren't switched on yet. Please try again later.");
     const k = await checkPack(ctx, u);
-    const productId = productFor(k.plan, k.days);
+    const productId = productFor(k.plan, k.days, k.bus);
     if (!productId) throw bad("This pack can't be bought in the app");
     await limit(u.id, "payOrder", 20, 3600);
     const ref = "gp_" + crypto.randomUUID().replace(/-/g, "");
@@ -188,15 +191,18 @@ export function paymentRoutes(r) {
     if (!paymentsOn()) throw precondition("Online payment is not set up yet. Please contact support.");
     const plan = await planFor(ctx);
     if (plan === "rental") return rentalOrder(ctx, u);
+    let category = null;
     if (plan === "owner") {
-      const b = await one("SELECT status FROM businesses WHERE id = $1", [u.id]);
+      const b = await one("SELECT status, category FROM businesses WHERE id = $1", [u.id]);
       if (!b) throw precondition("Register your business first.");
       if (b.status !== "verified") throw precondition("You can buy Business Pro once we verify your business.");
+      category = b.category;
     }
     await limit(u.id, "payOrder", 20, 3600);
     const days = Number(ctx.body.days ?? 30);
-    const pack = PAY_PACKS[plan].find((x) => x.days === days);
-    if (!pack) throw bad(`Pick one of: ${PAY_PACKS[plan].map((x) => `${x.days} days`).join(", ")}`);
+    const packs = packsFor(plan, category);
+    const pack = packs.find((x) => x.days === days);
+    if (!pack) throw bad(`Pick one of: ${packs.map((x) => `${x.days} days`).join(", ")}`);
     // one pack at a time: while a plan runs, only a top-up with the same pack (5, 15 or 30 days) is open
     const run = await one("SELECT pack_days FROM subscriptions WHERE user_id = $1 AND plan = $2 AND status IN ('active', 'cancelled') AND current_period_end > now()", [u.id, plan]);
     if (run?.pack_days && run.pack_days !== days) throw precondition(`Your ${run.pack_days}-day plan is running. Top up with ${run.pack_days} more days, or pick another pack after it ends.`);

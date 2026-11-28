@@ -13,9 +13,11 @@ export const GOOGLE_PRODUCTS = {
   business_pro_15d: { plan: "owner", days: 15 },
   business_pro_30d: { plan: "owner", days: 30 },
   rental_15d: { plan: "rental", days: 15 },
+  bus_pro_15d: { plan: "owner", days: 15, bus: true },
+  bus_pro_30d: { plan: "owner", days: 30, bus: true },
   rental_30d: { plan: "rental", days: 30 },
 };
-export const productFor = (plan, days) => Object.keys(GOOGLE_PRODUCTS).find((k) => GOOGLE_PRODUCTS[k].plan === plan && GOOGLE_PRODUCTS[k].days === Number(days)) || null;
+export const productFor = (plan, days, bus = false) => Object.keys(GOOGLE_PRODUCTS).find((k) => GOOGLE_PRODUCTS[k].plan === plan && GOOGLE_PRODUCTS[k].days === Number(days) && !!GOOGLE_PRODUCTS[k].bus === !!bus) || null;
 
 let account = null;
 function serviceAccount() {

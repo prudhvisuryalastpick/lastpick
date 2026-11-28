@@ -5,7 +5,7 @@ export const P = {
   grocery: "M3 10h18l-2 10H5L3 10zM8 10l4-6 4 6",
   stay: "M3 18V8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3",
   venue: "M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6",
-  bus: "M5 4h14v12H5zM5 10h14M7 20v-4M17 20v-4",
+  bus: "M6 3h12a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2zM4 11h16M8 3v8M7 17v3M17 17v3M7.5 14h1M15.5 14h1",
   truck: "M3 6h11v10H3zM14 9h4l3 3v4h-7M7 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01",
   car: "M5 16h14v-4l-2-5H7l-2 5zM5 12h14M7.5 16v2M16.5 16v2",
   doctor: "M8 3v5a4 4 0 0 0 8 0V3M12 12v3a4 4 0 0 0 8 0v-1M20 12a1.5 1.5 0 1 0 0-.01",
@@ -99,6 +99,7 @@ export const CAT_STYLE = {
   appliances: { icon: "tv", tint: "#EEF0F6", ink: "#3B4654", short: "Appliances" },
   rentals: { icon: "venue", tint: "#E0F2F1", ink: "#0F5E58", short: "Rentals" },
   ads: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Local ads" },
+  bus: { icon: "bus", tint: "#E4F5F2", ink: "#0F6E5C", short: "Bus tickets" },
   jobs: { icon: "megaphone", tint: "#FFF3D6", ink: "#8A5A00", short: "Hiring" },
   other: { icon: "more", tint: "#EEF1F5", ink: "#12355B", short: "Other" },
 };
@@ -108,7 +109,7 @@ export const catStyle = (id) => CAT_STYLE[id] || CAT_STYLE.other;
 // Category tiles on the customer home (Food, Hotels first), with small tags.
 export const HOME_TILES = [
   { id: "food" }, { id: "stay", tag: "24×7", tagBg: "#1E4BB8" }, { id: "beauty" }, { id: "makeup" },
-  { id: "gym" }, { id: "farm" }, { id: "fashion" }, { id: "appliances" }, { id: "rentals" }, { id: "ads" },
+  { id: "gym" }, { id: "farm" }, { id: "fashion" }, { id: "appliances" }, { id: "bus", tag: "24×7", tagBg: "#0F6E5C" }, { id: "rentals" }, { id: "ads" },
   { id: "other" },
 ];
 

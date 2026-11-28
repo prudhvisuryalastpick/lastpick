@@ -110,7 +110,7 @@ export async function storageCheck() {
 // Category photos on Home: 5 per category, at fixed keys categories/<id>-<n>.webp (uploaded at deploy; admins
 // can replace one: the new file gets its own key, kept in the "category_photos" setting, so phones load the new
 // photo instead of a cached old one). Links are signed for the whole day (same link all day, kept cached).
-export const CATEGORY_PHOTO_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "rentals", "ads", "other"];
+export const CATEGORY_PHOTO_IDS = ["food", "stay", "beauty", "makeup", "gym", "farm", "fashion", "appliances", "bus", "rentals", "ads", "other"];
 export function categoryPhotoUrls(overrides = {}) {
   if (!R2_ON) return null;
   const now = new Date();

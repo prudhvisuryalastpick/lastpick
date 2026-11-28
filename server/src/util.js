@@ -13,6 +13,9 @@ export const DAY = 86400000;
 // No free version: no free month at sign-up or at verification.
 export const TRIAL_DAYS = 0;
 export const POSTS_PER_DAY = 3;
+// Bus ticket agencies post any time and have more buses: 5 posts a day, up to 6 routes each
+export const BUS_POSTS_PER_DAY = 5, BUS_MAX_ROUTES = 6;
+export const postsPerDay = (category) => (category === "bus" ? BUS_POSTS_PER_DAY : POSTS_PER_DAY);
 // Every offer must be completed within 24 hours: LastPick is only for same-day offers and discounts.
 export const MAX_OFFER_MS = DAY;
 export const CONSENT_VERSION = "2026-11-22";
@@ -28,7 +31,7 @@ export const GRIEVANCE_TYPES = ["Offer or business", "My account or data (privac
 export const BUSINESS_HOURS = { open: Number(process.env.OPEN_HOUR ?? 4), close: Number(process.env.CLOSE_HOUR ?? 23) };
 // last post at 10:30 PM, so every offer has at least 30 minutes before 11 PM (22.5 = 10:30 PM)
 export const POSTING_HOURS = { from: Number(process.env.POST_FROM_HOUR ?? 4), till: Number(process.env.POST_TILL_HOUR ?? 22.5) };
-export const ALWAYS_OPEN = ["stay", "ads"]; // 24x7, offers up to 24 hours: hotels and local ads
+export const ALWAYS_OPEN = ["stay", "ads", "bus"]; // 24x7, offers up to 24 hours: hotels, local ads, bus tickets
 export const istHour = (now = Date.now()) => new Date(now + 5.5 * 3600000).getUTCHours();
 export const isNight = (now = Date.now()) => { const h = istHour(now); return h < BUSINESS_HOURS.open || h >= BUSINESS_HOURS.close; };
 

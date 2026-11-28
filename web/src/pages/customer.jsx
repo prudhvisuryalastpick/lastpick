@@ -165,19 +165,58 @@ export function Home() {
 }
 
 // One category's offers only (Home tiles and the hero open this page).
+// Bus tickets: each route with a live "leaves in 2h 05m 09s" timer; routes whose bus has left disappear,
+// sold-out routes show "Sold out". First 3, then "Show all routes".
+const hms = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), x = t % 60; return `${h ? h + "h " : ""}${String(m).padStart(h ? 2 : 1, "0")}m ${String(x).padStart(2, "0")}s`; };
+// Shown with bus tickets: who the agencies are and how booking works
+export function BusTrust() {
+  return <div className="bustrust"><Icon d="shield" size={18} stroke={2.2} /><span><b>Verified bus agencies, trusted partners of {APP_NAME}.</b> We check each agency's licence and office before they can post. Call the agency to book; you pay them directly.</span></div>;
+}
+export function BusRoutes({ items }) {
+  const now = useNow(1000);
+  const [all, setAll] = useState(false);
+  const live = items.filter((it) => !it.d || it.d > now).sort((a, b) => (a.d || 0) - (b.d || 0));
+  if (!live.length) return <div className="olist"><div className="oi"><span className="muted">All buses in this offer have left.</span></div></div>;
+  const shown = all ? live : live.slice(0, 3);
+  return (
+    <div className="busroutes" aria-label="Routes in this offer">
+      {shown.map((it, i) => {
+        const pct = Math.round((1 - it.p / it.a) * 100), sold = it.s === 0;
+        return (
+          <div className={"br" + (sold ? " sold" : "")} key={i}>
+            <div className="brt"><b>{it.f} → {it.t}</b><span className={"chip small " + (sold ? "" : "seat")}>{sold ? "Sold out" : `${it.s} seat${it.s === 1 ? "" : "s"} left`}</span></div>
+            <div className="brt"><span className="muted small">Leaves {clockTime(it.d)} · in <b className={it.d - now < 3600000 ? "soonred" : ""}>{hms(it.d - now)}</b></span>
+              <span><s>{rupee(it.a)}</s> <b className="brp">{rupee(it.p)}</b>{pct > 0 && <small className="brpc">{pct}% off</small>}</span></div>
+          </div>
+        );
+      })}
+      {live.length > 3 && <button className="btn line sm" style={{ width: "100%" }} onClick={() => setAll((x) => !x)}>{all ? "Show fewer" : `Show all ${live.length} routes`}</button>}
+    </div>
+  );
+}
+
 export function CategoryPage({ id }) {
   const { offers, error, needGps } = useAreaOffers();
   const { location } = useApp();
   const [sort, setSort] = useState("ending");
+  const [from, setFrom] = useState(""), [to, setTo] = useState(""); // bus tickets: From → To search
   const now = useNow(30000);
   const st = catStyle(id);
+  const starts = (a, b) => !b.trim() || (a || "").toLowerCase().startsWith(b.trim().toLowerCase());
   const list = useMemo(() => (offers || []).filter((o) => o.endsAt > now && o.category === id)
+    .filter((o) => id !== "bus" || (!from.trim() && !to.trim()) || (o.items || []).some((it) => it.d > now && starts(it.f, from) && starts(it.t, to)))
     .map((o) => ({ o, km: distanceKm(location, o.business) }))
     .sort((a, b) => (b.o.featured ? 1 : 0) - (a.o.featured ? 1 : 0) || (sort === "near" ? (a.km ?? 1e9) - (b.km ?? 1e9) : sort === "off" ? discount(b.o) - discount(a.o) : a.o.endsAt - b.o.endsAt))
-    .map((x) => x.o), [offers, id, sort, location, now]);
+    .map((x) => x.o), [offers, id, sort, location, now, from, to]);
   return (
     <>
       <div className="phead"><a className="cround" href="#/" aria-label="Back to home"><Icon d="M15 5l-7 7 7 7" size={20} stroke={2.2} /></a><IconSticker icon={st.icon} bg={st.tint} fg={st.ink} size={44} rot={-6} /><div><h1>{categoryOf(id)?.label || "Offers"}</h1><div className="sub">{offers ? `${list.length} live deal${list.length === 1 ? "" : "s"} near you` : "Loading…"}</div></div><QuoteStrip variant="head" /></div>
+      {id === "bus" && <div style={{ padding: "0 14px 8px" }}><BusTrust /></div>}
+      {id === "bus" && <div className="bussearch">
+        <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="From (e.g. Hyderabad)" aria-label="From" />
+        <Icon d="M5 12h14M13 6l6 6-6 6" size={18} stroke={2.2} />
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="To (e.g. Vijayawada)" aria-label="To" />
+      </div>}
       <div className="chips" style={{ padding: "4px 14px 10px" }}>
         {[["ending", "Ending soon"], ["near", "Nearest"], ["off", "Biggest discount"]].map(([k, l]) => <button key={k} className={"chip " + (sort === k ? "on" : "")} onClick={() => setSort(k)}>{l}</button>)}
       </div>
@@ -410,7 +449,8 @@ export function OfferPage({ id }) {
         <div className="catline"><span className="catpill" style={{ background: catStyle(offer.category).tint, color: catStyle(offer.category).ink }}><Icon d={catStyle(offer.category).icon} size={14} stroke={2.2} />{categoryOf(offer.category).label}</span><span className="muted small">{offer.business?.area}{km != null && km < 100 ? " · " + kmText(km) : ""}</span></div>
         <h1 className="title" style={{ margin: "6px 0 6px", lineHeight: 1.2 }}>{offer.title}</h1>
         {offer.description && <div className="muted" style={{ whiteSpace: "pre-line" }}>{offer.description}</div>}
-        {offer.items?.length > 0 && <div className="olist" aria-label="Items in this offer">{offer.items.map((it, i) => (
+        {offer.category === "bus" && offer.items?.length > 0 && <><BusRoutes items={offer.items} /><BusTrust /></>}
+        {offer.category !== "bus" && offer.items?.length > 0 && <div className="olist" aria-label="Items in this offer">{offer.items.map((it, i) => (
           <div className="oi" key={i}><span>{it.n}{it.q && <em className="qleft">{it.q} left</em>}</span><span><s>{rupee(it.a)}</s><b>{rupee(it.p)}</b><small>{Math.round((1 - it.p / it.a) * 100)}% off</small></span></div>
         ))}</div>}
         <OfferQuote offer={offer} big />
@@ -449,7 +489,7 @@ export function OfferPage({ id }) {
           ) : !contact ? <Spinner /> : (
             <>
               <div className="num" style={{ marginTop: 12 }}>{prettyPhone(contact.phone)}</div>
-              {!ended && <a className="btn main" style={{ marginTop: 10 }} href={"tel:" + contact.phone} onClick={() => api.logContact?.(offer.id, "Called")}><Icon d="phone" size={18} stroke={2.2} />Call {offer.business?.name || "the business"}</a>}
+              {!ended && <a className="btn main" style={{ marginTop: 10 }} href={"tel:" + contact.phone} onClick={() => api.logContact?.(offer.id, "Called")}><Icon d="phone" size={18} stroke={2.2} />{offer.category === "bus" ? "Call to book" : `Call ${offer.business?.name || "the business"}`}</a>}
               <div className="muted small" style={{ marginTop: 6 }}>Businesses never see your number.</div>
               {!ended && (
                 <button className="btn ghost" style={{ marginTop: 10 }} disabled={shared || busy} onClick={askShare}>

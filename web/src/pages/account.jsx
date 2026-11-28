@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AdminRevenue } from "./revenue.jsx";
 import { api, isLive, canBuyInApp } from "../api/index.js";
 import { useInstall, TICKET_DAYS, TicketHint, BackButton, Empty, NeedLogin, PlanBar, PlanCard, Sheet, Spinner, useLive } from "../components.jsx";
-import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay, CATEGORIES } from "../lib/config.js";
+import { APP_NAME, INDIAN_STATES, IS_ADMIN_APP, IS_CUSTOMER_APP, IS_NATIVE, IS_OWNER_APP, PLANS, SUPPORT_EMAIL, planLabel, categoryOf, perDay, packCompare, cheapestPerDay, CATEGORIES, BUS_PACKS } from "../lib/config.js";
 import { isInstalled } from "../lib/install.js";
 import { Icon } from "../lib/icons.jsx";
 import { ago, day, daysLeft, errText, prettyPhone, rupee, validPhone } from "../lib/format.js";
@@ -22,7 +22,11 @@ export function Plans({ plan: initial }) {
   const [err, setErr] = useState("");
   const [paidSheet, setPaidSheet] = useState(null);
   const [runInstall, installUi] = useInstall();
-  const p = PLANS[plan], s = subs?.[plan];
+  // bus ticket agencies (24x7, 5 posts a day) have their own Business Pro prices
+  const busAgency = plan === "owner" && business?.category === "bus";
+  const p = busAgency ? { ...PLANS.owner, packs: BUS_PACKS, tagline: "Post 5 bus offers a day, 24×7",
+    perks: ["Post up to 5 offers a day, any time (24×7)", "Up to 6 routes per offer, each ends when its bus leaves", "Update seats left any time, free", "Customers call you directly, no commission"] } : PLANS[plan];
+  const s = subs?.[plan];
   // one pack at a time: while a plan runs, only its own pack is open (a top-up); the others wait till it ends
   const runPack = s?.active && s.packDays ? s.packDays : null;
   const opt = p.packs.find((o) => o.days === (runPack || days)) || p.packs[p.packs.length - 1];
@@ -84,7 +88,7 @@ export function Plans({ plan: initial }) {
       <div className="label-up" style={{ paddingBottom: 14 }}>Choose a pack{plan === "owner" ? " (verified businesses)" : ""}</div>
       <div className="packs">
         {p.packs.map((o, i) => {
-          const cmp = packCompare(plan, o), best = i === p.packs.length - 1, d = perDay(o);
+          const cmp = packCompare(plan, o, p.packs), best = i === p.packs.length - 1, d = perDay(o);
           const sub = i === 0 ? `₹${d} a day · try it out` : best ? `Just ₹${d} a day` : `Under ₹${Math.ceil(d)} a day (₹${d})`;
           const inactive = runPack && o.days !== runPack;
           return (

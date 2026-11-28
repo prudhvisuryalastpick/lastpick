@@ -1190,3 +1190,30 @@ test("Google Play in the partner app: same packs, checked with Google, counted o
   const rc = await o.post("/api/payments/google/confirm", { productId: "rental_15d", purchaseToken: "tok-rental-15" }); assert.equal(rc.data.paid, true, JSON.stringify(rc.data));
   assert.equal((await o.get(`/api/owner/rentals/${l.id}`)).data.status, "live");
 });
+
+test("bus tickets: up to 6 routes, offer ends at the last departure, seats can be updated, own prices", async () => {
+  const a = client("admin"); await a.login("admin@test.lastpick.in");
+  const o = client("partner"); await o.login("owner@test.lastpick.in");
+  const me = (await o.get("/api/me")).data;
+  await a.post(`/api/admin/businesses/${me.id}/category`, { category: "bus", reason: "test: bus tickets" });
+  await o.post("/api/auth/login", { email: "owner@test.lastpick.in", password: PASSWORD }).then((r) => { o.token = r.data.token; });
+  const H = 3600000, now = Date.now();
+  const route = (h, to = "Vijayawada") => ({ from: "Hyderabad", to, departs: now + h * H, seats: 6, a: 1200, p: 750 });
+  // 7 routes, a bus in the past, or an empty route list are refused
+  assert.equal((await o.post("/api/owner/offers", { title: "Night buses", category: "bus", routes: [1, 2, 3, 4, 5, 6, 7].map((h) => route(h)) })).status, 400);
+  assert.equal((await o.post("/api/owner/offers", { title: "Night buses", category: "bus", routes: [{ ...route(1), departs: now - H }] })).status, 400);
+  assert.equal((await o.post("/api/owner/offers", { title: "Night buses", category: "bus", endsAt: now + H, items: [{ n: "Seat", a: 100, p: 50 }] })).status, 400);
+  // bus agencies have their own Business Pro prices (15 days ₹549, 30 days ₹999)
+  const st = await o.post("/api/payments/google/start", { plan: "owner", days: 30 });
+  if (st.status === 200) assert.equal(st.data.productId, "bus_pro_30d", JSON.stringify(st.data));
+  const r = await o.post("/api/owner/offers", { title: "Tonight's AC sleeper seats", category: "bus", routes: [route(3), route(5, "Bengaluru")] });
+  if (r.status === 412) return; // today's posts already used by earlier tests
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const mine = (await o.get("/api/owner/offers")).data.find((x) => x.id === r.data.id);
+  assert.equal(mine.items.length, 2);
+  assert.ok(Math.abs(mine.endsAt - (now + 5 * H)) < 2000, "ends when the last bus leaves");
+  assert.equal(mine.items[1].t, "Bengaluru");
+  const up = await o.post(`/api/owner/offers/${r.data.id}/seats`, { seats: [2, 0] });
+  assert.equal(up.status, 200, JSON.stringify(up.data));
+  assert.deepEqual(up.data.items.map((i) => i.s), [2, 0]);
+});

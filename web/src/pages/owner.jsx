@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/index.js";
 import { OwnerRentals } from "./rentals.jsx";
 import { JoinedTicker, StatPair, useStats, TicketHint, Empty, NeedLogin, OfferCard, OfferImage, PlanBar, PlanCard, Sheet, Spinner, Toggle } from "../components.jsx";
-import { HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, categoryOf, itemOptions } from "../lib/config.js";
+import { BUS_MAX_ROUTES, BUS_POSTS_PER_DAY, HOURS, fixTitlePercent, runs24x7, APP_NAME, CATEGORIES, CONSENT_VERSION, DURATIONS, EMOJIS, IS_OWNER_APP, MAJOR_CITIES, MAX_CATEGORIES, PLANS, POSTS_PER_DAY, RETENTION, categoryOf, itemOptions } from "../lib/config.js";
 import { RatingBadge } from "./reviews.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { ago, clockIST, day, daysLeft, errText, hoursText, istDayStart, prettyPhone, rupee, telLink, timeLeft, typePhone, validPhone, waLink } from "../lib/format.js";
@@ -285,6 +285,7 @@ export function OwnerOffers() {
                 <div className="muted small">{rupee(o.price)} <s>{rupee(o.origPrice)}</s>{o.origPrice > o.price ? ` · ${Math.round((1 - o.price / o.origPrice) * 100)}% off` : ""}</div>
                 <div className="small" style={{ fontWeight: 700, color: "var(--ink)", margin: "2px 0" }}>👀 Seen by {o.views || 0} customer{o.views === 1 ? "" : "s"}</div>
                 <div className="muted small">{live ? `Offer ends in ${hoursText(o.endsAt - now)} (at ${clockIST(o.endsAt)})` : o.status === "removed" ? "Removed by LastPick for breaking the rules" : "Ended"}</div>
+                {live && o.category === "bus" && <SeatsEditor offer={o} />}
                 {live && (() => {
                   return <div className="gap" style={{ marginTop: 8, flexWrap: "wrap" }}><a className="chip" href={"#/offer/" + o.id}>View</a>
                     <button className="chip" onClick={() => setEnding(o)}>End now</button></div>;
@@ -305,6 +306,29 @@ export function OwnerOffers() {
   );
 }
 
+// Bus tickets: change seats left on a live offer as tickets sell (0 = sold out). Free, doesn't use a post.
+function SeatsEditor({ offer }) {
+  const { toast } = useApp();
+  const [seats, setSeats] = useState(() => offer.items.map((x) => String(x.s ?? "")));
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try { await api.updateSeats(offer.id, seats.map((x) => Math.max(0, Math.min(99, Math.round(Number(x) || 0))))); toast("Seats updated"); }
+    catch (e) { toast(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="seatsed">
+      {offer.items.map((it, i) => (
+        <label key={i}><span>{it.f} → {it.t} · {clockIST(it.d)}</span>
+          <input type="number" min="0" max="99" inputMode="numeric" value={seats[i]} onChange={(e) => setSeats((l) => l.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`Seats left, ${it.f} to ${it.t}`} /></label>
+      ))}
+      <button className="chip on" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save seats left"}</button>
+      <span className="hint">0 = sold out. Free: doesn't use a post.</span>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ Post an offer
 export function PostOffer() {
   const { business, toast, config } = useApp();
@@ -316,7 +340,9 @@ export function PostOffer() {
     const dayStart = Math.floor((Date.now() + 5.5 * 3600000) / 86400000) * 86400000 - 5.5 * 3600000;
     api.myOffers().then((l) => setPostedToday(l.filter((o) => o.createdAt >= dayStart).length)).catch(() => setPostedToday(0));
   }, []);
-  const postsLeft = postedToday == null ? POSTS_PER_DAY : Math.max(0, POSTS_PER_DAY - postedToday);
+  const isBusCat = (allowed[0] === "bus");
+  const perDay = isBusCat ? BUS_POSTS_PER_DAY : POSTS_PER_DAY;
+  const postsLeft = postedToday == null ? perDay : Math.max(0, perDay - postedToday);
   // An offer is a list of items (up to 10). Names come from My items (the partner's own list, names only);
   // each day the partner types the actual price, the offer price and, if they like, a quantity ("10 plates").
   const row = (n, unit) => ({ n, a: "", p: "", qn: "", qu: unit });
@@ -332,6 +358,12 @@ export function PostOffer() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const units = itemOptions(f.category).units;
   const setItem = (i, k, v) => setF((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
+  // Bus tickets: routes instead of items (up to 6): from, to, departure time, seats left, actual and offer price
+  const blankRoute = (from = "") => ({ f: from, t: "", time: "", s: "", a: "", p: "" });
+  const [routes, setRoutes] = useState(() => [blankRoute()]);
+  const setRoute = (i, k, v) => setRoutes((l) => l.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  const addRoute = () => setRoutes((l) => (l.length >= BUS_MAX_ROUTES ? l : [...l, blankRoute(l[l.length - 1]?.f || "")]));
+  const removeRoute = (i) => setRoutes((l) => (l.length > 1 ? l.filter((_, j) => j !== i) : [blankRoute()]));
   const picked = (name) => f.items.some((x) => x.n === name);
   const togglePick = (name) => setF((p) => (p.items.some((x) => x.n === name)
     ? { ...p, items: p.items.filter((x) => x.n !== name) }
@@ -363,25 +395,49 @@ export function PostOffer() {
   const closeLabel = allDay ? "24 hours" : "11 PM";
   const whenText = (ts) => (ts - istDayStart(now) >= 86400000 ? `${clockIST(ts)} tomorrow` : clockIST(ts));
   const setCategory = (c) => setF((p) => ({ ...p, category: c }));
+  const isBus = f.category === "bus";
+  // a departure time "22:30" means today, or tomorrow if that time has already passed (night buses after midnight)
+  const departOf = (hhmm) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ""); if (!m) return null;
+    let t = dayStart + (Number(m[1]) * 60 + Number(m[2])) * 60000;
+    if (t < Date.now() + 5 * 60000) t += 86400000;
+    return t;
+  };
+  const busRoutes = routes.map((x) => ({ from: x.f.trim(), to: x.t.trim(), departs: departOf(x.time), seats: Math.round(Number(x.s)), a: Number(x.a), p: Number(x.p), raw: x }));
+  const busFilled = busRoutes.filter((x) => x.from || x.to || x.raw.time || x.raw.a || x.raw.p);
   const items = f.items.map((x) => ({ n: x.n.trim(), a: Number(x.a), p: Number(x.p), q: Number(x.qn) > 0 ? `${Number(x.qn)} ${x.qu || units[0]}` : "", raw: x }));
   const filled = items.filter((x) => x.n || x.raw.a !== "" || x.raw.p !== "");
   const problems = [];
   if (f.title.trim().length < 3) problems.push("an offer name");
-  if (!filled.length) problems.push("at least one item from My items");
-  filled.forEach((x, i) => {
+  if (isBus) {
+    if (!busFilled.length) problems.push("at least one route");
+    busFilled.forEach((x, i) => {
+      const name = x.from && x.to ? `${x.from} → ${x.to}` : `route ${i + 1}`;
+      if (x.from.length < 2 || x.to.length < 2) problems.push(`From and To for route ${i + 1}`);
+      else if (!x.departs) problems.push(`a departure time for ${name}`);
+      else if (!(x.seats >= 1 && x.seats <= 99)) problems.push(`seats left for ${name}`);
+      else if (!(x.a > 0) || x.raw.p === "" || !(x.p >= 0)) problems.push(`both prices for ${name}`);
+      else if (x.p >= x.a) problems.push(`an offer price for ${name} lower than the actual price`);
+    });
+  } else if (!filled.length) problems.push("at least one item from My items");
+  if (!isBus) filled.forEach((x, i) => {
     if (x.n.length < 2) problems.push(`a name for item ${i + 1}`);
     else if (!(x.a > 0) || x.raw.p === "" || !(x.p >= 0)) problems.push(`both prices for ${x.n}`);
     else if (x.p >= x.a) problems.push(`an offer price for ${x.n} lower than its actual price`);
   });
-  const good = filled.filter((x) => x.n.length >= 2 && x.a > 0 && x.p >= 0 && x.p < x.a);
+  const busGood = busFilled.filter((x) => x.from.length >= 2 && x.to.length >= 2 && x.departs && x.seats >= 1 && x.a > 0 && x.p >= 0 && x.p < x.a);
+  const lastBus = busGood.reduce((m, x) => Math.max(m, x.departs), 0);
+  const good = isBus
+    ? busGood.map((x) => ({ n: `${x.from} to ${x.to} ${clockIST(x.departs)}`, a: x.a, p: x.p, q: `${x.seats} seats`, f: x.from, t: x.to, d: x.departs, s: x.seats }))
+    : filled.filter((x) => x.n.length >= 2 && x.a > 0 && x.p >= 0 && x.p < x.a);
   const best = good.reduce((m, x) => (!m || 1 - x.p / x.a > 1 - m.p / m.a ? x : m), null);
   const orig = best ? best.a : 0, price = best ? best.p : null;
   const realPct = best ? Math.round((1 - best.p / best.a) * 100) : null;
 
   const preview = {
     id: "preview", businessId: business.id, business: { name: business.name, area: business.area, lat: business.lat, lng: business.lng },
-    title: f.title || "Your offer name", description: "", category: f.category, emoji: f.emoji, photoUrl: null, items: good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })),
-    origPrice: orig || 0, price, quantity: "", endsAt: endsAtOf(f.hours) - Date.now() + now, status: "live",
+    title: f.title || "Your offer name", description: "", category: f.category, emoji: f.emoji, photoUrl: null, items: isBus ? good : good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })),
+    origPrice: orig || 0, price, quantity: "", endsAt: isBus ? (lastBus || now + 3600000) : endsAtOf(f.hours) - Date.now() + now, status: "live",
   };
 
   // "Make offer live" first shows the posting rules; posting happens after "I understand, post my offer"
@@ -392,7 +448,9 @@ export function PostOffer() {
     try {
       await api.createOffer({
         title: f.title.trim(), category: f.category, emoji: f.emoji,
-        items: good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })), endsAt: endsAtOf(f.hours),
+        ...(isBus
+          ? { routes: busGood.map(({ from, to, departs, seats, a, p }) => ({ from, to, departs, seats, a, p })) }
+          : { items: good.map(({ n, a, p, q }) => (q ? { n, a, p, q } : { n, a, p })), endsAt: endsAtOf(f.hours) }),
         rulesAccepted: true, rulesVersion: POSTING_RULES_VERSION,
       });
       toast(job ? "Your job opening is live 📣" : "Your offer is live 🎉");
@@ -434,9 +492,38 @@ export function PostOffer() {
           <span className="hint">{job
             ? "Workers for your own shop only. Shown to customers within 10 km, like a local ad. Ends today by 11 PM."
             : allDay
-              ? "Hotels and local ads run 24×7: post any time, and your offer can run for up to 24 hours."
+              ? "Hotels, local ads and bus tickets run 24×7: post any time, and your offer can run for up to 24 hours."
               : "You can post only in your registered category. Offers run today only and end by 11 PM (India time)."}</span></div>
         <div className="fld"><label>Offer name</label><input maxLength={120} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Evening sweets sale" /></div>
+        {isBus ? <>
+          <div className="fld"><label>Routes <span className="muted small">({routes.length} of {BUS_MAX_ROUTES})</span></label>
+            <div className="routesed">
+              {routes.map((x, i) => {
+                const dep = departOf(x.time);
+                return (
+                  <div className="rte" key={i}>
+                    <span className="rn">Route {i + 1}</span>
+                    <button type="button" className="ix" onClick={() => removeRoute(i)} aria-label={`Remove route ${i + 1}`}><Icon d="x" size={14} stroke={2.4} /></button>
+                    <div className="rg2">
+                      <label>From<input maxLength={40} value={x.f} onChange={(e) => setRoute(i, "f", e.target.value)} placeholder="Hyderabad" /></label>
+                      <label>To<input maxLength={40} value={x.t} onChange={(e) => setRoute(i, "t", e.target.value)} placeholder="Vijayawada" /></label>
+                    </div>
+                    <div className="rg4">
+                      <label>Departs<input type="time" value={x.time} onChange={(e) => setRoute(i, "time", e.target.value)} /></label>
+                      <label>Seats<input type="number" min="1" max="99" inputMode="numeric" value={x.s} onChange={(e) => setRoute(i, "s", e.target.value)} placeholder="6" /></label>
+                      <label>Actual ₹<input type="number" min="1" inputMode="numeric" value={x.a} onChange={(e) => setRoute(i, "a", e.target.value)} placeholder="1200" /></label>
+                      <label>Offer ₹<input className="op" type="number" min="0" inputMode="numeric" value={x.p} onChange={(e) => setRoute(i, "p", e.target.value)} placeholder="750" /></label>
+                    </div>
+                    {dep && <div className="hint">Leaves {whenText(dep)} · shown until then (in {hoursText(dep - now)})</div>}
+                  </div>
+                );
+              })}
+              {routes.length < BUS_MAX_ROUTES && <button type="button" className="iadd" onClick={addRoute}><Icon d="plus" size={16} stroke={2.4} />Add route</button>}
+            </div>
+          </div>
+          {realPct != null && <div className="pctline">Best deal: <b>{realPct}% off</b> <span className="muted small">· customers see "Up to {realPct}% off"</span></div>}
+          <div className="banner ok" style={{ margin: 0 }}>⏱️<span>{lastBus ? <>Your offer stays live until the last bus leaves: <b>{whenText(lastBus)}</b> (in {hoursText(lastBus - now)}). Each route disappears when its bus leaves.</> : "Each route disappears when its bus leaves. Seats left can be changed later from My offers, free."}</span></div>
+        </> : <>
         <div className="fld"><label>My items <a className="link small" href="#/owner/items" style={{ float: "right", fontWeight: 600 }}>Manage</a></label>
           {myItems == null ? <Spinner /> : myItems.length
             ? <div className="chips wrap" aria-label="Pick items from My items">{myItems.map((it) => (
@@ -473,6 +560,7 @@ export function PostOffer() {
             </select>
             <span className="hint">{allDay ? "Hotels and local ads run 24×7: up to 24 hours from now." : "Pick the time your offer ends today. Everything ends by 11 PM. Last time to post: 10:30 PM."}</span></div>
         </div>
+        </>}
         <div className="muted small">Customers will contact you on <b>{prettyPhone(business.phone)}</b> ({business.city}). <a className="link" href="#/owner/business">Change</a></div>
       </div>
       <div className="label-up">How customers see it</div>
@@ -480,8 +568,8 @@ export function PostOffer() {
       <div className="pad" style={{ paddingTop: 0 }}>
         {err && <><div className="error">{err}</div><TicketHint style={{ marginBottom: 10 }} /></>}
         <div className={"banner " + (postsLeft > 0 ? "ok" : "warn")} style={{ margin: "0 0 12px" }}>{postsLeft > 0
-          ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${POSTS_PER_DAY} a day).`
-          : `📅 You've posted ${POSTS_PER_DAY} offers today. You can post again tomorrow from 4 AM.`}</div>
+          ? `📅 You can post ${postsLeft} more offer${postsLeft > 1 ? "s" : ""} today (${perDay} a day).`
+          : `📅 You've posted ${perDay} offers today. You can post again tomorrow${isBusCat ? " (from midnight)" : " from 4 AM"}.`}</div>
         {!postingOpen && <div className="banner warn" style={{ margin: "0 0 12px" }}>🌙<span>Posting is closed now. Partners can post from 4 AM to 10:30 PM (India time); hotels and local ads can post any time. Post again at 4 AM.</span></div>}
         <button className="btn main" disabled={busy || problems.length > 0 || postsLeft === 0 || !postingOpen} onClick={submit}>{busy ? "Posting…" : job ? "📣 Post job opening" : "🚀 Make offer live"}</button>
         {problems.length > 0 && <div className="note">Add {problems.join(", ")}.</div>}
