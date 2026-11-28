@@ -1,0 +1,110 @@
+# Delete accounts from the live LastPick database (e.g. test accounts), on demand.
+#
+# Run it from GitHub: Actions → "Delete users" → Run workflow.
+#   1. First run with confirm left empty: it only LISTS the accounts it found (nothing is deleted).
+#   2. Check the list in the run's summary, then run again with confirm = DELETE.
+#
+# Deleting a user removes everything linked to them (same as the app's own account deletion):
+# their business, offers, leads, History, reviews, plans and payment records. It can't be undone.
+# Uses the SUPABASE_ACCESS_TOKEN secret the deploy already uses (no DATABASE_URL needed).
+name: Delete users
+
+on:
+  workflow_dispatch:
+    inputs:
+      emails:
+        description: "Login e-mails to delete, separated by commas (max 20)"
+        required: true
+        default: "customer.test@lastpick.in, customer1.test@lastpick.in, customer2.test@lastpick.in, testcustomer@lastpick.in, partner.test@lastpick.in, admin.test@lastpick.in"
+      allow_admin:
+        description: "Also delete admin / moderator / support desk accounts in the list"
+        type: boolean
+        default: false
+      confirm:
+        description: "Type DELETE to really delete (leave empty to only list them)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delete-users
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT: ${{ secrets.SUPABASE_PROJECT_ID || 'wgdhcseugaqbbmnkgnxv' }}
+      EMAILS: ${{ inputs.emails }}
+      ALLOW_ADMIN: ${{ inputs.allow_admin }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - name: Check the e-mails
+        id: list
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::SUPABASE_ACCESS_TOKEN secret is missing"; exit 1; }
+          # one e-mail per line, lower-case, trimmed; each must look like an e-mail (keeps the SQL safe)
+          printf '%s' "$EMAILS" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | tr 'A-Z' 'a-z' | grep -v '^$' | sort -u > emails.txt || true
+          n=$(wc -l < emails.txt)
+          [ "$n" -ge 1 ] || { echo "::error::No e-mails given"; exit 1; }
+          [ "$n" -le 20 ] || { echo "::error::At most 20 e-mails per run (got $n)"; exit 1; }
+          while read -r e; do
+            [[ "$e" =~ ^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$ ]] || { echo "::error::Not an e-mail: $e"; exit 1; }
+          done < emails.txt
+          echo "list=$(sed "s/.*/'&'/" emails.txt | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
+      - name: Find the accounts
+        env:
+          LIST: ${{ steps.list.outputs.list }}
+        run: |
+          set -euo pipefail
+          sql="SELECT u.email, u.role, coalesce(b.name, '') AS business, coalesce(b.status, '') AS business_status, u.created_at::date AS joined
+               FROM users u LEFT JOIN businesses b ON b.id = u.id WHERE lower(u.email) IN ($LIST) ORDER BY u.email"
+          curl -sS --fail-with-body -X POST "https://api.supabase.com/v1/projects/$PROJECT/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            --data "$(jq -n --arg q "$sql" '{query: $q}')" > found.json
+          {
+            echo "### Accounts found"
+            echo ""
+            echo "| E-mail | Role | Business | Status | Joined |"
+            echo "|---|---|---|---|---|"
+            jq -r '.[] | "| \(.email) | \(.role) | \(.business) | \(.business_status) | \(.joined) |"' found.json
+            echo ""
+            missing=$(comm -23 emails.txt <(jq -r '.[].email | ascii_downcase' found.json | sort -u) || true)
+            [ -z "$missing" ] || { echo "Not found (skipped):"; echo "$missing" | sed 's/^/- /'; echo ""; }
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$(jq length found.json)" -gt 0 ] || { echo "Nothing to delete."; exit 0; }
+          admins=$(jq -r '.[] | select(.role != "user") | .email' found.json)
+          if [ -n "$admins" ] && [ "$ALLOW_ADMIN" != "true" ]; then
+            echo "::error::These are admin, moderator or support desk accounts: $(echo $admins). Tick 'Also delete admin / moderator / support desk accounts' to include them."
+            exit 1
+          fi
+
+      - name: Delete them
+        if: inputs.confirm == 'DELETE'
+        env:
+          LIST: ${{ steps.list.outputs.list }}
+        run: |
+          set -euo pipefail
+          roles="'user'"; [ "$ALLOW_ADMIN" = "true" ] && roles="'user','admin','moderator','support'"
+          # rate-limit counters are keyed by user id; users cascade to business, offers, leads, history, reviews, plans
+          sql="WITH gone AS (SELECT id FROM users WHERE lower(email) IN ($LIST) AND role IN ($roles)),
+                    rl AS (DELETE FROM rate_limits WHERE key IN (SELECT id::text FROM gone)),
+                    del AS (DELETE FROM users WHERE id IN (SELECT id FROM gone) RETURNING email)
+               SELECT email FROM del ORDER BY email"
+          curl -sS --fail-with-body -X POST "https://api.supabase.com/v1/projects/$PROJECT/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            --data "$(jq -n --arg q "$sql" '{query: $q}')" > deleted.json
+          {
+            echo "### Deleted ($(jq length deleted.json))"
+            jq -r '.[] | "- \(.email)"' deleted.json
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Only listed (nothing deleted)
+        if: inputs.confirm != 'DELETE'
+        run: echo "Nothing was deleted. To delete the accounts above, run again with confirm = DELETE." | tee -a "$GITHUB_STEP_SUMMARY"
